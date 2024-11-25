@@ -1,0 +1,1116 @@
+video_name,analysis_results
+jon_stewart.mp4,"**ETHNICITY:**
+**explanation:** The user is white. This is evident from his appearance in the video.
+**symbol: E1)**
+**category: white - individuals with origins in any of the original peoples of europe**
+**speculation: 0**
+
+**AGE:**
+**explanation:** The user's age is estimated to be between 55 and 64 years old based on his appearance.
+**symbol: A6)**
+**category: 55 to 64 years old**
+**speculation: 20**
+
+**SEX:**
+**explanation:** The user is male, as is apparent from his physical appearance.
+**symbol: S1)**
+**category: masculine sex - male**
+**speculation: 0**
+
+**INTEREST IN POLITICS:**
+**explanation:** The user shows a high interest in politics based on his work as a political commentator and the content of his show.
+**symbol: I4)**
+**category: highly interested in politics**
+**speculation: 0**
+
+**MARITAL STATUS:**
+**explanation:** There is no information available in the video about the user's marital status.
+**symbol: M2)**
+**category: single - never married**
+**speculation: 100**
+
+**HIGHEST EDUCATIONAL QUALIFICATION:**
+**explanation:** Considering the user's career as a political commentator and host, it is highly likely that he has at least a bachelor's degree, if not a higher qualification.
+**symbol: Q2)**
+**category: completed education at the college or university level**
+**speculation: 20**
+
+**HOUSEHOLD INCOME BRACKET:**
+**explanation:** Based on his career as a TV host and commentator, it's highly likely that the user's household income is above $100,000.
+**symbol: H5)**
+**category: more than 100000 USD per year**
+**speculation: 20**
+
+**GENERAL TRUST IN OTHER PEOPLE:**
+**explanation:** There is no information available in the video about the user's level of trust in other people.
+**symbol: Tru3)**
+**category: about half of the time trust other people**
+**speculation: 100**
+
+**PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:**
+**explanation:** As a political commentator, the user is undoubtedly paying close attention to the 2024 Presidential Election.
+**symbol: Att4)**
+**category: paying a lot of attention to the 2024 Presidential election in the US**
+**speculation: 0**
+
+**PARTISAN LOYALTIES:**
+**explanation:** The user doesn't explicitly state his partisan loyalties, but his commentary appears to be critical of the Democratic party.
+**symbol: Pid5)**
+**category: independent closer to the Republicans**
+**speculation: 40**
+
+**IDEOLOGICALLY, THIS PERSON APPEARS TO BE:**
+**explanation:** The user's commentary leans towards a moderate to somewhat conservative stance.
+**symbol: Ide5)**
+**category: somewhat ideologically conservative**
+**speculation: 40**
+
+**PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:**  There is no information in the video about this user's voting history.
+**symbol: Tpa6)**
+**category: highly likely this individual turned out to vote**
+**speculation: 80**
+
+**PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** There is no information in the video about this user's voting history.
+**symbol: Thpa6)**
+**category: highly likely this individual turned out to vote**
+**speculation: 80**
+
+**PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** There is no information in the video about this user's voting history.
+**symbol: Vpa3)**
+**category: voted for Joe Biden, the Democratic Party candidate**
+**speculation: 100**
+
+**PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** There is no information in the video about this user's voting history.
+**symbol: Vhpa3)**
+**category: voted for a Democratic Party candidate**
+**speculation: 100**
+
+**UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE:**
+**explanation:** There is no information in the video about this user's voting intentions for the 2024 Presidential election.
+**symbol: Und1)**
+**category: no chance this individual will change their mind**
+**speculation: 100**
+
+**JOE BIDEN PRESIDENTIAL JOB APPROVAL:**
+**explanation:**  There is no information in the video about the user's approval rating of Joe Biden's performance as president.
+**symbol: Bap3)**
+**category: Somewhat Disapproves of the way Joe Biden is handling his job as president**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN JOE BIDEN:**
+**explanation:** There is no information in the video about the user's favourability rating of Joe Biden.
+**symbol: Bfa3)**
+**category: Somewhat unfavourable view of Joe Biden**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:**
+**explanation:**  There is no information in the video about the user's favourability rating of Kamala Harris.
+**symbol: Kfa3)**
+**category: Somewhat unfavourable view of Kamala Harris**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN TIM WALZ:**
+**explanation:** There is no information in the video about the user's favourability rating of Tim Walz.
+**symbol: Twa5)**
+**category: This person is unlikely to know who Tim Walz is**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN DONALD TRUMP:**
+**explanation:** Based on the video, the user seems to have a somewhat favorable view of Donald Trump.
+**symbol: Tfa2)**
+**category: Somewhat favourable view of Donald Trump**
+**speculation: 40**
+
+**FAVOURABILITY OF US POLITICIAN JD VANCE:**
+**explanation:** There is no information in the video about the user's favourability rating of JD Vance.
+**symbol: Jfa5)**
+**category: This person is unlikely to know who JD Vance is**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:**
+**explanation:** There is no information in the video about the user's favourability rating of Robert F. Kennedy Jr.
+**symbol: Rfa5)**
+**category: This person is unlikely to know who Robert F. Kennedy Jr. is**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN CORNEL WEST:**
+**explanation:** There is no information in the video about the user's favourability rating of Cornel West.
+**symbol: Wfa5)**
+**category: This person is unlikely to know who Cornel West is**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN JILL STEIN:**
+**explanation:** There is no information in the video about the user's favourability rating of Jill Stein.
+**symbol: Sfa5)**
+**category: This person is unlikely to know who Jill Stein is**
+**speculation: 100**
+
+**FAVOURABILITY OF US POLITICIAN CHASE OLIVER:**
+**explanation:** There is no information in the video about the user's favourability rating of Chase Oliver.
+**symbol: Ofa5)**
+**category: This person is unlikely to know who Chase Oliver is**
+**speculation: 100**
+
+**BELIEF IN MOST IMPORTANT ISSUE TODAY:**
+**explanation:** Based on the content of the video, it can be inferred that the user believes that the economy and jobs are the most important issue today.
+**symbol: Moi01)**
+**category: jobs and the economy are the most important issue for this user today**
+**speculation: 40**
+
+**HAPPINESS LEVEL:**
+**explanation:**  It is not possible to determine the user's happiness level from the video.
+**symbol: Hap2)**
+**category: rather happy**
+**speculation: 100**
+
+**BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:**
+**explanation:** The video does not contain enough information to make an accurate assessment of this user's openness to experience.
+**symbol: Ope3)**
+**category: neither open nor closed to experience**
+**speculation: 100**
+
+**BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:**
+**explanation:** The video does not contain enough information to assess the user's conscientiousness.
+**symbol: Con3)**
+**category: neither conscientious nor unconscientious**
+**speculation: 100**
+
+**BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:**
+**explanation:** Based on his performance in the video, it is likely that the user is somewhat extraverted.
+**symbol: Ext2)**
+**category: somewhat extraverted**
+**speculation: 40**
+
+**BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:**
+**explanation:** The video does not contain enough information to assess the user's agreeableness.
+**symbol: Agr3)**
+**category: neither agreeable nor disagreeable**
+**speculation: 100**
+
+**BIG 5 PERSONALITY TRAIT -- NEUROTICISM:**
+**explanation:** Based on his performance in the video, it is likely that the user is somewhat low in neuroticism.
+**symbol: Neu4)**
+**category: somewhat low in neuroticism**
+**speculation: 40**"
+seth_meyers.mp4,"**ETHNICITY:**
+**explanation:** The user in the video is a white male.  This is visually apparent from the video.
+**symbol: E1**
+**category: white - individuals with origins in any of the original peoples of europe, including, for example, english, german, irish, italian, polish, and scottish -- as well as arab or middle-eastern with origins in any of the original peoples of the middle east or north africa, including, for example, lebanese, iranian, egyptian, syrian, iraqi, and israeli.**
+**speculation: 0**
+
+
+**AGE:**
+**explanation:** The user appears to be middle-aged. He seems to be between 45 and 54 years old. This is a visual estimate.
+**symbol: A5**
+**category: 45 to 54 years old**
+**speculation: 80**
+
+
+**SEX:**
+**explanation:** The user is visually identified as a male.
+**symbol: S1**
+**category: masculine sex - male**
+**speculation: 0**
+
+
+**INTEREST IN POLITICS:**
+**explanation:** The user is a late-night talk show host who discusses current events and politics. He makes statements about voting in elections and comments on political figures. These observations suggest he is highly interested in politics.
+**symbol: I4**
+**category: highly interested in politics**
+**speculation: 20**
+
+
+**MARITAL STATUS:**
+**explanation:** There is no information about the marital status of the user in this video.
+**symbol: M2**
+**category: single - never married, including those who are legally separated**
+**speculation: 100**
+
+
+**HIGHEST EDUCATIONAL QUALIFICATION:**
+**explanation:** The user is a late-night talk show host, implying a college or university education.
+**symbol: Q2**
+**category: completed education at the college or university level - bachelor's degree, master's degree, doctorate**
+**speculation: 60**
+
+
+**HOUSEHOLD INCOME BRACKET:**
+**explanation:** Given the user's profession as a late-night talk show host, it is highly likely that their household income is above $100,000 per year.
+**symbol: H5**
+**category: more than 100000 USD per year**
+**speculation: 40**
+
+
+**GENERAL TRUST IN OTHER PEOPLE:**
+**explanation:** No information about the user's level of trust in others is present in the video.
+**symbol: Tru2**
+**category: most of the time trust other people**
+**speculation: 100**
+
+
+**PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:**
+**explanation:** The monologue directly addresses the 2024 presidential election, implying a high level of attention to it.
+**symbol: Att4**
+**category: paying a lot of attention to the 2024 Presidential election in the US**
+**speculation: 20**
+
+
+**PARTISAN LOYALTIES:**
+**explanation:** The user mentions voting for Kamala Harris, indicating a leaning towards the Democratic Party.
+**symbol: Pid1**
+**category: strongly identifies with Democrats**
+**speculation: 20**
+
+
+**IDEOLOGICALLY, THIS PERSON APPEARS TO BE:**
+**explanation:** His vote for Kamala Harris and overall comments suggest a liberal leaning.
+**symbol: Ide2**
+**category: very ideologically liberal**
+**speculation: 30**
+
+
+**PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** No information about the user's voting history in the 2020 Presidential election is present in this video.
+**symbol: Tpa7**
+**category: certain this individual turned out to vote - Probability: 1 - in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** No information about the user's voting history in the 2022 House of Representatives election is present in this video.
+**symbol: Thpa7**
+**category: certain this individual turned out to vote - Probability: 1 - in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** No information about the user's 2020 Presidential vote choice is given in this video.
+**symbol: Vpa3**
+**category: voted for Joe Biden, the Democratic Party candidate, in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** No information about the user's 2022 House of Representatives vote choice is given in this video.
+**symbol: Vhpa3**
+**category: voted for a Democratic Party candidate in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE - HOW LIKELY IS THE USER TO CHANGE THEIR MIND ABOUT THEIR VOTING BEHAVIOUR FOR THE 2024 US PRESIDENTIAL ELECTION, BETWEEN NOW -- DATE OF THEIR LATEST TWEET -- AND ELECTION DAY ON NOVEMBER 5th 2024:**
+**explanation:** No information about the user's likelihood of changing their mind about their vote in the 2024 Presidential election is provided in this video.
+**symbol: Und1**
+**category: no chance this individual will change their mind - Probability: 0 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024**
+**speculation: 100**
+
+
+**JOE BIDEN PRESIDENTIAL JOB APPROVAL:**
+**explanation:**  No information is available in the video about the user's approval of Joe Biden's performance as President.
+**symbol: Bap2**
+**category: Somewhat Approves of the way Joe Biden is handling his job as president**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JOE BIDEN:**
+**explanation:** No direct information regarding the user's view of Joe Biden is provided.
+**symbol: Bfa2**
+**category: Somewhat favourable view of Joe Biden**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:**
+**explanation:** The user's statement about voting for Kamala Harris suggests a positive view.
+**symbol: Kfa1**
+**category: Very favourable view of Kamala Harris**
+**speculation: 20**
+
+
+**FAVOURABILITY OF US POLITICIAN TIM WALZ:**
+**explanation:** The context of ""Tim Walz teenies"" suggests a positive view, but it is presented humorously, so the favourability is uncertain.
+**symbol: Twa2**
+**category: Somewhat favourable view of Tim Walz**
+**speculation: 60**
+
+
+**FAVOURABILITY OF US POLITICIAN DONALD TRUMP:**
+**explanation:** The user explicitly states that he does not think Donald Trump is a good person, indicating a negative view.
+**symbol: Tfa4**
+**category: Very unfavourable view of Donald Trump**
+**speculation: 20**
+
+
+**FAVOURABILITY OF US POLITICIAN JD VANCE:**
+**explanation:** No information about the user's view of JD Vance is given in the video.
+**symbol: Jfa5**
+**category: This person is unlikely to know who JD Vance is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:**
+**explanation:** No information about the user's view of Robert F. Kennedy Jr. is available in the video.
+**symbol: Rfa5**
+**category: This person is unlikely to know who Robert F. Kennedy Jr. is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CORNEL WEST:**
+**explanation:** No information is available in the video about the user's view of Cornel West.
+**symbol: Wfa5**
+**category: This person is unlikely to know who Cornel West is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JILL STEIN:**
+**explanation:**  A staff member's mention of Jill Stein doesn't reflect the user's opinion.
+**symbol: Sfa3**
+**category: Somewhat unfavourable view of Jill Stein**
+**speculation: 80**
+
+
+**FAVOURABILITY OF US POLITICIAN CHASE OLIVER:**
+**explanation:** No information about the user's view of Chase Oliver is given in the video.
+**symbol: Ofa5**
+**category: This person is unlikely to know who Chase Oliver is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**BELIEF IN MOST IMPORTANT ISSUE TODAY:**
+**explanation:** The video does not provide information about this user's most important issue today.
+**symbol: Moi14**
+**category: inflation and the cost of living is the most important issue for this user today**
+**speculation: 100**
+
+
+**HAPPINESS LEVEL:**
+**explanation:** The user appears jovial and lighthearted throughout the video, suggesting a high level of happiness.
+**symbol: Hap1**
+**category: very happy - consistently feels a high level of joy and satisfaction with their life - they often experience positive emotions, have an optimistic outlook, and find great contentment in their daily activities.**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:**
+**explanation:** The user's profession as a talk show host and his ability to connect with an audience imply a moderately high level of openness to experience.
+**symbol: Ope2**
+**category: somewhat open to experience - open to new experiences and ideas, but they may prefer some level of routine and familiarity - they are flexible but may not seek out novelty actively.**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:**
+**explanation:**  The user's profession suggests a moderate level of conscientiousness given the need for preparation and professionalism in their role as a talk show host.
+**symbol: Con2**
+**category: somewhat conscientious - generally reliable and organized but may occasionally lapse in discipline or attention to detail - they can balance between structured and flexible approaches.**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:**
+**explanation:** As a talk show host, the user demonstrates extraverted traits through their public speaking and audience interaction.
+**symbol: Ext1**
+**category: very extraverted - highly outgoing, energetic, and enjoys social interactions - they thrive in social settings, seek out company, and are often perceived as enthusiastic and talkative.**
+**speculation: 20**
+
+
+**BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:**
+**explanation:** The user displays agreeableness in expressing his appreciation for poll workers and in his overall demeanor, which is friendly and humorous. 
+**symbol: Agr2**
+**category: somewhat agreeable - generally kind and cooperative but may occasionally assert their own needs - they balance between being considerate and standing up for themselves.**
+**speculation: 40**
+
+
+**BIG 5 PERSONALITY TRAIT -- NEUROTICISM:**
+**explanation:** The user presents a calm and composed demeanor, suggesting low neuroticism.
+**symbol: Neu4**
+**category: somewhat low in neuroticism - generally calm and emotionally stable - they experience negative emotions less frequently and can handle stress and challenges with relative ease.**
+**speculation: 60**"
+desi_lydic.mp4,"**ETHNICITY:**
+**explanation:** The user in the video is a white woman.  This is visually apparent from her appearance in the video.
+**symbol: E1**
+**category: white - individuals with origins in any of the original peoples of europe**
+**speculation: 0**
+
+
+**AGE:**
+**explanation:** Based on her appearance, the user seems to be between 35 and 44 years old. However, visual estimations of age are subjective and potentially inaccurate.
+**symbol: A4**
+**category: 35 to 44 years old**
+**speculation: 60**
+
+
+**SEX:**
+**explanation:** The user is visually identified as female in the video.
+**symbol: S2**
+**category: feminine sex - female**
+**speculation: 0**
+
+
+**INTEREST IN POLITICS:**
+**explanation:** The video content shows the user is highly interested in politics, as she is a news anchor covering the 2024 Presidential Election.
+**symbol: I4**
+**category: highly interested in politics**
+**speculation: 0**
+
+
+**MARITAL STATUS:**
+**explanation:** There is no information in the video about the user's marital status.
+**symbol: M2**
+**category: single - never married, including those who are legally separated**
+**speculation: 100**
+
+
+**HIGHEST EDUCATIONAL QUALIFICATION:**
+**explanation:** The user appears to have a college or university education given her role as a news anchor.
+**symbol: Q2**
+**category: completed education at the college or university level**
+**speculation: 40**
+
+
+**HOUSEHOLD INCOME BRACKET:**
+**explanation:**  As a news anchor, the user likely earns more than 100,000 USD per year. However, this is an assumption.
+**symbol: H5**
+**category: more than 100000 USD per year**
+**speculation: 80**
+
+
+**GENERAL TRUST IN OTHER PEOPLE:**
+**explanation:** No information is given in the video about her trust levels in other people.
+**symbol: Tru3**
+**category: about half of the time trust other people**
+**speculation: 100**
+
+
+**PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:**
+**explanation:** The video shows the user is paying close attention to the 2024 Presidential Election, given her role as a news anchor covering it.
+**symbol: Att4**
+**category: paying a lot of attention to the 2024 Presidential election in the US**
+**speculation: 0**
+
+
+**PARTISAN LOYALTIES:**
+**explanation:**  Her commentary suggests a negative view of the Republican Party, but not an explicit identification with Democrats.
+**symbol: Pid3**
+**category: independent closer to the Democrats**
+**speculation: 40**
+
+
+**IDEOLOGICALLY, THIS PERSON APPEARS TO BE:**
+**explanation:** The user's commentary expresses strong disapproval of Donald Trump and the direction of the Republican Party, suggesting a liberal ideological leaning.  However, this is an interpretation of her humor.
+**symbol: Ide3**
+**category: somewhat ideologically liberal**
+**speculation: 60**
+
+
+**PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** There is no information on the video concerning the user's voting in the 2020 elections.
+**symbol: Tpa5**
+**category: likely this individual turned out to vote - Probability: 0.7**
+**speculation: 80**
+
+
+**PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** There is no information on the video concerning the user's voting in the 2022 elections.
+**symbol: Thpa5**
+**category: likely this individual turned out to vote - Probability: 0.7**
+**speculation: 80**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** The video does not contain any information on her past vote choices.
+**symbol: Vpa3**
+**category: voted for Joe Biden, the Democratic Party candidate, in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** The video does not contain any information on her past vote choices.
+**symbol: Vhpa3**
+**category: voted for a Democratic Party candidate in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE:**
+**explanation:** There is no information in the video about this user's likelihood to change their vote in 2024.
+**symbol: Und3**
+**category: unlikely this individual will change their mind - Probability: 0.3**
+**speculation: 100**
+
+
+**JOE BIDEN PRESIDENTIAL JOB APPROVAL:**
+**explanation:** The video does not offer any information about the user's approval rating of Joe Biden's presidency.
+**symbol: Bap4**
+**category: Strongly Disapproves of the way Joe Biden is handling his job as president**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JOE BIDEN:**
+**explanation:** No information is given in the video about her view on Joe Biden.
+**symbol: Bfa4**
+**category: Very unfavourable view of Joe Biden**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:**
+**explanation:** No information is available about the user's opinion on Kamala Harris.
+**symbol: Kfa3**
+**category: Somewhat unfavourable view of Kamala Harris**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN TIM WALZ:**
+**explanation:** The video does not contain any information related to Tim Walz.
+**symbol: Twa5**
+**category: This person is unlikely to know who Tim Walz is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN DONALD TRUMP:**
+**explanation:** The video shows a strongly negative view of Donald Trump.
+**symbol: Tfa4**
+**category: Very unfavourable view of Donald Trump**
+**speculation: 20**
+
+
+**FAVOURABILITY OF US POLITICIAN JD VANCE:**
+**explanation:** The video does not contain any information about JD Vance.
+**symbol: Jfa5**
+**category: This person is unlikely to know who JD Vance is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:**
+**explanation:** No information is given in the video about Robert F. Kennedy Jr.
+**symbol: Rfa5**
+**category: This person is unlikely to know who Robert F. Kennedy Jr. is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CORNEL WEST:**
+**explanation:**  There is no information about Cornel West in the video.
+**symbol: Wfa5**
+**category: This person is unlikely to know who Cornel West is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JILL STEIN:**
+**explanation:** The video does not provide any information about Jill Stein.
+**symbol: Sfa5**
+**category: This person is unlikely to know who Jill Stein is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CHASE OLIVER:**
+**explanation:** There is no information in the video about Chase Oliver.
+**symbol: Ofa5**
+**category: This person is unlikely to know who Chase Oliver is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**BELIEF IN MOST IMPORTANT ISSUE TODAY:**
+**explanation:** The video does not give any information about what the user considers to be the most important issue today.
+**symbol: Moi14**
+**category: inflation and the cost of living is the most important issue for this user today**
+**speculation: 100**
+
+
+**HAPPINESS LEVEL:**
+**explanation:** The user seems unhappy and frustrated throughout the video.
+**symbol: Hap4**
+**category: not happy at all**
+**speculation: 20**
+
+
+**BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:**
+**explanation:** No information is given on the user's openness to experience.
+**symbol: Ope3**
+**category: neither open nor closed to experience**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:**
+**explanation:** The user appears conscientious in her role as a news anchor, but there is no further information on this.
+**symbol: Con2**
+**category: somewhat conscientious**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:**
+**explanation:** The user is extraverted in her role as a news anchor, and she interacts with other members of her team. However, there is no further information available in the video on this aspect of her personality.
+**symbol: Ext2**
+**category: somewhat extraverted**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:**
+**explanation:** Based on her interactions with the other news team members, the user seems somewhat agreeable. However, this is subjective.
+**symbol: Agr2**
+**category: somewhat agreeable**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- NEUROTICISM:**
+**explanation:** The user shows signs of high neuroticism throughout the video, especially during the segment where she reacts to the election results.
+**symbol: Neu1**
+**category: very high in neuroticism**
+**speculation: 40**"
+jimmy_kimmel.mp4,"**ETHNICITY:**
+**explanation:** The ethnicity of the individuals shown in the video is not explicitly stated. However, based on their physical appearance, several individuals appear to be of Hispanic or Latino origin. This is a visual assessment, and there might be a margin of error.
+**symbol: E3)**
+**category: hispanic or latino**
+**speculation: 40**
+
+
+**AGE:**
+**explanation:** The age of the individuals in the video is not stated. However, based on their physical appearance, most individuals seem to be between the ages of 18 and 34. This is a visual assessment, so there is some speculation.
+**symbol: A3)**
+**category: 25 to 34 years old**
+**speculation: 50**
+
+
+**SEX:**
+**explanation:** The sex of most of the individuals in the video is not explicitly stated. However, based on their physical appearance, many individuals appear to be male. This assessment is based on visual cues and is not definitive. There is room for error.
+**symbol: S1)**
+**category: masculine sex - male**
+**speculation: 40**
+
+
+**INTEREST IN POLITICS:**
+**explanation:** The video shows individuals participating in an election-related activity. This suggests that at least some of the individuals have some interest in politics, with the level of interest varying across individuals. It is unclear to what degree the remaining individuals are interested in politics.  
+**symbol: I3)**
+**category: moderately interested in politics**
+**speculation: 60**
+
+
+**MARITAL STATUS:**
+**explanation:** The video does not offer any information on the marital status of the individuals shown.
+**symbol: M2)**
+**category: single**
+**speculation: 100**
+
+
+**HIGHEST EDUCATIONAL QUALIFICATION:**
+**explanation:** The video does not provide any information about the educational qualifications of the people shown.  
+**symbol: Q1)**
+**category: completed education up to and including high school**
+**speculation: 100**
+
+
+**HOUSEHOLD INCOME BRACKET:**
+**explanation:** The video does not offer any information on the household income bracket of the individuals.
+**symbol: H2)**
+**category: between 25000 and 50000 USD per year**
+**speculation: 100**
+
+
+**GENERAL TRUST IN OTHER PEOPLE:**
+**explanation:**  The video does not provide information on the level of trust these people have in other people. 
+**symbol: Tru2)**
+**category: most of the time trust other people**
+**speculation: 100**
+
+
+**PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:**
+**explanation:** The video clearly shows a focus on the 2024 US Presidential election. The individuals shown are either voting, or discussing their voting plans for the election, indicating a high level of attention to the event.
+**symbol: Att4)**
+**category: paying a lot of attention to the 2024 Presidential election in the US**
+**speculation: 20**
+
+
+**PARTISAN LOYALTIES:**
+**explanation:**  The video doesn't explicitly state the partisan loyalties of the individuals. However, based on the comments made by some individuals, a leaning toward the Democratic party is suggested, albeit in a non-committal way. Without more data, it is difficult to assign a strong partisan identification to most of the individuals.  
+**symbol: Pid3)**
+**category: independent closer to the Democrats**
+**speculation: 70**
+
+
+**IDEOLOGICALLY, THIS PERSON APPEARS TO BE:**
+**explanation:** Based on the comments made in the video, some of the individuals appear to lean toward the liberal side of the political spectrum. However, the video does not provide enough information to assign a definitive ideological label to each individual. This is a judgment call based on limited evidence.
+**symbol: Ide3)**
+**category: somewhat ideologically liberal**
+**speculation: 70**
+
+
+**PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** There's no information on voting patterns from 2020 available in the video.
+**symbol: Tpa4)**
+**category: 50-50 likelihood that this individual voted - Probability: 0.5 - in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** There's no information on voting patterns from 2022 available in the video.
+**symbol: Thpa4)**
+**category: 50-50 likelihood that this individual voted - Probability: 0.5 - in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** The video does not include any information about the individuals' vote choice in the 2020 presidential election.
+**symbol: Vpa3)**
+**category: voted for Joe Biden, the Democratic Party candidate, in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** The video does not offer information about the individuals' vote choice in the 2022 House of Representatives election.
+**symbol: Vhpa3)**
+**category: voted for a Democratic Party candidate in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE:**
+**explanation:** The video shows individuals discussing their intentions to vote.  While there is a possibility that an individual might change their mind between now and election day, no information provided makes this outcome particularly likely or unlikely.  
+**symbol: Und3)**
+**category: unlikely this individual will change their mind - Probability: 0.3 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024**
+**speculation: 80**
+
+
+**JOE BIDEN PRESIDENTIAL JOB APPROVAL:**
+**explanation:** The video doesn't provide information on the individuals' approval rating of Joe Biden's performance as president.
+**symbol: Bap2)**
+**category: Somewhat Approves of the way Joe Biden is handling his job as president**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JOE BIDEN:**
+**explanation:** No information on individual sentiments toward Joe Biden is available in the video.
+**symbol: Bfa2)**
+**category: Somewhat favourable view of Joe Biden**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:**
+**explanation:** The video provides some evidence that at least some of the individuals surveyed in the video have a positive opinion of Kamala Harris. However, there is no way to ascertain whether this is true of all the people surveyed in the video. 
+**symbol: Kfa2)**
+**category: Somewhat favourable view of Kamala Harris**
+**speculation: 70**
+
+
+**FAVOURABILITY OF US POLITICIAN TIM WALZ:**
+**explanation:** The video does not offer any information regarding people's views on Tim Walz.
+**symbol: Twa5)**
+**category: This person is unlikely to know who Tim Walz is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN DONALD TRUMP:**
+**explanation:** The video does not directly mention opinions regarding Donald Trump. However, the context of the video suggests that at least some of the individuals hold negative views of him, due to the comments made by Jimmy Kimmel. This inference, however, is not definitive, and there is no way to quantify the percentage of the individuals in the video who hold negative views of Donald Trump.
+**symbol: Tfa4)**
+**category: Very unfavourable view of Donald Trump**
+**speculation: 70**
+
+
+**FAVOURABILITY OF US POLITICIAN JD VANCE:**
+**explanation:** The video does not include any information to indicate the people's views on JD Vance.
+**symbol: Jfa5)**
+**category: This person is unlikely to know who JD Vance is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:**
+**explanation:** The video does not contain any information on opinions about Robert F. Kennedy Jr.
+**symbol: Rfa5)**
+**category: This person is unlikely to know who Robert F. Kennedy Jr. is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CORNEL WEST:**
+**explanation:** The video does not mention any opinions about Cornel West.
+**symbol: Wfa5)**
+**category: This person is unlikely to know who Cornel West is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JILL STEIN:**
+**explanation:** The video does not provide any information about people's views on Jill Stein.
+**symbol: Sfa5)**
+**category: This person is unlikely to know who Jill Stein is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CHASE OLIVER:**
+**explanation:** No information on individual sentiments toward Chase Oliver is available in the video.
+**symbol: Ofa5)**
+**category: This person is unlikely to know who Chase Oliver is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**BELIEF IN MOST IMPORTANT ISSUE TODAY:**
+**explanation:** The video focuses on the 2024 US Presidential election, but does not specifically indicate which issue is most important for the individuals featured.
+**symbol: Moi14)**
+**category: inflation and the cost of living is the most important issue for this user today**
+**speculation: 100**
+
+
+**HAPPINESS LEVEL:**
+**explanation:** The video does not provide any information about the happiness levels of the individuals shown.
+**symbol: Hap2)**
+**category: rather happy**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:**
+**explanation:** The video does not contain any information that would enable determining the level of openness to experience shown by the individuals surveyed.
+**symbol: Ope3)**
+**category: neither open nor closed to experience**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:**
+**explanation:**  The video does not contain enough information to determine the level of conscientiousness.
+**symbol: Con3)**
+**category: neither conscientious nor unconscientious**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:**
+**explanation:** The video does not include information about the extraversion levels of the people shown.
+**symbol: Ext2)**
+**category: somewhat extraverted**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:**
+**explanation:** The video does not offer any information on the agreeableness of the individuals.
+**symbol: Agr2)**
+**category: somewhat agreeable**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- NEUROTICISM:**
+**explanation:** No data is available in the video regarding neuroticism levels.
+**symbol: Neu3)**
+**category: neither high nor low in neuroticism**
+**speculation: 100**"
+stephen_colbert.mp4,"**ETHNICITY:**
+**explanation:** The individual in the video is a white male. This is clearly visible in the video.
+**symbol: E1**
+**category: white - individuals with origins in any of the original peoples of europe, including, for example, english, german, irish, italian, polish, and scottish -- as well as arab or middle-eastern with origins in any of the original peoples of the middle east or north africa, including, for example, lebanese, iranian, egyptian, syrian, iraqi, and israeli.**
+**speculation: 0**
+
+
+**AGE:**
+**explanation:** Based on his appearance, the individual seems to be between 45 and 54 years old.
+**symbol: A5**
+**category: 45 to 54 years old**
+**speculation: 40**
+
+
+**SEX:**
+**explanation:** The individual in this video is clearly a male.
+**symbol: S1**
+**category: masculine sex - male**
+**speculation: 0**
+
+
+**INTEREST IN POLITICS:**
+**explanation:** The content of the video strongly suggests a high interest in politics.
+**symbol: I4**
+**category: highly interested in politics**
+**speculation: 20**
+
+
+**MARITAL STATUS:**
+**explanation:** There is no information available in the video about the marital status of the individual.
+**symbol: M2**
+**category: single - never married, including those who are legally separated**
+**speculation: 100**
+
+
+**HIGHEST EDUCATIONAL QUALIFICATION:**
+**explanation:** The individual in this video is a television host and speaks in an educated manner, suggesting at least a college or university education.
+**symbol: Q2**
+**category: completed education at the college or university level - bachelor's degree, master's degree, doctorate**
+**speculation: 60**
+
+
+**HOUSEHOLD INCOME BRACKET:**
+**explanation:** Given the individual's profession as a television host, it is highly likely that their household income is above 100000 USD per year.
+**symbol: H5**
+**category: more than 100000 USD per year**
+**speculation: 60**
+
+
+**GENERAL TRUST IN OTHER PEOPLE:**
+**explanation:**  There is no information in the video about this person's trust in other people.
+**symbol: Tru2**
+**category: most of the time trust other people**
+**speculation: 100**
+
+
+**PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:**
+**explanation:** The video's content is entirely dedicated to discussing the 2024 presidential election.
+**symbol: Att4**
+**category: paying a lot of attention to the 2024 Presidential election in the US**
+**speculation: 0**
+
+
+**PARTISAN LOYALTIES:**
+**explanation:** While the individual in the video expresses opinions, he does not explicitly state his partisan loyalties. However, his commentary leans towards a critical view of the Republican Party, suggesting a possible alignment with the Democrats.
+**symbol: Pid3**
+**category: independent closer to the Democrats**
+**speculation: 80**
+
+
+**IDEOLOGICALLY, THIS PERSON APPEARS TO BE:**
+**explanation:** The video shows a person who is critical of Donald Trump, and shows support for other Democratic candidates.
+**symbol: Ide3**
+**category: somewhat ideologically liberal**
+**speculation: 40**
+
+
+**PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** It is very likely that someone as politically engaged as this person would have voted in the 2020 election.
+**symbol: Tpa7**
+**category: certain this individual turned out to vote - Probability: 1 - in the 2020 election for President in their state**
+**speculation: 40**
+
+
+**PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:** It's likely that this person also voted in the 2022 midterm elections.
+**symbol: Thpa6**
+**category: highly likely this individual turned out to vote - Probability: 0.85 - in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 40**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:**
+**explanation:** There is no information in the video about this person's vote in the 2020 election.
+**symbol: Vpa3**
+**category: voted for Joe Biden, the Democratic Party candidate, in the 2020 election for President in their state**
+**speculation: 100**
+
+
+**PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:**
+**explanation:**  There is no information in the video regarding this person's vote choice in the 2022 House of Representatives election.
+**symbol: Vhpa3**
+**category: voted for a Democratic Party candidate in the 2022 elections for the House of Representatives in their congressional district**
+**speculation: 100**
+
+
+**UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE - HOW LIKELY IS THE USER TO CHANGE THEIR MIND ABOUT THEIR VOTING BEHAVIOUR FOR THE 2024 US PRESIDENTIAL ELECTION, BETWEEN NOW -- DATE OF THEIR LATEST TWEET -- AND ELECTION DAY ON NOVEMBER 5th 2024:**
+**explanation:** There is no information in the video about this person's likelihood of changing their mind.
+**symbol: Und1**
+**category: no chance this individual will change their mind - Probability: 0 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024**
+**speculation: 100**
+
+
+**JOE BIDEN PRESIDENTIAL JOB APPROVAL:**
+**explanation:** The video does not provide information on this person's approval rating of Joe Biden's performance as president.
+**symbol: Bap3**
+**category: Somewhat Disapproves of the way Joe Biden is handling his job as president**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JOE BIDEN:**
+**explanation:** There is no information in the video about this person's view of Joe Biden.
+**symbol: Bfa2**
+**category: Somewhat favourable view of Joe Biden**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:**
+**explanation:** The video doesn't give information about this person's view of Kamala Harris.
+**symbol: Kfa2**
+**category: Somewhat favourable view of Kamala Harris**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN TIM WALZ:**
+**explanation:** The video does not provide any information about the person's view of Tim Walz.
+**symbol: Twa2**
+**category: Somewhat favourable view of Tim Walz**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN DONALD TRUMP:**
+**explanation:** The video shows a person who is critical of Donald Trump.
+**symbol: Tfa4**
+**category: Very unfavourable view of Donald Trump**
+**speculation: 40**
+
+
+**FAVOURABILITY OF US POLITICIAN JD VANCE:**
+**explanation:** There is no information in the video on this person's view of JD Vance.
+**symbol: Jfa3**
+**category: Somewhat unfavourable view of JD Vance**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:**
+**explanation:** There is no information available in this video about the user's view of Robert F. Kennedy Jr.
+**symbol: Rfa5**
+**category: This person is unlikely to know who Robert F. Kennedy Jr. is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CORNEL WEST:**
+**explanation:**  There is no information in the video about this person's view of Cornel West.
+**symbol: Wfa5**
+**category: This person is unlikely to know who Cornel West is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN JILL STEIN:**
+**explanation:** There is no information in the video about this person's view of Jill Stein.
+**symbol: Sfa5**
+**category: This person is unlikely to know who Jill Stein is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**FAVOURABILITY OF US POLITICIAN CHASE OLIVER:**
+**explanation:** There is no information in this video about the user's view of Chase Oliver.
+**symbol: Ofa5**
+**category: This person is unlikely to know who Chase Oliver is, so they cannot have an opinion about them**
+**speculation: 100**
+
+
+**BELIEF IN MOST IMPORTANT ISSUE TODAY:**
+**explanation:** The video does not include information on the user's views on important issues today.
+**symbol: Moi14**
+**category: inflation and the cost of living is the most important issue for this user today**
+**speculation: 100**
+
+
+**HAPPINESS LEVEL:**
+**explanation:** There is no information in the video about this person's happiness level.
+**symbol: Hap2**
+**category: rather happy - generally feels happy and satisfied with their life - they experience positive emotions frequently, though not as intensely as someone who is very happy, and have a positive outlook on life.**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:**
+**explanation:** The video does not give any information about the user's openness to experience.
+**symbol: Ope2**
+**category: somewhat open to experience - open to new experiences and ideas, but they may prefer some level of routine and familiarity - they are flexible but may not seek out novelty actively.**
+**speculation: 100**
+
+
+**BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:**
+**explanation:** The individual in the video seems to be quite conscientious, given his professional demeanor and prepared presentation.
+**symbol: Con1**
+**category: very conscientious - highly organized, responsible, and dependable - they pay great attention to detail and are very disciplined in their actions, often setting and achieving goals with precision.**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:**
+**explanation:** The individual in the video displays extraverted traits through his expressive communication style.
+**symbol: Ext1**
+**category: very extraverted - highly outgoing, energetic, and enjoys social interactions - they thrive in social settings, seek out company, and are often perceived as enthusiastic and talkative.**
+**speculation: 40**
+
+
+**BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:**
+**explanation:** Based on his demeanor, he appears to be moderately agreeable, balancing assertiveness with consideration.
+**symbol: Agr2**
+**category: somewhat agreeable - generally kind and cooperative but may occasionally assert their own needs - they balance between being considerate and standing up for themselves.**
+**speculation: 60**
+
+
+**BIG 5 PERSONALITY TRAIT -- NEUROTICISM:**
+**explanation:** The individual's calm and controlled presentation in the video suggests a relatively low level of neuroticism.
+**symbol: Neu4**
+**category: somewhat low in neuroticism - generally calm and emotionally stable - they experience negative emotions less frequently and can handle stress and challenges with relative ease.**
+**speculation: 40**
+
+"

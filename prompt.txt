@@ -1,0 +1,284 @@
+Watch each frame in the video carefully and answer the questions.
+Only base your answers strictly on what information is available in the video attached.
+Do not make up any information that is not part of the video and do not be too
+verbose, be to the point.
+
+I will show you a number of categories to which the user in the video may belong to.
+The categories are preceded by a title (e.g. "AGE:" or "SEX:" etc.) and a symbol (e.g. "A1", "A2" or "E1" etc.).
+Please select, for each title, the most likely category to which this user belongs to.
+
+In your answer present, for each title, the selected symbol.
+Write out in full the category associated with the selected symbol.
+The chosen symbol / category must be the most likely to accurately represent this user.
+You must only select one symbol / category per title.
+A title, symbol and category cannot appear more than once in your answer.
+
+For each selected symbol / category, please note the level of Speculation involved in this selection.
+Present the Speculation level for each selection on a scale from 0 (not speculative at all, every single element of the user data was useful in the selection) to 100 (fully speculative, there is no information related to this title in the user data).
+Speculation levels should be a direct measure of the amount of useful information available in the user data.
+Speculation levels pertain only to the information available in the user data -- namely the username, name, description, location, profile picture and tweets from this user -- and should not be affected by additional information available to you from any other source. 
+To ensure consistency, use the following guidelines to determine speculation levels:
+
+0-20 (Low speculation): The user data provides clear and direct information relevant to the title. (e.g., explicit mention in the profile or tweets)
+21-40 (Moderate-low speculation): The user data provides indirect but strong indicators relevant to the title. (e.g., context from multiple sources within the profile or tweets)
+41-60 (Moderate speculation): The user data provides some hints or partial information relevant to the title. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The user data provides limited and weak indicators relevant to the title. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The user data provides no or almost no information relevant to the title. (e.g., assumptions based on very general information)
+
+For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
+
+Preserve a strictly structured answer to ease parsing of the text.
+Format your output as follows (this is just an example, I do not care about this specific title or symbol / category):
+
+**title: AGE**
+**explanation: ...**
+**symbol: A1)**
+**category: 18-25**
+**speculation: 90**
+
+
+YOU MUST GIVE AN ANSWER FOR EVERY TITLE !
+
+Below is the list of categories to which this user may belong to:
+
+ETHNICITY:
+E1) white - individuals with origins in any of the original peoples of europe, including, for example, english, german, irish, italian, polish, and scottish -- as well as arab or middle-eastern with origins in any of the original peoples of the middle east or north africa, including, for example, lebanese, iranian, egyptian, syrian, iraqi, and israeli.
+E2) black or african american - individuals with origins in any of the black racial groups of africa, including, for example, african american, jamaican, haitian, nigerian, ethiopian, and somali.
+E3) hispanic or latino - includes individuals of mexican, puerto rican, salvadoran, cuban, dominican, guatemalan, and other central or south american or spanish culture or origin.
+E4) asian - individuals with origins in any of the original peoples of central or east asia, southeast asia, or south asia, including, for example, chinese, asian indian, filipino, vietnamese, korean, and japanese.
+E5) american indian or alaskan native or native hawaiian or pacific islander - individuals with origins in any of the original peoples of north, central, and south america, including, for example, navajo nation, blackfeet tribe of the blackfeet the indian reservation of montana, native village of barrow inupiat traditional government, nome eskimo community, aztec, and maya -- as well as individuals with origins in any of the original peoples of hawaii, guam, samoa, or other pacific islands, including, for example, native hawaiian, samoan, chamorro, tongan, fijian, and marshallese.
+E6) multiracial - individuals who identify explicitly as belonging to more than one of the racial and ethnic groups above, such as biracial individuals with one white and one black parent, or those with a combination of asian and hispanic heritage, etc. mixed-race individuals often face unique social experiences, such as celebrating diverse cultural holidays, speaking multiple languages, and bridging different cultural perspectives within their families and communities.
+
+AGE:
+A1) under 18 years old
+A2) 18 to 24 years old
+A3) 25 to 34 years old
+A4) 35 to 44 years old
+A5) 45 to 54 years old
+A6) 55 to 64 years old
+A7) 65 or older
+
+SEX:
+S1) masculine sex - male
+S2) feminine sex - female
+
+INTEREST IN POLITICS:
+I1) not interested at all in politics
+I2) slightly interested in politics
+I3) moderately interested in politics
+I4) highly interested in politics
+
+MARITAL STATUS:
+M1) married - currently legally married and living with a spouse
+M2) single - never married, including those who are legally separated
+M3) divorced - legally divorced and not currently remarried
+M4) widowed - spouse has passed away and not currently remarried
+
+HIGHEST EDUCATIONAL QUALIFICATION:
+Q1) completed education up to and including high school - high school diploma, vocational training, associate degree
+Q2) completed education at the college or university level - bachelor's degree, master's degree, doctorate
+
+HOUSEHOLD INCOME BRACKET:
+H1) up to 25000 USD per year
+H2) between 25000 and 50000 USD per year
+H3) between 50000 and 75000 USD per year
+H4) between 75000 and 100000 USD per year
+H5) more than 100000 USD per year
+
+GENERAL TRUST IN OTHER PEOPLE:
+Tru1) always trust other people
+Tru2) most of the time trust other people
+Tru3) about half of the time trust other people
+Tru4) some of the time trust other people
+Tru5) never trust other people
+
+PAYING ATTENTION TO THE 2024 PRESIDENTIAL ELECTION:
+Att1) not paying attention at all to the 2024 Presidential election in the US
+Att2) paying only a little attention to the 2024 Presidential election in the US
+Att3) paying some attention to the 2024 Presidential election in the US
+Att4) paying a lot of attention to the 2024 Presidential election in the US
+
+PARTISAN LOYALTIES:
+Pid1) strongly identifies with Democrats 
+Pid2) weakly identifies with Democrats
+Pid3) independent closer to the Democrats
+Pid4) independent not closer to either party 
+Pid5) independent closer to the Republicans
+Pid6) weakly identifies with Republicans
+Pid7) strongly identifies with Republicans
+
+IDEOLOGICALLY, THIS PERSON APPEARS TO BE:
+Ide2) very ideologically liberal
+Ide3) somewhat ideologically liberal 
+Ide4) moderate in ideological orientation
+Ide5) somewhat ideologically conservative
+Ide6) very ideologically conservative
+
+PAST VOTE - TURNOUT IN THE 2020 PRESIDENTIAL ELECTION:
+Tpa1) no chance this individual turned out to vote - Probability: 0 - in the 2020 election for President in their state
+Tpa2) highly unlikely this individual turned out to vote - Probability: 0.15 - in the 2020 election for President in their state
+Tpa3) unlikely this individual turned out to vote - Probability: 0.3 - in the 2020 election for President in their state
+Tpa4) 50-50 likelihood that this individual voted - Probability: 0.5 - in the 2020 election for President in their state
+Tpa5) likely this individual turned out to vote - Probability: 0.7 - in the 2020 election for President in their state
+Tpa6) highly likely this individual turned out to vote - Probability: 0.85 - in the 2020 election for President in their state
+Tpa7) certain this individual turned out to vote - Probability: 1 - in the 2020 election for President in their state
+
+PAST VOTE - TURNOUT IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:
+Thpa1) no chance this individual turned out to vote - Probability: 0 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa2) highly unlikely this individual turned out to vote - Probability: 0.15 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa3) unlikely this individual turned out to vote - Probability: 0.3 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa4) 50-50 likelihood that this individual voted - Probability: 0.5 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa5) likely this individual turned out to vote - Probability: 0.7 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa6) highly likely this individual turned out to vote - Probability: 0.85 - in the 2022 elections for the House of Representatives in their congressional district
+Thpa7) certain this individual turned out to vote - Probability: 1 - in the 2022 elections for the House of Representatives in their congressional district
+
+PAST VOTE - VOTE CHOICE IN THE 2020 PRESIDENTIAL ELECTION:
+Vpa1) did not vote in the 2020 election for President in their state
+Vpa2) voted for Donald Trump, the Republican Party candidate, in the 2020 election for President in their state
+Vpa3) voted for Joe Biden, the Democratic Party candidate, in the 2020 election for President in their state
+Vpa4) voted for Jo Jorgensen, the Libertarian Party candidate, in the 2020 election for President in their state
+Vpa5) voted for Howie Hawkins, the Green Party candidate, in the 2020 election for President in their state
+Vpa6) voted for a candidate other than the Republican, Democrat, Libertarian, or Green Party candidates, in the 2020 election for President in their state
+
+PAST VOTE - VOTE CHOICE IN THE 2022 HOUSE OF REPRESENTATIVES ELECTION:
+Vhpa1) did not vote in the 2022 elections for the House of Representatives in their congressional district
+Vhpa2) voted for a Republican Party candidate in the 2022 elections for the House of Representatives in their congressional district
+Vhpa3) voted for a Democratic Party candidate in the 2022 elections for the House of Representatives in their congressional district
+Vhpa4) voted for a Libertarian Party candidate, in the 2022 elections for the House of Representatives in their congressional district
+Vhpa5) voted for a Green Party candidate, in the 2022 elections for the House of Representatives in their congressional district
+Vhpa6) voted for a candidate other than the Republican, Democrat, Libertarian, or Green Party candidates, in the 2022 elections for the House of Representatives in their congressional district
+
+UNDECIDEDNESS AROUND 2024 US PRESIDENTIAL ELECTION VOTE CHOICE - HOW LIKELY IS THE USER TO CHANGE THEIR MIND ABOUT THEIR VOTING BEHAVIOUR FOR THE 2024 US PRESIDENTIAL ELECTION, BETWEEN NOW -- DATE OF THEIR LATEST TWEET -- AND ELECTION DAY ON NOVEMBER 5th 2024:
+Und1) no chance this individual will change their mind - Probability: 0 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und2) highly unlikely this individual will change their mind - Probability: 0.15 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und3) unlikely this individual will change their mind - Probability: 0.3 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und4) 50-50 likelihood that this individual will change their mind - Probability: 0.5 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und5) likely this individual will change their mind - Probability: 0.7 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und6) highly likely this individual will change their mind - Probability: 0.85 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+Und7) certain this individual will change their mind - Probability: 1 - as to which Presidential candidate to cast a ballot for - or whether they will stay home and not cast a ballot at all - on election day November 5th 2024
+
+JOE BIDEN PRESIDENTIAL JOB APPROVAL:
+Bap1) Strongly Approves of the way Joe Biden is handling his job as president
+Bap2) Somewhat Approves of the way Joe Biden is handling his job as president
+Bap3) Somewhat Disapproves of the way Joe Biden is handling his job as president
+Bap4) Strongly Disapproves of the way Joe Biden is handling his job as president
+
+FAVOURABILITY OF US POLITICIAN JOE BIDEN:
+Bfa1) Very favourable view of Joe Biden
+Bfa2) Somewhat favourable view of Joe Biden
+Bfa3) Somewhat unfavourable view of Joe Biden
+Bfa4) Very unfavourable view of Joe Biden
+Bfa5) This person is unlikely to know who Joe Biden is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN KAMALA HARRIS:
+Kfa1) Very favourable view of Kamala Harris
+Kfa2) Somewhat favourable view of Kamala Harris
+Kfa3) Somewhat unfavourable view of Kamala Harris
+Kfa4) Very unfavourable view of Kamala Harris
+Kfa5) This person is unlikely to know who Kamala Harris is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN TIM WALZ:
+Twa1) Very favourable view of Tim Walz
+Twa2) Somewhat favourable view of Tim Walz
+Twa3) Somewhat unfavourable view of Tim Walz
+Twa4) Very unfavourable view of Tim Walz
+Twa5) This person is unlikely to know who Tim Walz is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN DONALD TRUMP:
+Tfa1) Very favourable view of Donald Trump
+Tfa2) Somewhat favourable view of Donald Trump
+Tfa3) Somewhat unfavourable view of Donald Trump
+Tfa4) Very unfavourable view of Donald Trump
+Tfa5) This person is unlikely to know who Donald Trump is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN JD VANCE:
+Jfa1) Very favourable view of JD Vance
+Jfa2) Somewhat favourable view of JD Vance
+Jfa3) Somewhat unfavourable view of JD Vance
+Jfa4) Very unfavourable view of JD Vance
+Jfa5) This person is unlikely to know who JD Vance is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN ROBERT F. KENNEDY JR.:
+Rfa1) Very favourable view of Robert F. Kennedy Jr.
+Rfa2) Somewhat favourable view of Robert F. Kennedy Jr.
+Rfa3) Somewhat unfavourable view of Robert F. Kennedy Jr.
+Rfa4) Very unfavourable view of Robert F. Kennedy Jr.
+Rfa5) This person is unlikely to know who Robert F. Kennedy Jr. is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN CORNEL WEST:
+Wfa1) Very favourable view of Cornel West
+Wfa2) Somewhat favourable view of Cornel West
+Wfa3) Somewhat unfavourable view of Cornel West
+Wfa4) Very unfavourable view of Cornel West
+Wfa5) This person is unlikely to know who Cornel West is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN JILL STEIN:
+Sfa1) Very favourable view of Jill Stein
+Sfa2) Somewhat favourable view of Jill Stein
+Sfa3) Somewhat unfavourable view of Jill Stein
+Sfa4) Very unfavourable view of Jill Stein
+Sfa5) This person is unlikely to know who Jill Stein is, so they cannot have an opinion about them
+
+FAVOURABILITY OF US POLITICIAN CHASE OLIVER:
+Ofa1) Very favourable view of Chase Oliver
+Ofa2) Somewhat favourable view of Chase Oliver
+Ofa3) Somewhat unfavourable view of Chase Oliver
+Ofa4) Very unfavourable view of Chase Oliver
+Ofa5) This person is unlikely to know who Chase Oliver is, so they cannot have an opinion about them
+
+BELIEF IN MOST IMPORTANT ISSUE TODAY:
+Moi01) jobs and the economy are the most important issue for this user today
+Moi02) immigration is the most important issue for this user today
+Moi03) climate change and the environment are the most important issue for this user today
+Moi04) foreign policy is the most important issue for this user today
+Moi05) national security is the most important issue for this user today
+Moi06) education is the most important issue for this user today
+Moi07) healthcare is the most important issue for this user today
+Moi08) taxes and government spending are the most important issue for this user today
+Moi09) abortion is the most important issue for this user today
+Moi10) civil rights and racism are the most important issue for this user today
+Moi11) guns are the most important issue for this user today
+Moi12) crime is the most important issue for this user today
+Moi13) criminal justice reform and over-incarceration are the most important issue for this user today
+Moi14) inflation and the cost of living is the most important issue for this user today
+
+HAPPINESS LEVEL:
+Hap1) very happy - consistently feels a high level of joy and satisfaction with their life - they often experience positive emotions, have an optimistic outlook, and find great contentment in their daily activities.
+Hap2) rather happy - generally feels happy and satisfied with their life - they experience positive emotions frequently, though not as intensely as someone who is very happy, and have a positive outlook on life.
+Hap3) not very happy - experiences some level of dissatisfaction or lack of joy in their life - they may feel positive emotions occasionally, but they often feel neutral or mildly negative about their overall life satisfaction.
+Hap4) not happy at all - consistently feels unhappy and dissatisfied with their life - they frequently experience negative emotions, have a pessimistic outlook, and struggle to find joy in their daily activities.
+
+BIG 5 PERSONALITY TRAIT -- OPENNESS TO EXPERIENCE:
+Ope1) very open to experience - highly curious, imaginative, and open to exploring new ideas and experiences - they are often creative and willing to take risks.
+Ope2) somewhat open to experience - open to new experiences and ideas, but they may prefer some level of routine and familiarity - they are flexible but may not seek out novelty actively.
+Ope3) neither open nor closed to experience - shows a balanced approach, being neither particularly eager to seek out new experiences nor strictly avoiding them - they may try new things occasionally but generally stick to known preferences.
+Ope4) somewhat closed to experience - tends to prefer familiar routines and may be resistant to change - they are less likely to seek out new experiences or ideas but can adapt when necessary.
+Ope5) very closed to experience - prefers a highly structured and predictable environment - they are resistant to change and new ideas, often sticking to what they know and avoiding novel experiences.
+
+BIG 5 PERSONALITY TRAIT -- CONSCIENTIOUSNESS:
+Con1) very conscientious - highly organized, responsible, and dependable - they pay great attention to detail and are very disciplined in their actions, often setting and achieving goals with precision.
+Con2) somewhat conscientious - generally reliable and organized but may occasionally lapse in discipline or attention to detail - they can balance between structured and flexible approaches.
+Con3) neither conscientious nor unconscientious - demonstrates an average level of conscientiousness, showing a balance between being organized and flexible - they are reliable but not overly meticulous or careless.
+Con4) somewhat unconscientious - tends to be less organized and may struggle with maintaining discipline or consistency - they might prioritize spontaneity over structure.
+Con5) very unconscientious - often lacks organization and discipline - they may be perceived as careless or unreliable, preferring a spontaneous and unstructured approach to tasks and responsibilities.
+
+BIG 5 PERSONALITY TRAIT -- EXTRAVERSION:
+Ext1) very extraverted - highly outgoing, energetic, and enjoys social interactions - they thrive in social settings, seek out company, and are often perceived as enthusiastic and talkative.
+Ext2) somewhat extraverted - enjoys social interactions and can be outgoing, but they also appreciate some alone time - they are comfortable in social settings but do not seek them out as intensely as very extraverted individuals.
+Ext3) neither extraverted nor introverted - displays a balanced mix of extraverted and introverted traits - they are equally comfortable being social or spending time alone, without a strong preference for either.
+Ext4) somewhat introverted - tends to be more reserved and prefers quieter, less stimulating environments - they can engage in social activities but generally prefer smaller groups or solo activities.
+Ext5) very introverted - highly reserved, enjoys solitude, and prefers minimal social interaction - they often feel drained by social settings and seek out peaceful, solitary environments.
+
+BIG 5 PERSONALITY TRAIT -- AGREEABLENESS:
+Agr1) very agreeable - highly cooperative, compassionate, and trusting - they prioritize harmony and are very considerate of others' feelings and needs, often putting others before themselves.
+Agr2) somewhat agreeable - generally kind and cooperative but may occasionally assert their own needs - they balance between being considerate and standing up for themselves.
+Agr3) neither agreeable nor disagreeable - generally kind and cooperative but may occasionally assert their own needs - they balance between being considerate and standing up for themselves.
+Agr4) somewhat disagreeable - tends to be more competitive and less concerned with others' feelings - they may prioritize their own needs and can be perceived as more assertive or critical.
+Agr5) very disagreeable - often uncooperative and less empathetic - they prioritize their own interests and are typically skeptical of others' intentions, often coming across as tough-minded and critical.
+
+BIG 5 PERSONALITY TRAIT -- NEUROTICISM:
+Neu1) very high in neuroticism - frequently experiences intense emotions such as anxiety, worry, and sadness - they may be more prone to stress and emotional instability, often reacting strongly to challenges and setbacks.
+Neu2) somewhat high in neuroticism - tends to experience negative emotions more often than average but not as intensely - they may feel anxious or stressed at times but can also manage these feelings effectively in many situations.
+Neu3) neither high nor low in neuroticism - has an average level of emotional stability - they experience a balanced range of emotions and are generally able to cope with stress and negative feelings without being overwhelmed.
+Neu4) somewhat low in neuroticism - generally calm and emotionally stable - they experience negative emotions less frequently and can handle stress and challenges with relative ease.
+Neu5) very low in neuroticism - exceptionally calm, resilient, and emotionally stable - they rarely feel anxious or stressed and can maintain a positive outlook even in difficult situations.
