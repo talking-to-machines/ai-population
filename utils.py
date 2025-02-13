@@ -19,7 +19,11 @@ def load_text_file(file_path) -> list:
 
 
 def update_video_metadata(
-    client: ApifyClient, run: dict, project_name: str, profile_search: bool
+    client: ApifyClient,
+    run: dict,
+    project_name: str,
+    profile_search: bool,
+    filtering_list: list,
 ) -> None:
     """
     Updates the video metadata by fetching new data, appending it to the existing data,
@@ -30,13 +34,23 @@ def update_video_metadata(
         run (dict): The run object containing the default dataset ID.
         project_name (str): The name of the project, used to define the file path.
         profile_search (bool): A boolean indicating whether the search was for profiles or not.
+        filtering_list (list): A list of search terms or profiles used to filter the search results.
     """
     # Fetch extracted video metadata
     video_metadata = pd.DataFrame(
         list(client.dataset(run["defaultDatasetId"]).iterate_items())
     )
+
+    # Filter out videos based on search terms or profiles to remove irrelevant entries
     if profile_search:
         video_metadata.rename(columns={"input": "profile"}, inplace=True)
+        video_metadata = video_metadata[
+            video_metadata["profile"].isin(filtering_list)
+        ].reset_index(drop=True)
+    else:  # keyword search
+        video_metadata = video_metadata[
+            video_metadata["searchQuery"].isin(filtering_list)
+        ].reset_index(drop=True)
 
     # Append extraction time to extracted video metadata
     video_metadata["extractionTime"] = pd.Timestamp.utcnow()

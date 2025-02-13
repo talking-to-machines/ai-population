@@ -1,13 +1,11 @@
 import os
 from apify_client import ApifyClient
-from utils import load_text_file, update_video_metadata, update_profile_metadata
+from utils import load_text_file, update_video_metadata
 from config import (
     PROJECT,
     APIFY_API,
     APIFY_ACTOR_ID,
     PROFILES_FILE,
-    OLDEST_POST_DATE,
-    NEWEST_POST_DATE,
 )
 
 
@@ -26,10 +24,10 @@ if __name__ == "__main__":
     # Prepare the Actor input
     run_input = {
         "excludePinnedPosts": False,
-        "newestPostDate": NEWEST_POST_DATE,
-        "oldestPostDate": OLDEST_POST_DATE,
-        "profileScrapeSections": ["videos", "reposts"],
+        "profileScrapeSections": ["videos"],
+        "profileSorting": "latest",
         "profiles": PROFILES,
+        "resultsPerPage": 25,
         "shouldDownloadCovers": False,
         "shouldDownloadSlideshowImages": False,
         "shouldDownloadSubtitles": False,
@@ -42,8 +40,6 @@ if __name__ == "__main__":
 
     # Update video metadata store
     print("Updating video metadata...")
-    update_video_metadata(client, run, PROJECT, profile_search=True)
-
-    # Update profile metadata store
-    print("Updating profile metadata...")
-    update_profile_metadata(PROJECT, profile_search=True)
+    update_video_metadata(
+        client, run, PROJECT, profile_search=True, filtering_list=PROFILES
+    )

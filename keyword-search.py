@@ -46,7 +46,9 @@ if __name__ == "__main__":
 
     # Update video metadata store
     print("Updating video metadata...")
-    update_video_metadata(client, run, PROJECT, profile_search=False)
+    update_video_metadata(
+        client, run, PROJECT, profile_search=False, filtering_list=SEARCH_TERMS
+    )
 
     # Update profile metadata store
     print("Updating profile metadata...")
