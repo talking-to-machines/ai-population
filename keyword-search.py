@@ -1,8 +1,14 @@
 import os
 from apify_client import ApifyClient
-from utils import load_search_terms, update_video_metadata, update_profile_metadata
+from utils import (
+    load_text_file,
+    update_video_metadata,
+    update_profile_metadata,
+    identify_top_influencers,
+)
 from config import (
     RESULTS_PER_PAGE,
+    TOP_N_PROFILES,
     PROJECT,
     APIFY_API,
     APIFY_ACTOR_ID,
@@ -17,7 +23,7 @@ if __name__ == "__main__":
     os.makedirs(folder_path, exist_ok=True)
 
     # Define search parameters
-    SEARCH_TERMS = load_search_terms(SEARCH_TERMS_FILE)
+    SEARCH_TERMS = load_text_file(SEARCH_TERMS_FILE)
 
     # Initialize the ApifyClient with your API token
     client = ApifyClient(APIFY_API)
@@ -35,13 +41,19 @@ if __name__ == "__main__":
     }
 
     # Run the Actor and wait for it to finish
-    print("Making API call to Apify...")
+    print("Performing key word search using Apify...")
     run = client.actor(APIFY_ACTOR_ID).call(run_input=run_input)
 
     # Update video metadata store
     print("Updating video metadata...")
-    update_video_metadata(client, run, PROJECT)
+    update_video_metadata(client, run, PROJECT, profile_search=False)
 
     # Update profile metadata store
     print("Updating profile metadata...")
-    update_profile_metadata(PROJECT)
+    update_profile_metadata(PROJECT, profile_search=False)
+
+    # Identify top n influencial profiles based on keyword search
+    print(
+        f"Identifying top {TOP_N_PROFILES} influencial profiles from keyword search..."
+    )
+    identify_top_influencers(PROJECT, TOP_N_PROFILES)

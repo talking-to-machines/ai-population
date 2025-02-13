@@ -10,12 +10,20 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 RESULTS_PER_PAGE = 1000
+TOP_N_PROFILES = 100
+
 ### Configuration for Market Signals Finfluencer (START) ###
 PROJECT = "market-signals-finfluencer"
 SEARCH_TERMS_FILE = "market-signals-finfluencer-search-terms.txt"
+PROFILES_FILE = "market-signals-finfluencer-profiles.txt"
+OLDEST_POST_DATE = "2024-10-01"
+NEWEST_POST_DATE = "2024-10-31"
 ### Configuration for Market Signals Finfluencer (END) ###
 
 ### Configuration for Market Signals Political Influencer (START) ###
 # PROJECT = "market-signals-politicalinfluencer"
 # SEARCH_TERMS_FILE = "market-signals-politicalinfluencer-search-terms.txt"
+# PROFILES_FILE = "market-signals-politicalinfluencer-profiles.txt"
+# OLDEST_POST_DATE = "2024-10-01"
+# NEWEST_POST_DATE = "2024-10-31"
 ### Configuration for Market Signals Political Influencer (END) ###
