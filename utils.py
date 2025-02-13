@@ -75,7 +75,9 @@ def update_profile_metadata(project_name: str):
     profile_metadata = video_metadata[["authorMeta", "extractionTime"]]
 
     # Convert the authorMeta dictionary to separate columns
-    profile_metadata.loc[:, "authorMeta"] = profile_metadata["authorMeta"].apply(lambda x: ast.literal_eval(x))
+    profile_metadata.loc[:, "authorMeta"] = profile_metadata["authorMeta"].apply(
+        lambda x: ast.literal_eval(x)
+    )
     profile_metadata = pd.json_normalize(profile_metadata["authorMeta"]).join(
         profile_metadata["extractionTime"]
     )

@@ -165,5 +165,5 @@ google_credentials.json
 batch_files/
 downloads/
 path/
-results/archive/
-
+data/archive/
+archive/

@@ -11,11 +11,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 RESULTS_PER_PAGE = 1000
 ### Configuration for Market Signals Finfluencer (START) ###
-# PROJECT = "market-signals-finfluencer"
-# SEARCH_TERMS_FILE = "market-signals-finfluencer-search-terms.txt"
+PROJECT = "market-signals-finfluencer"
+SEARCH_TERMS_FILE = "market-signals-finfluencer-search-terms.txt"
 ### Configuration for Market Signals Finfluencer (END) ###
 
 ### Configuration for Market Signals Political Influencer (START) ###
-PROJECT = "market-signals-politicalinfluencer"
-SEARCH_TERMS_FILE = "market-signals-politicalinfluencer-search-terms.txt"
+# PROJECT = "market-signals-politicalinfluencer"
+# SEARCH_TERMS_FILE = "market-signals-politicalinfluencer-search-terms.txt"
 ### Configuration for Market Signals Political Influencer (END) ###
