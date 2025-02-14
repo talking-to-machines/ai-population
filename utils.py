@@ -1,7 +1,12 @@
 import pandas as pd
 import os
 import ast
+import yt_dlp
+from pydub import AudioSegment
 from apify_client import ApifyClient
+from openai import OpenAI
+
+openai_client = OpenAI()
 
 
 def load_text_file(file_path) -> list:
@@ -166,3 +171,104 @@ def identify_top_influencers(project_name: str, top_n_profiles: int) -> None:
             file.write(f"{profile}\n")
 
     return None
+
+
+def download_video(row: pd.Series, PROJECT: str) -> None:
+    """
+    Downloads a TikTok video using the provided information in the row.
+
+    Args:
+        row (pd.Series): A pandas Series containing the video information, including the 'webVideoUrl' and 'video_filename'.
+        PROJECT (str): The project name used to construct the output file path.
+
+    Returns:
+        None
+    """
+    # The TikTok video link
+    video_url = row["webVideoUrl"]
+
+    # Output file name
+    output_file = f"data/{PROJECT}/video-downloads/{row['video_filename']}"
+
+    # Options for yt-dlp
+    ydl_opts = {
+        "outtmpl": output_file,  # Save the video with this file name
+        "format": "best",  # Download the best quality available
+    }
+
+    # Download the video
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+    except Exception as e:
+        print(f"An error occurred downloading {video_url}:", str(e))
+
+
+def optimize_audio_file(input_file_path: str, output_file_path: str) -> None:
+    """
+    Optimize an audio file by downsampling it to 16 kHz and converting it to mono.
+
+    Args:
+        input_file_path (str): The path to the input audio file.
+        output_file_path (str): The path where the optimized audio file will be saved.
+
+    Returns:
+        None
+    """
+    # Load the audio file
+    audio = AudioSegment.from_file(input_file_path)
+
+    # Downsample the audio to 16 kHz and convert to mono
+    audio = audio.set_frame_rate(16000).set_channels(1)
+
+    # Export the optimized audio file
+    audio.export(output_file_path, format="wav")
+
+
+def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
+    """
+    Transcribes the audio from a video file using the OpenAI Whisper model.
+    Args:
+        row (pd.Series): A pandas Series containing information about the video file.
+                         It must include a 'video_filename' key with the name of the video file.
+        PROJECT (str): The name of the project, used to construct the file paths.
+    Returns:
+        str: The transcription of the audio if successful, otherwise None.
+    Raises:
+        FileNotFoundError: If the input video file is not found.
+        Exception: For other errors encountered during transcription, including file size issues.
+    """
+    input_file_path = f"downloads/{PROJECT}/{row['video_filename']}"
+    optimized_file_path = f"downloads/{PROJECT}/optimized_{row['video_filename']}"
+
+    try:
+        with open(input_file_path, "rb") as audio_file:
+            transcription = openai_client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file, response_format="text"
+            )
+        return transcription
+
+    except FileNotFoundError:
+        return None
+
+    except Exception as e:
+        if e.status_code == 413:
+            print(
+                f"Error: File {row['video_filename']} is too large to process. Optimizing the audio file..."
+            )
+            # Optimize the audio file
+            optimize_audio_file(input_file_path, optimized_file_path)
+            try:
+                with open(optimized_file_path, "rb") as audio_file:
+                    transcription = openai_client.audio.transcriptions.create(
+                        model="whisper-1", file=audio_file, response_format="text"
+                    )
+                return transcription
+            except Exception as e:
+                print(
+                    f"Error: File {optimized_file_path} is still too large after optimisation: {e}"
+                )
+                return None
+        else:
+            print(f"Error encountered when transcribing {row['video_filename']}: {e}")
+            return None
