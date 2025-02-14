@@ -2,9 +2,15 @@ import pandas as pd
 import os
 import ast
 import yt_dlp
+import time
+import json
 from pydub import AudioSegment
 from apify_client import ApifyClient
 from openai import OpenAI
+from prompt_template import (
+    finfluencer_identification_system_prompt,
+    interview_system_prompt,
+)
 
 openai_client = OpenAI()
 
@@ -238,8 +244,10 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
         FileNotFoundError: If the input video file is not found.
         Exception: For other errors encountered during transcription, including file size issues.
     """
-    input_file_path = f"downloads/{PROJECT}/{row['video_filename']}"
-    optimized_file_path = f"downloads/{PROJECT}/optimized_{row['video_filename']}"
+    input_file_path = f"data/{PROJECT}/video-downloads/{row['video_filename']}"
+    optimized_file_path = (
+        f"data/{PROJECT}/video-downloads/optimized_{row['video_filename']}"
+    )
 
     try:
         with open(input_file_path, "rb") as audio_file:
@@ -272,3 +280,136 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
         else:
             print(f"Error encountered when transcribing {row['video_filename']}: {e}")
             return None
+
+
+def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
+    if is_interview:
+        system_prompt_template = interview_system_prompt
+    else:
+        system_prompt_template = finfluencer_identification_system_prompt
+
+    system_prompt = system_prompt_template.format(
+        profile_image=row["avatar"],
+        profile_name=row["profile"],
+        profile_nickname=row["nickName"],
+        verified_status=row["verified"],
+        profile_signature=row["signature"],
+        num_followers=row["fans"],
+        num_following=row["following"],
+        num_likes=row["heart"],
+        num_videos=row["video"],
+        num_digg=row["digg"],
+        region=row["region"],
+        video_transcripts=row["transcripts_combined"],
+    )
+    return system_prompt
+
+
+def create_batch_file(
+    prompts: pd.DataFrame,
+    system_message_field: str,
+    user_message_field: str = "question_prompt",
+    batch_file_name: str = "batch_input.jsonl",
+) -> str:
+    # Creating an array of json tasks
+    tasks = []
+    for i in range(len(prompts)):
+        task = {
+            "custom_id": f'{prompts.loc[i, "custom_id"]}',
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": {
+                "model": "gpt-4o",  # gpt-4o or gpt-4-turbo
+                "temperature": 0,
+                "messages": [
+                    {"role": "system", "content": prompts.loc[i, system_message_field]},
+                    {"role": "user", "content": prompts.loc[i, user_message_field]},
+                ],
+            },
+        }
+        tasks.append(task)
+
+    # Creating batch file
+    with open(f"batch_files/{batch_file_name}", "w") as file:
+        for obj in tasks:
+            file.write(json.dumps(obj) + "\n")
+
+    return batch_file_name
+
+
+def batch_query(batch_input_file_dir: str, batch_output_file_dir: str) -> pd.DataFrame:
+    # Load OpenAI client
+    client = OpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+    )
+
+    # Upload batch input file
+    batch_file = client.files.create(
+        file=open(f"batch_files/{batch_input_file_dir}", "rb"), purpose="batch"
+    )
+
+    # Create batch job
+    batch_job = client.batches.create(
+        input_file_id=batch_file.id,
+        endpoint="/v1/chat/completions",
+        completion_window="24h",
+    )
+
+    # Check batch status
+    while True:
+        batch_job = client.batches.retrieve(batch_job.id)
+        print(f"Batch job status: {batch_job.status}")
+        if batch_job.status == "completed":
+            break
+        elif batch_job.status == "failed":
+            raise Exception("Batch job failed.")
+        else:
+            # Wait for 5 minutes before checking again
+            time.sleep(300)
+
+    # Retrieve batch results
+    result_file_id = batch_job.output_file_id
+    results = client.files.content(result_file_id).content
+
+    # Save the batch output
+    with open(f"batch_files/{batch_output_file_dir}", "wb") as file:
+        file.write(results)
+
+    # Loading data from saved output file
+    response_list = []
+    with open(f"batch_files/{batch_output_file_dir}", "r") as file:
+        for line in file:
+            # Parsing the JSON result string into a dict
+            result = json.loads(line.strip())
+            response_list.append(
+                {
+                    "custom_id": f'{result["custom_id"]}',
+                    "query_response": result["response"]["body"]["choices"][0][
+                        "message"
+                    ]["content"],
+                }
+            )
+
+    return pd.DataFrame(response_list)
+
+
+def extract_profile_id(author_metadata: str) -> str:
+    author_metadata_dict = ast.literal_eval(author_metadata)
+    return str(author_metadata_dict.get("id"))
+
+
+def extract_video_transcripts(profile_id, video_metadata) -> str:
+    # Filter the rows where profile_id matches
+    filtered_videos = video_metadata[video_metadata["profile_id"] == profile_id].copy()
+
+    # Sort the filtered videos by creation time from latest to oldest
+    filtered_videos = filtered_videos.sort_values(
+        by="createTimeISO", ascending=False
+    ).reset_index(drop=True)
+
+    # Join the list into a single string, separated by newlines
+    video_transcripts_combined = ""
+    for i in range(len(filtered_videos)):
+        video_transcripts_combined += f"Created on {filtered_videos.loc[i,'createTimeISO']}) {filtered_videos.loc[i,'video_transcript']}\n\n"
+
+    return video_transcripts_combined
