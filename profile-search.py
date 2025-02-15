@@ -1,6 +1,6 @@
 import os
 from apify_client import ApifyClient
-from utils import load_text_file, update_video_metadata
+from utils import load_text_file, update_video_metadata, update_profile_metadata
 from config import (
     PROJECT,
     APIFY_API,
@@ -43,3 +43,7 @@ if __name__ == "__main__":
     update_video_metadata(
         client, run, PROJECT, profile_search=True, filtering_list=PROFILES
     )
+
+    # Update profile metadata store
+    print("Updating profile metadata...")
+    update_profile_metadata(PROJECT, profile_search=True)

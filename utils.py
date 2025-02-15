@@ -102,7 +102,10 @@ def update_profile_metadata(project_name: str, profile_search: bool) -> None:
         profile_search (bool): A boolean indicating whether the search was for profiles or not.
     """
     # Load video metadata file
-    video_metadata_path = f"data/{project_name}/video_metadata.csv"
+    if profile_search:
+        video_metadata_path = f"data/{project_name}/profilesearch_video_metadata.csv"
+    else:
+        video_metadata_path = f"data/{project_name}/keywordsearch_video_metadata.csv"
     video_metadata = pd.read_csv(video_metadata_path)
 
     # Extract the authorMeta field
@@ -245,9 +248,7 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
         Exception: For other errors encountered during transcription, including file size issues.
     """
     input_file_path = f"data/{PROJECT}/video-downloads/{row['video_filename']}"
-    optimized_file_path = (
-        f"data/{PROJECT}/video-downloads/optimized_{row['video_filename']}"
-    )
+    optimized_file_path = f"data/{PROJECT}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
 
     try:
         with open(input_file_path, "rb") as audio_file:
@@ -283,6 +284,27 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
 
 
 def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
+    """
+    Constructs a system prompt string based on the provided row data and the type of prompt required.
+
+    Args:
+        row (pd.Series): A pandas Series containing profile information with the following keys:
+            - "avatar": URL or path to the profile image.
+            - "profile": Profile name.
+            - "nickName": Profile nickname.
+            - "verified": Verification status of the profile.
+            - "signature": Profile signature or bio.
+            - "fans": Number of followers.
+            - "following": Number of accounts the profile is following.
+            - "heart": Number of likes received.
+            - "video": Number of videos posted.
+            - "digg": Number of diggs (likes on comments or other interactions).
+            - "transcripts_combined": Combined transcripts of the profile's videos.
+        is_interview (bool): A boolean flag indicating whether the prompt is for an interview (True) or for finfluencer identification (False).
+
+    Returns:
+        str: The constructed system prompt string.
+    """
     if is_interview:
         system_prompt_template = interview_system_prompt
     else:
@@ -299,7 +321,6 @@ def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
         num_likes=row["heart"],
         num_videos=row["video"],
         num_digg=row["digg"],
-        region=row["region"],
         video_transcripts=row["transcripts_combined"],
     )
     return system_prompt
@@ -307,10 +328,24 @@ def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
 
 def create_batch_file(
     prompts: pd.DataFrame,
-    system_message_field: str,
-    user_message_field: str = "question_prompt",
+    system_prompt_field: str,
+    project_name: str,
+    user_prompt_field: str = "question_prompt",
     batch_file_name: str = "batch_input.jsonl",
 ) -> str:
+    """
+    Creates a batch file in JSON Lines format from a DataFrame of prompts.
+
+    Args:
+        prompts (pd.DataFrame): DataFrame containing the prompts data.
+        system_prompt_field (str): The column name in the DataFrame for the system prompt content.
+        project_name (str): The name of the project used to define the file path
+        user_prompt_field (str, optional): The column name in the DataFrame for the user prompt content. Defaults to "question_prompt".
+        batch_file_name (str, optional): The name of the output batch file. Defaults to "batch_input.jsonl".
+
+    Returns:
+        str: The name of the created batch file.
+    """
     # Creating an array of json tasks
     tasks = []
     for i in range(len(prompts)):
@@ -322,22 +357,35 @@ def create_batch_file(
                 "model": "gpt-4o",  # gpt-4o or gpt-4-turbo
                 "temperature": 0,
                 "messages": [
-                    {"role": "system", "content": prompts.loc[i, system_message_field]},
-                    {"role": "user", "content": prompts.loc[i, user_message_field]},
+                    {"role": "system", "content": prompts.loc[i, system_prompt_field]},
+                    {"role": "user", "content": prompts.loc[i, user_prompt_field]},
                 ],
             },
         }
         tasks.append(task)
 
     # Creating batch file
-    with open(f"batch_files/{batch_file_name}", "w") as file:
+    with open(f"data/{project_name}/batch_files/{batch_file_name}", "w") as file:
         for obj in tasks:
             file.write(json.dumps(obj) + "\n")
 
     return batch_file_name
 
 
-def batch_query(batch_input_file_dir: str, batch_output_file_dir: str) -> pd.DataFrame:
+def batch_query(
+    batch_input_file_dir: str, batch_output_file_dir: str, project_name: str
+) -> pd.DataFrame:
+    """
+    Executes a batch query using the OpenAI API and processes the results into a pandas DataFrame.
+
+    Args:
+        batch_input_file_dir (str): The directory path of the batch input file.
+        batch_output_file_dir (str): The directory path where the batch output file will be saved.
+        project_name (str): The name of the project used to define the file path.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the processed results from the batch query.
+    """
     # Load OpenAI client
     client = OpenAI(
         api_key=os.environ["OPENAI_API_KEY"],
@@ -345,7 +393,8 @@ def batch_query(batch_input_file_dir: str, batch_output_file_dir: str) -> pd.Dat
 
     # Upload batch input file
     batch_file = client.files.create(
-        file=open(f"batch_files/{batch_input_file_dir}", "rb"), purpose="batch"
+        file=open(f"data/{project_name}/batch_files/{batch_input_file_dir}", "rb"),
+        purpose="batch",
     )
 
     # Create batch job
@@ -372,12 +421,12 @@ def batch_query(batch_input_file_dir: str, batch_output_file_dir: str) -> pd.Dat
     results = client.files.content(result_file_id).content
 
     # Save the batch output
-    with open(f"batch_files/{batch_output_file_dir}", "wb") as file:
+    with open(f"data/{project_name}/batch_files/{batch_output_file_dir}", "wb") as file:
         file.write(results)
 
     # Loading data from saved output file
     response_list = []
-    with open(f"batch_files/{batch_output_file_dir}", "r") as file:
+    with open(f"data/{project_name}/batch_files/{batch_output_file_dir}", "r") as file:
         for line in file:
             # Parsing the JSON result string into a dict
             result = json.loads(line.strip())
@@ -394,11 +443,30 @@ def batch_query(batch_input_file_dir: str, batch_output_file_dir: str) -> pd.Dat
 
 
 def extract_profile_id(author_metadata: str) -> str:
+    """
+    Extracts the profile ID from the given author metadata string.
+
+    Args:
+        author_metadata (str): A string representation of a dictionary containing author metadata.
+
+    Returns:
+        str: The profile ID extracted from the author metadata.
+    """
     author_metadata_dict = ast.literal_eval(author_metadata)
     return str(author_metadata_dict.get("id"))
 
 
 def extract_video_transcripts(profile_id, video_metadata) -> str:
+    """
+    Extracts and combines video transcripts for a given profile ID from the provided video metadata.
+
+    Args:
+        profile_id (str): The profile ID to filter the video metadata.
+        video_metadata (pd.DataFrame): A DataFrame containing video metadata, including 'profile_id', 'createTimeISO', and 'video_transcript' columns.
+
+    Returns:
+        str: A single string containing the combined video transcripts, sorted by creation time from latest to oldest, with each transcript prefixed by its creation time.
+    """
     # Filter the rows where profile_id matches
     filtered_videos = video_metadata[video_metadata["profile_id"] == profile_id].copy()
 
@@ -410,6 +478,6 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
     # Join the list into a single string, separated by newlines
     video_transcripts_combined = ""
     for i in range(len(filtered_videos)):
-        video_transcripts_combined += f"Created on {filtered_videos.loc[i,'createTimeISO']}) {filtered_videos.loc[i,'video_transcript']}\n\n"
+        video_transcripts_combined += f"Created on {filtered_videos.loc[i,'createTimeISO']}) {filtered_videos.loc[i,'video_transcript']}\n"
 
     return video_transcripts_combined

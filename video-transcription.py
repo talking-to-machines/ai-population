@@ -34,9 +34,21 @@ if __name__ == "__main__":
 
     # Filter out videos that have not been transcribed
     print("Filtering videos that have not been transcribed...")
-    video_metadata_without_transcript = video_metadata[
-        video_metadata["video_transcript"].isnull()
-    ].reset_index(drop=True)
+    video_metadata_without_transcript = (
+        video_metadata[video_metadata["video_transcript"].isnull()]
+        .copy()
+        .reset_index(drop=True)
+    )
+    video_metadata_without_transcript.dropna(subset=["id"], inplace=True)
+    video_metadata_without_transcript["id"] = video_metadata_without_transcript[
+        "id"
+    ].astype(int)
+    video_metadata_without_transcript["id"] = video_metadata_without_transcript[
+        "id"
+    ].astype(str)
+    video_metadata_without_transcript["video_filename"] = (
+        video_metadata_without_transcript["id"].apply(lambda x: x + ".mp4")
+    )
 
     # Download videos that have not been transcribed and perform transcription
     print("Downloading videos that have not been transcribed...")

@@ -27,7 +27,6 @@ Following: {num_following} Users
 Total Number of Likes: {num_likes}
 Total Number of Videos: {num_videos}
 Total Number of Digg: {num_digg}
-Region: {region}
 Video Transcripts (Sorted from Newest to Oldest):
 {video_transcripts}
 
@@ -114,7 +113,6 @@ Following: {num_following} Users
 Total Number of Likes: {num_likes}
 Total Number of Videos: {num_videos}
 Total Number of Digg: {num_digg}
-Region: {region}
 Video Transcripts (Sorted from Newest to Oldest):
 {video_transcripts}
 
