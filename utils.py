@@ -365,7 +365,7 @@ def create_batch_file(
         tasks.append(task)
 
     # Creating batch file
-    with open(f"data/{project_name}/batch_files/{batch_file_name}", "w") as file:
+    with open(f"data/{project_name}/batch-files/{batch_file_name}", "w") as file:
         for obj in tasks:
             file.write(json.dumps(obj) + "\n")
 
@@ -393,7 +393,7 @@ def batch_query(
 
     # Upload batch input file
     batch_file = client.files.create(
-        file=open(f"data/{project_name}/batch_files/{batch_input_file_dir}", "rb"),
+        file=open(f"data/{project_name}/batch-files/{batch_input_file_dir}", "rb"),
         purpose="batch",
     )
 
@@ -421,12 +421,12 @@ def batch_query(
     results = client.files.content(result_file_id).content
 
     # Save the batch output
-    with open(f"data/{project_name}/batch_files/{batch_output_file_dir}", "wb") as file:
+    with open(f"data/{project_name}/batch-files/{batch_output_file_dir}", "wb") as file:
         file.write(results)
 
     # Loading data from saved output file
     response_list = []
-    with open(f"data/{project_name}/batch_files/{batch_output_file_dir}", "r") as file:
+    with open(f"data/{project_name}/batch-files/{batch_output_file_dir}", "r") as file:
         for line in file:
             # Parsing the JSON result string into a dict
             result = json.loads(line.strip())
