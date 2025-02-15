@@ -173,7 +173,7 @@ def identify_top_influencers(project_name: str, top_n_profiles: int) -> None:
 
     # Save top n profiles to a text file
     profiles = profile_metadata_top_n_profiles["profile"].tolist()
-    profiles_path = f"{project_name}-profiles.txt"
+    profiles_path = f"{project_name}_profiles.txt"
 
     with open(profiles_path, "w") as file:
         for profile in profiles:

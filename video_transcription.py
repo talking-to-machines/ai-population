@@ -18,7 +18,7 @@ if __name__ == "__main__":
     video_metadata_file_path = f"data/{PROJECT}/profilesearch_video_metadata.csv"
     if not os.path.exists(video_metadata_file_path):
         raise FileNotFoundError(
-            "Run profile-search.py to generate video metadata first."
+            "Run profile_search.py to generate video metadata first."
         )
     else:
         video_metadata = pd.read_csv(video_metadata_file_path)

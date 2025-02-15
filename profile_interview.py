@@ -60,7 +60,7 @@ def perform_profile_interview(is_interview: bool) -> None:
         profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
     # Create folder to contain batch files
-    batch_file_dir = f"data/{PROJECT}/batch_files"
+    batch_file_dir = f"data/{PROJECT}/batch-files"
     os.makedirs(batch_file_dir, exist_ok=True)
 
     # Perform batch query for survey questions
