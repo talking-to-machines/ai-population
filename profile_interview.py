@@ -77,7 +77,6 @@ def perform_profile_interview(is_interview: bool) -> None:
     batch_file_dir = create_batch_file(
         profile_metadata,
         system_prompt_field=system_prompt_field,
-        project_name=PROJECT,
         user_prompt_field=user_prompt_field,
         batch_file_name="batch_input.jsonl",
     )
@@ -86,7 +85,6 @@ def perform_profile_interview(is_interview: bool) -> None:
     llm_responses = batch_query(
         batch_input_file_dir="batch_input.jsonl",
         batch_output_file_dir="batch_output.jsonl",
-        project_name=PROJECT,
     )
     llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
 

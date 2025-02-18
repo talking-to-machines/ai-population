@@ -47,15 +47,15 @@ if __name__ == "__main__":
     # Update video metadata store
     print("Updating video metadata...")
     update_video_metadata(
-        client, run, PROJECT, profile_search=False, filtering_list=SEARCH_TERMS
+        client, run, profile_search=False, filtering_list=SEARCH_TERMS
     )
 
     # Update profile metadata store
     print("Updating profile metadata...")
-    update_profile_metadata(PROJECT, profile_search=False)
+    update_profile_metadata(profile_search=False)
 
     # Identify top n influencial profiles based on keyword search
     print(
         f"Identifying top {TOP_N_PROFILES} influencial profiles from keyword search..."
     )
-    identify_top_influencers(PROJECT, TOP_N_PROFILES)
+    identify_top_influencers(TOP_N_PROFILES)

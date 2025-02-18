@@ -11,6 +11,13 @@ from prompt_template import (
     finfluencer_identification_system_prompt,
     interview_system_prompt,
 )
+from config import (
+    PROJECT,
+    PROFILESEARCH_VIDEO_METADATA_FILE,
+    KEYWORDSEARCH_VIDEO_METADATA_FILE,
+    PROFILESEARCH_PROFILE_METADATA_FILE,
+    KEYWORDSEARCH_PROFILE_METADATA_FILE,
+)
 
 openai_client = OpenAI()
 
@@ -32,7 +39,6 @@ def load_text_file(file_path) -> list:
 def update_video_metadata(
     client: ApifyClient,
     run: dict,
-    project_name: str,
     profile_search: bool,
     filtering_list: list,
 ) -> None:
@@ -43,7 +49,6 @@ def update_video_metadata(
     Args:
         client (ApifyClient): The Apify client used to fetch video metadata.
         run (dict): The run object containing the default dataset ID.
-        project_name (str): The name of the project, used to define the file path.
         profile_search (bool): A boolean indicating whether the search was for profiles or not.
         filtering_list (list): A list of search terms or profiles used to filter the search results.
     """
@@ -68,9 +73,9 @@ def update_video_metadata(
 
     # Define the file path
     if profile_search:
-        video_metadata_path = f"data/{project_name}/profilesearch_video_metadata.csv"
+        video_metadata_path = f"data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     else:
-        video_metadata_path = f"data/{project_name}/keywordsearch_video_metadata.csv"
+        video_metadata_path = f"data/{PROJECT}/{KEYWORDSEARCH_VIDEO_METADATA_FILE}"
 
     if os.path.exists(video_metadata_path):
         # Load existing video metadata file
@@ -93,19 +98,18 @@ def update_video_metadata(
     return None
 
 
-def update_profile_metadata(project_name: str, profile_search: bool) -> None:
+def update_profile_metadata(profile_search: bool) -> None:
     """
     Updates the profile metadata for a given project by processing the video metadata.
 
     Args:
-        project_name (str): The name of the project for which the profile metadata is to be updated.
         profile_search (bool): A boolean indicating whether the search was for profiles or not.
     """
     # Load video metadata file
     if profile_search:
-        video_metadata_path = f"data/{project_name}/profilesearch_video_metadata.csv"
+        video_metadata_path = f"data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     else:
-        video_metadata_path = f"data/{project_name}/keywordsearch_video_metadata.csv"
+        video_metadata_path = f"data/{PROJECT}/{KEYWORDSEARCH_VIDEO_METADATA_FILE}"
     video_metadata = pd.read_csv(video_metadata_path)
 
     # Extract the authorMeta field
@@ -135,32 +139,27 @@ def update_profile_metadata(project_name: str, profile_search: bool) -> None:
 
     # Save profile metadata locally, overwrite existing profile metadata if it exist
     if profile_search:
-        profile_metadata_path = (
-            f"data/{project_name}/profilesearch_profile_metadata.csv"
-        )
+        profile_metadata_path = f"data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
     else:
-        profile_metadata_path = (
-            f"data/{project_name}/keywordsearch_profile_metadata.csv"
-        )
+        profile_metadata_path = f"data/{PROJECT}/{KEYWORDSEARCH_PROFILE_METADATA_FILE}"
     profile_metadata.to_csv(profile_metadata_path, index=False)
 
     return None
 
 
-def identify_top_influencers(project_name: str, top_n_profiles: int) -> None:
+def identify_top_influencers(top_n_profiles: int) -> None:
     """
     Identifies the top N influencers based on the number of followers from a profile metadata file
     and saves their profiles to a text file.
 
     Args:
-        project_name (str): The name of the project, used to locate the profile metadata file.
         top_n_profiles (int): The number of top profiles to identify based on the number of followers.
 
     Returns:
         None
     """
     # Load profile metadata file based on keyword search
-    profile_metadata_path = f"data/{project_name}/keywordsearch_profile_metadata.csv"
+    profile_metadata_path = f"data/{PROJECT}/{KEYWORDSEARCH_PROFILE_METADATA_FILE}"
     profile_metadata = pd.read_csv(profile_metadata_path)
 
     # Sort profiles based on number of followers
@@ -173,7 +172,7 @@ def identify_top_influencers(project_name: str, top_n_profiles: int) -> None:
 
     # Save top n profiles to a text file
     profiles = profile_metadata_top_n_profiles["profile"].tolist()
-    profiles_path = f"{project_name}_profiles.txt"
+    profiles_path = f"{PROJECT}_profiles.txt"
 
     with open(profiles_path, "w") as file:
         for profile in profiles:
@@ -329,7 +328,6 @@ def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
 def create_batch_file(
     prompts: pd.DataFrame,
     system_prompt_field: str,
-    project_name: str,
     user_prompt_field: str = "question_prompt",
     batch_file_name: str = "batch_input.jsonl",
 ) -> str:
@@ -339,7 +337,6 @@ def create_batch_file(
     Args:
         prompts (pd.DataFrame): DataFrame containing the prompts data.
         system_prompt_field (str): The column name in the DataFrame for the system prompt content.
-        project_name (str): The name of the project used to define the file path
         user_prompt_field (str, optional): The column name in the DataFrame for the user prompt content. Defaults to "question_prompt".
         batch_file_name (str, optional): The name of the output batch file. Defaults to "batch_input.jsonl".
 
@@ -365,7 +362,7 @@ def create_batch_file(
         tasks.append(task)
 
     # Creating batch file
-    with open(f"data/{project_name}/batch-files/{batch_file_name}", "w") as file:
+    with open(f"data/{PROJECT}/batch-files/{batch_file_name}", "w") as file:
         for obj in tasks:
             file.write(json.dumps(obj) + "\n")
 
@@ -373,7 +370,8 @@ def create_batch_file(
 
 
 def batch_query(
-    batch_input_file_dir: str, batch_output_file_dir: str, project_name: str
+    batch_input_file_dir: str,
+    batch_output_file_dir: str,
 ) -> pd.DataFrame:
     """
     Executes a batch query using the OpenAI API and processes the results into a pandas DataFrame.
@@ -381,7 +379,6 @@ def batch_query(
     Args:
         batch_input_file_dir (str): The directory path of the batch input file.
         batch_output_file_dir (str): The directory path where the batch output file will be saved.
-        project_name (str): The name of the project used to define the file path.
 
     Returns:
         pd.DataFrame: A DataFrame containing the processed results from the batch query.
@@ -393,7 +390,7 @@ def batch_query(
 
     # Upload batch input file
     batch_file = client.files.create(
-        file=open(f"data/{project_name}/batch-files/{batch_input_file_dir}", "rb"),
+        file=open(f"data/{PROJECT}/batch-files/{batch_input_file_dir}", "rb"),
         purpose="batch",
     )
 
@@ -421,12 +418,12 @@ def batch_query(
     results = client.files.content(result_file_id).content
 
     # Save the batch output
-    with open(f"data/{project_name}/batch-files/{batch_output_file_dir}", "wb") as file:
+    with open(f"data/{PROJECT}/batch-files/{batch_output_file_dir}", "wb") as file:
         file.write(results)
 
     # Loading data from saved output file
     response_list = []
-    with open(f"data/{project_name}/batch-files/{batch_output_file_dir}", "r") as file:
+    with open(f"data/{PROJECT}/batch-files/{batch_output_file_dir}", "r") as file:
         for line in file:
             # Parsing the JSON result string into a dict
             result = json.loads(line.strip())
