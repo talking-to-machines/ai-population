@@ -15,10 +15,10 @@ TOP_N_PROFILES = 100
 ### Configuration for Market Signals Finfluencer (START) ###
 PROJECT = "market-signals-finfluencer"
 SEARCH_TERMS_FILE = "market_signals_finfluencer_search_terms.txt"
-PROFILES_FILE = "market_signals_finfluencer_profiles.txt"
-PROFILESEARCH_VIDEO_METADATA_FILE = "profilesearch_video_metadata.csv"
+PROFILES_FILE = "market_signals_finfluencer_profiles_groundtruth.txt"
+PROFILESEARCH_VIDEO_METADATA_FILE = "profilesearch_video_metadata_groundtruth.csv"
 KEYWORDSEARCH_VIDEO_METADATA_FILE = "keywordsearch_video_metadata.csv"
-PROFILESEARCH_PROFILE_METADATA_FILE = "profilesearch_profile_metadata.csv"
+PROFILESEARCH_PROFILE_METADATA_FILE = "profilesearch_profile_metadata_groundtruth.csv"
 KEYWORDSEARCH_PROFILE_METADATA_FILE = "keywordsearch_profile_metadata"
 ### Configuration for Market Signals Finfluencer (END) ###
 
