@@ -98,6 +98,22 @@ def update_video_metadata(
     return None
 
 
+def convert_str_to_dictionary(str_to_convert: str) -> dict:
+    """
+    Converts a string representation of a dictionary to an actual dictionary.
+
+    Args:
+        str_to_convert (str): The string to convert to a dictionary.
+
+    Returns:
+        dict: The converted dictionary. If conversion fails, returns a dictionary with a single key 'id' set to None.
+    """
+    try:
+        return ast.literal_eval(str_to_convert)
+    except Exception as e:
+        return {"id": None}
+
+
 def update_profile_metadata(profile_search: bool) -> None:
     """
     Updates the profile metadata for a given project by processing the video metadata.
@@ -117,7 +133,7 @@ def update_profile_metadata(profile_search: bool) -> None:
 
     # Convert the authorMeta dictionary to separate columns
     profile_metadata.loc[:, "authorMeta"] = profile_metadata["authorMeta"].apply(
-        lambda x: ast.literal_eval(x)
+        convert_str_to_dictionary
     )
     profile_metadata = pd.json_normalize(profile_metadata["authorMeta"]).join(
         profile_metadata["extractionTime"]
@@ -133,9 +149,10 @@ def update_profile_metadata(profile_search: bool) -> None:
     )
 
     # Drop invalid profiles
-    profile_metadata = profile_metadata[profile_metadata["id"] != "nan"].reset_index(
-        drop=True
-    )
+    profile_metadata = profile_metadata[
+        (~profile_metadata["id"].isin(["nan", "None"]))
+        & (~profile_metadata["id"].isnull())
+    ].reset_index(drop=True)
 
     # Save profile metadata locally, overwrite existing profile metadata if it exist
     if profile_search:
