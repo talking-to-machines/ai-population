@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from utils import download_video, transcribe_videos
-from config import PROJECT
+from config import PROJECT, PROFILESEARCH_VIDEO_METADATA_FILE
 from tqdm import tqdm
 
 # Enable the progress_apply method
@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     # Load video metadata
     print("Loading video metadata...")
-    video_metadata_file_path = f"data/{PROJECT}/profilesearch_video_metadata.csv"
+    video_metadata_file_path = f"data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     if not os.path.exists(video_metadata_file_path):
         raise FileNotFoundError(
             "Run profile_search.py to generate video metadata first."
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         ignore_index=True,
     )
     video_metadata.to_csv(
-        f"data/{PROJECT}/profilesearch_video_metadata_test.csv", index=False
+        f"data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}", index=False
     )
 
     # Clean up downloaded videos to save disk space
