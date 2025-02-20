@@ -11,13 +11,13 @@ if __name__ == "__main__":
     print("Creating video downloads folder...")
     # Create the video downloads folder for project if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    video_download_folder_path = f"{base_dir}/data/{PROJECT}/video-downloads"
+    video_download_folder_path = f"{base_dir}/../data/{PROJECT}/video-downloads"
     os.makedirs(video_download_folder_path, exist_ok=True)
 
     # Load video metadata
     print("Loading video metadata...")
     video_metadata_file_path = (
-        f"{base_dir}/data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
+        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     )
     if not os.path.exists(video_metadata_file_path):
         raise FileNotFoundError(
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         ignore_index=True,
     )
     video_metadata.to_csv(
-        f"{base_dir}/data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}", index=False
+        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}", index=False
     )
 
     # Clean up downloaded videos to save disk space
