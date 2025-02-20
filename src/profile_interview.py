@@ -26,14 +26,14 @@ def perform_profile_interview(is_interview: bool) -> None:
     print("Loading profile and video metadata...")
     if is_interview:
         profile_metadata = pd.read_csv(
-            f"{base_dir}/data/{PROJECT}/{POST_INTERVIEW_FILE}"
+            f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}"
         )
     else:
         profile_metadata = pd.read_csv(
-            f"{base_dir}/data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
+            f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
         )
     video_metadata = pd.read_csv(
-        f"{base_dir}/data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
+        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     )
     video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
 
@@ -69,7 +69,7 @@ def perform_profile_interview(is_interview: bool) -> None:
         profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
     # Create folder to contain batch files
-    batch_file_dir = f"{base_dir}/data/{PROJECT}/batch-files"
+    batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
     os.makedirs(batch_file_dir, exist_ok=True)
 
     # Perform batch query for survey questions
@@ -110,10 +110,10 @@ def perform_profile_interview(is_interview: bool) -> None:
     # Save profile metadata after analysis into CSV file
     print("Saving profile metadata with analysis...")
     profile_metadata_with_responses.to_csv(
-        f"{base_dir}/data/{PROJECT}/{POST_INTERVIEW_FILE}", index=False
+        f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}", index=False
     )
 
 
 if __name__ == "__main__":
     perform_profile_interview(is_interview=False)
-    perform_profile_interview(is_interview=True)
+    # perform_profile_interview(is_interview=True)

@@ -10,6 +10,7 @@ from openai import OpenAI
 from src.prompt_template import (
     finfluencer_identification_system_prompt,
     interview_system_prompt,
+    video_transcript_template,
 )
 from config.config import (
     PROJECT,
@@ -319,28 +320,29 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
             return None
 
 
-def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
+def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
     """
-    Constructs a system prompt string based on the provided row data and the type of prompt required.
+    Calculate the profile engagement based on the number of likes and the number of fans/videos posted.
 
     Args:
-        row (pd.Series): A pandas Series containing profile information with the following keys:
-            - "avatar": URL or path to the profile image.
-            - "profile": Profile name.
-            - "nickName": Profile nickname.
-            - "verified": Verification status of the profile.
-            - "signature": Profile signature or bio.
-            - "fans": Number of followers.
-            - "following": Number of accounts the profile is following.
-            - "heart": Number of likes received.
-            - "video": Number of videos posted.
-            - "digg": Number of diggs (likes on comments or other interactions).
-            - "transcripts_combined": Combined transcripts of the profile's videos.
-        is_interview (bool): A boolean flag indicating whether the prompt is for an interview (True) or for finfluencer identification (False).
+        num_likes (str): The number of likes as a string.
+        num_fans_videos (str): The number of fans/videos posted.
 
     Returns:
-        str: The constructed system prompt string.
+        float: The profile engagement ratio. If the number of fans/videos posted is zero or cannot be converted to a number, returns 0.0.
     """
+    num_likes = pd.to_numeric(num_likes, errors="coerce")
+    num_fans_videos = pd.to_numeric(num_fans_videos, errors="coerce")
+
+    # Replace NaN values with 0
+    num_likes = num_likes if pd.notna(num_likes) else 0
+    num_fans_videos = num_fans_videos if pd.notna(num_fans_videos) else 0
+
+    profile_engagement = num_likes / num_fans_videos if num_fans_videos > 0 else 0.0
+    return profile_engagement
+
+
+def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
     if is_interview:
         system_prompt_template = interview_system_prompt
     else:
@@ -351,12 +353,21 @@ def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
         profile_name=row["profile"],
         profile_nickname=row["nickName"],
         verified_status=row["verified"],
+        private_account=row["privateAccount"],
+        region=row["region"],
+        tiktok_seller=row["ttSeller"],
         profile_signature=row["signature"],
         num_followers=row["fans"],
         num_following=row["following"],
         num_likes=row["heart"],
         num_videos=row["video"],
         num_digg=row["digg"],
+        total_likes_over_num_followers=calculate_profile_engagement(
+            row["heart"], row["fans"]
+        ),
+        total_likes_over_num_videos=calculate_profile_engagement(
+            row["heart"], row["video"]
+        ),
         video_transcripts=row["transcripts_combined"],
     )
     return system_prompt
@@ -498,6 +509,96 @@ def extract_profile_id(author_metadata: str) -> str:
     return str(author_metadata_dict.get("id"))
 
 
+def extract_mentions(mentions_raw: str) -> str:
+    """Extracts nicknames from a raw mentions string.
+    This function takes a string representation of a list of dictionaries,
+    where each dictionary contains a "nickName" key. It extracts the values
+    associated with the "nickName" key and returns them as a comma-separated
+    string.
+    Args:
+        mentions_raw (str): A string representation of a list of dictionaries,
+                            where each dictionary contains a "nickName" key.
+    Returns:
+        str: A comma-separated string of nicknames. If an error occurs during
+             processing, an empty string is returned.
+    """
+    try:
+        nickname_list = []
+        mentions_list = ast.literal_eval(mentions_raw)
+        for mention in mentions_list:
+            nickname_list.append(mention.get("nickName", ""))
+
+        return ", ".join([nickname for nickname in nickname_list if nickname != ""])
+
+    except Exception as e:
+        return ""
+
+
+def extract_hashtags(hashtags_raw: str) -> str:
+    """
+    Extracts hashtags from a raw string representation of a list of dictionaries.
+    Args:
+        hashtags_raw (str): A string representation of a list of dictionaries,
+                            where each dictionary contains a "name" key.
+    Returns:
+        str: A comma-separated string of hashtag names. If an error occurs,
+             an empty string is returned.
+    """
+    try:
+        hashtag_name_list = []
+        hashtags_list = ast.literal_eval(hashtags_raw)
+        for hashtag in hashtags_list:
+            hashtag_name_list.append(hashtag.get("name", ""))
+
+        return ", ".join(
+            [hashtag_name for hashtag_name in hashtag_name_list if hashtag_name != ""]
+        )
+
+    except Exception as e:
+        return ""
+
+
+def calculate_video_engagement(video_data: pd.Series) -> float:
+    """
+    Calculate the engagement rate of a video based on its interaction metrics.
+
+    The engagement rate is calculated as the sum of likes, shares, comments, and saves
+    divided by the number of views. If the number of views is zero, the engagement rate
+    is set to 0.0 to avoid division by zero.
+
+    Args:
+        video_data (pd.Series): A pandas Series containing the video's interaction metrics.
+            Expected keys are:
+            - "diggCount": Number of likes.
+            - "shareCount": Number of shares.
+            - "commentCount": Number of comments.
+            - "collectCount": Number of saves.
+            - "playCount": Number of views.
+
+    Returns:
+        float: The engagement rate of the video.
+    """
+    num_likes = pd.to_numeric(video_data["diggCount"], errors="coerce")
+    num_shares = pd.to_numeric(video_data["shareCount"], errors="coerce")
+    num_comments = pd.to_numeric(video_data["commentCount"], errors="coerce")
+    num_saves = pd.to_numeric(video_data["collectCount"], errors="coerce")
+    num_views = pd.to_numeric(video_data["playCount"], errors="coerce")
+
+    # Replace NaN values with 0
+    num_likes = num_likes if pd.notna(num_likes) else 0
+    num_shares = num_shares if pd.notna(num_shares) else 0
+    num_comments = num_comments if pd.notna(num_comments) else 0
+    num_saves = num_saves if pd.notna(num_saves) else 0
+    num_views = num_views if pd.notna(num_views) else 0
+
+    video_engagement = (
+        (num_likes + num_shares + num_comments + num_saves) / num_views
+        if num_views > 0
+        else 0.0
+    )
+    return video_engagement
+
+
 def extract_video_transcripts(profile_id, video_metadata) -> str:
     """
     Extracts and combines video transcripts for a given profile ID from the provided video metadata.
@@ -517,9 +618,25 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
         by="createTimeISO", ascending=False
     ).reset_index(drop=True)
 
-    # Join the list into a single string, separated by newlines
+    # Join the list of video transcripts into a single string, separated by newlines
     video_transcripts_combined = ""
     for i in range(len(filtered_videos)):
-        video_transcripts_combined += f"Created on {filtered_videos.loc[i,'createTimeISO']}) {filtered_videos.loc[i,'video_transcript']}\n"
+        video_transcripts_combined += video_transcript_template.format(
+            video_creation_date=filtered_videos.loc[i, "createTimeISO"],
+            video_text=filtered_videos.loc[i, "text"],
+            num_likes=filtered_videos.loc[i, "diggCount"],
+            num_shares=filtered_videos.loc[i, "shareCount"],
+            view_count=filtered_videos.loc[i, "playCount"],
+            num_saves=filtered_videos.loc[i, "collectCount"],
+            num_comments=filtered_videos.loc[i, "commentCount"],
+            total_engagement_over_num_views=calculate_video_engagement(
+                filtered_videos.loc[i, :]
+            ),
+            mentions=extract_mentions(filtered_videos.loc[i, "detailedMentions"]),
+            hashtags=extract_hashtags(filtered_videos.loc[i, "hashtags"]),
+            is_sponsored=filtered_videos.loc[i, "isSponsored"],
+            is_advertisement=filtered_videos.loc[i, "isAd"],
+            video_transcript=filtered_videos.loc[i, "video_transcript"],
+        )
 
     return video_transcripts_combined
