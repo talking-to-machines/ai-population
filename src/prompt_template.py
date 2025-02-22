@@ -1200,17 +1200,17 @@ Video Transcript: {video_transcript}
 finfluencer_identification_user_prompt = """You will be presented with a series of questions related to a user of a Tiktok user’s profile. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
-1) Select the most likely response based strictly on the provided profile data and must be the most likely to accurately represent this user.
-2) You must only select one symbol/category per question. A title, symbol and category cannot appear more than once in your answer.
+1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
+2) Select only one symbol/category per question. A title, symbol, and category cannot appear more than once in your answer.
 3) Present the selected symbol for each question (if applicable) and write out in full the response associated with the selected symbol.
-4) For each selected symbol/category, present the speculation level involved in this selection on a scale from 0 (not speculative at all, every single element of the user data was useful in the selection) to 100 (fully speculative, there is no information related to this title in the user data). Speculation levels should be a direct measure of the amount of useful information available in the user's profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from this user -- and should not be affected by additional information available to you from any other source.
+4) For each selected symbol/category, indicate the level of speculation involved in this selection on a scale from 0 (not speculative at all, every single element of the profile data was useful in the selection) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation levels should be a direct measure of the amount of useful information available in the profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from the profile-- and should not be affected by additional information available to you from any other source.
 
 To ensure consistency, use the following guidelines to determine speculation levels:
-0-20 (Low speculation): The user data provides clear and direct information relevant to the title. (e.g., explicit mention in the profile or videos)
-21-40 (Moderate-low speculation): The user data provides indirect but strong indicators relevant to the title. (e.g., context from multiple sources within the profile or videos)
-41-60 (Moderate speculation): The user data provides some hints or partial information relevant to the title. (e.g., inferred from user interests or indirect references)
-61-80 (Moderate-high speculation): The user data provides limited and weak indicators relevant to the title. (e.g., very subtle hints or minimal context)
-81-100 (High speculation): The user data provides no or almost no information relevant to the title. (e.g., assumptions based on very general information)
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no information relevant to the question. (e.g., assumptions based on very general information)
 
 5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
 6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
@@ -1225,6 +1225,11 @@ For numerical questions (0-100 scale), format your output as follows (this is ju
 **question: Indicate on a scale of 0 to 100, how knowledgable is the user about finance – 0 means not at all knowledgeable and 100 means very knowledgeable?**
 **explanation: [Detailed reasoning for selection]**
 **value: 20**
+**speculation: 90**
+
+For open-ended questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: Are there any stocks you expect to **underperform** or decline in the next 3-6 months?**
+**response: [Detailed response]**
 **speculation: 90**
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
@@ -1260,64 +1265,68 @@ C4) Others
 """
 
 
-interview_system_prompt = """You are provided information about a user with a Tiktok profile, including:
+interview_system_prompt = """Please put yourself in the shoes of a TikTok finfluencer participating in a financial market survey. Your profile has been previously evaluated by an LLM during an onboarding phase and determined to be a finfluencer based on your profile and video content. Your videos will also be monitored daily.
+
+The details of your TikTok profile are as follows:
 Profile Image: {profile_image}
 Profile Name: {profile_name}
 Profile Nickname: {profile_nickname}
 Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
 Profile Signature: {profile_signature}
 Number of Followers: {num_followers} Followers
 Following: {num_following} Users
 Total Number of Likes: {num_likes}
 Total Number of Videos: {num_videos}
 Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
 Video Transcripts (Sorted from Newest to Oldest):
 {video_transcripts}
 
-Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise and precise.
+Instructions
+Analyze the provided profile and answer the following questions based strictly on the available data while maintaining the persona and perspective of this profile. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven.
 """
 
 
-interview_user_prompt = """You will be presented with a series of questions related to a user of a Tiktok profile.
-Each question is preceded by predefined responses with symbols (e.g. "A1", "A2" or "B1" etc.).
-Please select, for each question, the most likely response based strictly on the provided profile data.
+interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
-In your answer present, for each question, the selected symbol.
-Write out in full the response associated with the selected symbol.
-The chosen symbol / category must be the most likely to accurately represent this user.
-You must only select one symbol / category per question.
-A title, symbol and category cannot appear more than once in your answer.
+For each question, follow these instructions strictly:
+1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
+2) Select only one symbol/category per question. A title, symbol, and category cannot appear more than once in your answer.
+3) Present the selected symbol for each question (if applicable) and write out in full the response associated with the selected symbol.
+4) For each selected symbol/category, indicate the level of speculation involved in this selection on a scale from 0 (not speculative at all, every single element of the profile data was useful in the selection) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation levels should be a direct measure of the amount of useful information available in the profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from the profile-- and should not be affected by additional information available to you from any other source.
 
-For each selected symbol / category, please note the level of Speculation involved in this selection.
-Present the Speculation level for each selection on a scale from 0 (not speculative at all, every single element of the user data was useful in the selection) to 100 (fully speculative, there is no information related to this title in the user data).
-Speculation levels should be a direct measure of the amount of useful information available in the user's profile.
-Speculation levels pertain only to the information available in the user data -- namely the username, name, description, location, profile picture and videos from this user -- and should not be affected by additional information available to you from any other source.
 To ensure consistency, use the following guidelines to determine speculation levels:
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no information relevant to the question. (e.g., assumptions based on very general information)
 
-0-20 (Low speculation): The user data provides clear and direct information relevant to the title. (e.g., explicit mention in the profile or videos)
-21-40 (Moderate-low speculation): The user data provides indirect but strong indicators relevant to the title. (e.g., context from multiple sources within the profile or videos)
-41-60 (Moderate speculation): The user data provides some hints or partial information relevant to the title. (e.g., inferred from user interests or indirect references)
-61-80 (Moderate-high speculation): The user data provides limited and weak indicators relevant to the title. (e.g., very subtle hints or minimal context)
-81-100 (High speculation): The user data provides no or almost no information relevant to the title. (e.g., assumptions based on very general information)
-
-For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
-
-Preserve a strictly structured answer to ease parsing of the text.
-Format your output as follows for a categorical question (this is just an example, I do not care about this specific title or symbol / category):
-**question: What is the age of the user in this profile?**
+5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
+6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
+For categorical questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: How well does the user engage with their audience?**
 **explanation: [Detailed reasoning for selection]**
 **symbol: A1)**
-**category: 18-25**
+**category: Very Well**
 **speculation: 90**
 
-Format your output as follows for a numerical question with a scale of 0 to 100 (this is just an example, I do not care about this specific title or symbol / category):
-**question: Indicate on a scale of 0 to 100, what is the level of financial knowledge the user has in this profile – 0 means not at all knowledgeable and 100 means very knowledgeable?**
+For numerical questions (0-100 scale), format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: Indicate on a scale of 0 to 100, how knowledgable is the user about finance – 0 means not at all knowledgeable and 100 means very knowledgeable?**
 **explanation: [Detailed reasoning for selection]**
 **value: 20**
 **speculation: 90**
 
+For open-ended questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: Are there any stocks you expect to **underperform** or decline in the next 3-6 months?**
+**response: [Detailed response]**
+**speculation: 90**
 
-YOU MUST GIVE AN ANSWER FOR EVERY QUESTION !
+YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
 
 Question 1: Do you agree or disagree with the following statement: “The U.S. economy is likely to enter a recession in the next 12 months?
 A1) Strongly Disagree
@@ -1326,35 +1335,52 @@ A3) Neither Agree/Disagree
 A4) Agree
 A5) Strongly Agree
 
-Question 2: How would you describe the current market sentiment among investors based on a Likert scale from *Very Bearish* to *Very Bullish*?”.
+Question 2: How would you describe the current market sentiment among investors? Is sentiment very bearish, bearish, neutral, bullish, or very bullish?”.
 B1) Very Bearish
 B2) Bearish
 B3) Neutral
 B4) Bullish
 B5) Very Bullish
 
-Question 3: Regarding the future direction of the stock market, are you bullish, bearish or neutral?
-C1) Bullish
+Question 3: Regarding the future direction of the stock market, are you very bearish, bearish, neutral, bullish, or very bullish?
+C1) Very Bearish
 C2) Bearish
 C3) Neutral
+C4) Bullish
+C5) Very Bullish
 
-Question 4: In the next 1–3 months, do you expect U.S. stock market indices to rise, fall, or stay about the same?
+Question 4: In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall?
 D1) Rise
-D2) Fall
-D3) Stay About The Same
+D2) Stay About The Same
+D3) Fall
 
-Question 5: In the next 1–3 months, do you expect U.S. bond prices (or interest rates) to go up, go down, or remain unchanged?
+Question 5: In the next 1–3 months, do you expect U.S. bond prices (or interest rates) to rise, remain unchanged, or fall?
 E1) Rise
-E2) Fall
-E3) Stay About The Same
+E2) Stay About The Same
+E3) Fall
 
-Question 6: Which specific stocks (if any) do you anticipate will **outperform** in the next 3-6 months? Please list up to 3. Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?
+Question 6: Which specific stocks (if any) do you anticipate will **outperform** in the next 3-6 months? Please list up to 3 stock tickers. Can you give some background on these choices? Can you briefly explain why you picked them? Are there others you really think are outperformers? Why?
 
-Question 7: Are there any stocks you expect to **underperform** or decline in the next 3-6 months? Please list those you’re bearish on. Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
+Question 7: Which specific stocks (if any) do you anticipate will **underperform** or decline in the next 3-6 months? Please list up to 3 stock tickers. Can you give some background on these choices? Can you briefly explain why you picked them? Are there others you really think are underperformers? Why?
 
-Question 8: Considering current market conditions, what sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices?  Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
+Question 8: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?
 
-Question 9: Which sectors will do poorly in the next 3-6 months? Can you give some background on these choices?  Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
+Question 9: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
 
-Question 10: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
+Question 10: Did you mention any stocks or stock tickers in the Russell 4000 list (e.g., {russell_4000_tickers})?
+F1) Yes
+F2) No
+
+Question 11: If the response to Question 10 is “Yes”, provide the full list of stocks/stock tickers that were mentioned, separated by a comma. Otherwise, respond with “NA”.
+
+Question 12: If a list of stocks/stock tickers was provided in Question 11, indicate on a scale of 0 to 100, your overall sentiment for each stock in this list - 0 means a very strong sell recommendation and 100 means a very positive buy recommendation. For example, a poor recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, and a strong buy recommendation would be 80+. Otherwise, respond with “NA”. Formatting your response based on the structure provided below
+**stock name: [stock name 1]**
+**stock ticker: [stock ticker 1]**
+**sentiment: 40**
+
+**stock name: [stock name 2]**
+**stock ticker: [stock ticker 2]**
+**sentiment: 80**
+
+Question 13: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
 """

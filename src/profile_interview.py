@@ -12,10 +12,10 @@ from src.utils import (
     construct_system_prompt,
     create_batch_file,
     batch_query,
+    construct_interview_user_prompt,
 )
 from src.prompt_template import (
     finfluencer_identification_user_prompt,
-    interview_user_prompt,
 )
 
 
@@ -24,14 +24,17 @@ def perform_profile_interview(is_interview: bool) -> None:
 
     # Load profile and video metadata
     print("Loading profile and video metadata...")
-    if is_interview:
-        profile_metadata = pd.read_csv(
-            f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}"
-        )
-    else:
-        profile_metadata = pd.read_csv(
-            f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
-        )
+    # if is_interview:
+    #     profile_metadata = pd.read_csv(
+    #         f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}"
+    #     )
+    # else:
+    #     profile_metadata = pd.read_csv(
+    #         f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
+    #     )
+    profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
+    )
     video_metadata = pd.read_csv(
         f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
     )
@@ -47,16 +50,16 @@ def perform_profile_interview(is_interview: bool) -> None:
 
     # Generate system and user prompts
     print("Generate system and user prompts...")
+    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
+        extract_video_transcripts, args=(video_metadata,)
+    )
     if is_interview:  # Finfluencer interview
-        profile_metadata["interview_user_prompt"] = interview_user_prompt
+        profile_metadata["interview_user_prompt"] = construct_interview_user_prompt()
         profile_metadata["interview_system_prompt"] = profile_metadata.apply(
             construct_system_prompt, args=(is_interview,), axis=1
         )
 
     else:  # Finfluencer identification
-        profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
-            extract_video_transcripts, args=(video_metadata,)
-        )
         profile_metadata["identification_user_prompt"] = (
             finfluencer_identification_user_prompt
         )
@@ -64,9 +67,9 @@ def perform_profile_interview(is_interview: bool) -> None:
             construct_system_prompt, args=(is_interview,), axis=1
         )
 
-        # Generate custom ids
-        profile_metadata = profile_metadata.reset_index(drop=False)
-        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+    # Generate custom ids
+    profile_metadata = profile_metadata.reset_index(drop=False)
+    profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
     # Create folder to contain batch files
     batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
@@ -115,5 +118,5 @@ def perform_profile_interview(is_interview: bool) -> None:
 
 
 if __name__ == "__main__":
-    perform_profile_interview(is_interview=False)
-    # perform_profile_interview(is_interview=True)
+    # perform_profile_interview(is_interview=False)
+    perform_profile_interview(is_interview=True)

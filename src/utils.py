@@ -11,6 +11,7 @@ from src.prompt_template import (
     finfluencer_identification_system_prompt,
     interview_system_prompt,
     video_transcript_template,
+    interview_user_prompt,
 )
 from config.config import (
     PROJECT,
@@ -371,6 +372,35 @@ def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
         video_transcripts=row["transcripts_combined"],
     )
     return system_prompt
+
+
+def construct_interview_user_prompt() -> str:
+    """
+    Constructs a user prompt for an interview by loading Russell 4000 stock tickers from a CSV file,
+    formatting them into a string, and inserting them into a predefined prompt template.
+
+    Returns:
+        str: The constructed user prompt containing the formatted Russell 4000 stock tickers.
+    """
+    # Load Russell 4000 stock tickers
+    full_file_path = f"{base_dir}/../config/russell4000_stock_tickers.csv"
+    russell4000_stock_tickers = pd.read_csv(full_file_path)
+
+    # Construct Russell 4000 stock ticker string
+    russell4000_stock_tickers["combined_ticker"] = russell4000_stock_tickers.apply(
+        lambda row: f"{row['COMNAM']} ({row['TICKER']})", axis=1
+    )
+    russell4000_stock_ticker_list = russell4000_stock_tickers[
+        "combined_ticker"
+    ].to_list()
+    russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
+
+    # Construct user prompt
+    user_prompt = interview_user_prompt.format(
+        russell_4000_tickers=russell4000_stock_ticker_str
+    )
+
+    return user_prompt
 
 
 def create_batch_file(
