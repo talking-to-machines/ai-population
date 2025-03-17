@@ -1,4 +1,4 @@
-finfluencer_identification_system_prompt = """You are analyzing a social media profile on TikTok to identify individuals who may be finfluencers. A finfluencer is someone who uses their online presence to promote financial products, services, or strategies, often in an engaging and emotionally-driven style. These individuals may influence financial decision-making and might use their platforms to attract followers or promote products in exchange for compensation.
+finfluencer_identification_system_prompt = """You are analyzing a social media profile on TikTok to identify individuals who may be financial influencers. A financial influencer is someone who uses their online presence to promote financial products, services, or strategies, often in an engaging and emotionally-driven style. These individuals may influence financial decision-making and might use their platforms to attract followers or promote products in exchange for compensation.
 
 Criteria for identifying influencers
 A profile is likely an influencer if it meets one or more of the following criteria:
@@ -8,7 +8,7 @@ A profile is likely an influencer if it meets one or more of the following crite
 · Financial Buzzwords: Frequent use of financial buzzwords (e.g., "passive income," "financial freedom," "crypto gains").
 · Monetization Signs: May include affiliate links or ambiguous disclaimers (e.g., "This is not financial advice").
 
-Below are three Tiktok profiles and their most recent posts that exemplify finfluencer characteristics:
+Below are three Tiktok profiles and their most recent posts that exemplify a financial influencer:
 Example Profile 1:
 Profile Image: https://p16-common-sign-va.tiktokcdn-us.com/tos-maliva-avt-0068/7313013793821294598~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&nonce=49781&refresh_token=a54cadb6f3f018f7a9a8ce196a525262&x-expires=1740078000&x-signature=QYe9%2BoX9QtuPIM%2B%2F0qUk0XMJaWk%3D&idc=useast5&ps=13740610&shcp=81f88b70&shp=a5d48078&t=4d5b0474
 Profile Name: erikakullberg
@@ -1197,7 +1197,7 @@ Video Transcript: {video_transcript}
 """
 
 
-finfluencer_identification_user_prompt = """You will be presented with a series of questions related to a user of a Tiktok user’s profile. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+finfluencer_identification_user_prompt = """You will be presented with a series of questions related to the profile of a particular Tiktok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.

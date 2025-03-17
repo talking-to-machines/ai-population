@@ -75,6 +75,11 @@ def update_video_metadata(
     # Append extraction time to extracted video metadata
     video_metadata["extractionTime"] = pd.Timestamp.utcnow()
 
+    # Extract profile id information
+    video_metadata["profile_id"] = video_metadata["authorMeta"].apply(
+        lambda x: x.get("id", None) if isinstance(x, dict) else None
+    )
+
     # Define the file path
     if profile_search:
         video_metadata_path = (

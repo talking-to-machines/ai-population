@@ -24,14 +24,6 @@ def perform_profile_interview(is_interview: bool) -> None:
 
     # Load profile and video metadata
     print("Loading profile and video metadata...")
-    # if is_interview:
-    #     profile_metadata = pd.read_csv(
-    #         f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}"
-    #     )
-    # else:
-    #     profile_metadata = pd.read_csv(
-    #         f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
-    #     )
     profile_metadata = pd.read_csv(
         f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
     )
@@ -118,5 +110,5 @@ def perform_profile_interview(is_interview: bool) -> None:
 
 
 if __name__ == "__main__":
-    # perform_profile_interview(is_interview=False)
-    perform_profile_interview(is_interview=True)
+    perform_profile_interview(is_interview=False)
+    # perform_profile_interview(is_interview=True)
