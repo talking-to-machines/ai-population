@@ -14,7 +14,7 @@ TOP_N_PROFILES = 100
 
 ### Configuration for Market Signals Finfluencer (START) ###
 PROJECT = "market-signals-finfluencer"
-
+GPT_MODEL = "gpt-4o"  # gpt-4o, gpt-4o-mini
 SEARCH_TERMS_FILE = "market_signals_finfluencer_search_terms.txt"
 PROFILES_FILE = "market_signals_finfluencer_profiles_finfluencers.txt"
 
@@ -26,7 +26,10 @@ PROFILESEARCH_PROFILE_METADATA_FILE = (
 KEYWORDSEARCH_VIDEO_METADATA_FILE = "keywordsearch_video_metadata.csv"
 KEYWORDSEARCH_PROFILE_METADATA_FILE = "keywordsearch_profile_metadata.csv"
 
-POST_INTERVIEW_FILE = "profile_metadata_postinterview_identification.csv"
+POST_IDENTIFICATION_FILE = "profile_metadata_post_identification.csv"
+PANEL_PROFILE_METADATA_FILE = "profile_metadata_panel.csv"
+POST_REFLECTION_FILE = "profile_metadata_post_reflection.csv"
+POST_INTERVIEW_FILE = "profile_metadata_post_interview.csv"
 ### Configuration for Market Signals Finfluencer (END) ###
 
 ### Configuration for Market Signals Political Influencer (START) ###

@@ -4,13 +4,23 @@ import ast
 import yt_dlp
 import time
 import json
+import re
 from pydub import AudioSegment
 from apify_client import ApifyClient
 from openai import OpenAI
 from src.prompt_template import (
     finfluencer_identification_system_prompt,
-    interview_system_prompt,
     video_transcript_template,
+    finfluencer_identification_user_prompt,
+    portfoliomanager_reflection_system_prompt,
+    portfoliomanager_reflection_user_prompt,
+    investmentadvisor_reflection_system_prompt,
+    investmentadvisor_reflection_user_prompt,
+    financialanalyst_reflection_system_prompt,
+    financialanalyst_reflection_user_prompt,
+    economist_reflection_system_prompt,
+    economist_reflection_user_prompt,
+    interview_system_prompt,
     interview_user_prompt,
 )
 from config.config import (
@@ -19,6 +29,7 @@ from config.config import (
     KEYWORDSEARCH_VIDEO_METADATA_FILE,
     PROFILESEARCH_PROFILE_METADATA_FILE,
     KEYWORDSEARCH_PROFILE_METADATA_FILE,
+    GPT_MODEL,
 )
 
 openai_client = OpenAI()
@@ -348,64 +359,191 @@ def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
     return profile_engagement
 
 
-def construct_system_prompt(row: pd.Series, is_interview: bool) -> str:
-    if is_interview:
-        system_prompt_template = interview_system_prompt
-    else:
+def construct_system_prompt(row: pd.Series, interview_type: str) -> str:
+    if interview_type == "finfluencer_identification":
         system_prompt_template = finfluencer_identification_system_prompt
 
-    system_prompt = system_prompt_template.format(
-        profile_image=row["avatar"],
-        profile_name=row["profile"],
-        profile_nickname=row["nickName"],
-        verified_status=row["verified"],
-        private_account=row["privateAccount"],
-        region=row["region"],
-        tiktok_seller=row["ttSeller"],
-        profile_signature=row["signature"],
-        num_followers=row["fans"],
-        num_following=row["following"],
-        num_likes=row["heart"],
-        num_videos=row["video"],
-        num_digg=row["digg"],
-        total_likes_over_num_followers=calculate_profile_engagement(
-            row["heart"], row["fans"]
-        ),
-        total_likes_over_num_videos=calculate_profile_engagement(
-            row["heart"], row["video"]
-        ),
-        video_transcripts=row["transcripts_combined"],
-    )
+    elif interview_type == "portfoliomanager_reflection":
+        system_prompt_template = portfoliomanager_reflection_system_prompt
+
+    elif interview_type == "investmentadvisor_reflection":
+        system_prompt_template = investmentadvisor_reflection_system_prompt
+
+    elif interview_type == "financialanalyst_reflection":
+        system_prompt_template = financialanalyst_reflection_system_prompt
+
+    elif interview_type == "economist_reflection":
+        system_prompt_template = economist_reflection_system_prompt
+
+    elif interview_type == "interview":
+        system_prompt_template = interview_system_prompt
+
+    else:
+        raise ValueError(f"Interview Type {interview_type} is not supported.")
+
+    if interview_type == "interview":
+        system_prompt = system_prompt_template.format(
+            expert_reflection_portfoliomanager=row[
+                "expert_reflection_portfoliomanager"
+            ],
+            expert_reflection_investmentadvisor=row[
+                "expert_reflection_investmentadvisor"
+            ],
+            expert_reflection_financialanalyst=row[
+                "expert_reflection_financialanalyst"
+            ],
+            expert_reflection_economist=row["expert_reflection_economist"],
+            profile_image=row["avatar"],
+            profile_name=row["profile"],
+            profile_nickname=row["nickName"],
+            verified_status=row["verified"],
+            private_account=row["privateAccount"],
+            region=row["region"],
+            tiktok_seller=row["ttSeller"],
+            profile_signature=row["signature"],
+            num_followers=row["fans"],
+            num_following=row["following"],
+            num_likes=row["heart"],
+            num_videos=row["video"],
+            num_digg=row["digg"],
+            total_likes_over_num_followers=calculate_profile_engagement(
+                row["heart"], row["fans"]
+            ),
+            total_likes_over_num_videos=calculate_profile_engagement(
+                row["heart"], row["video"]
+            ),
+            video_transcripts=row["transcripts_combined"],
+        )
+
+    else:
+        system_prompt = system_prompt_template.format(
+            profile_image=row["avatar"],
+            profile_name=row["profile"],
+            profile_nickname=row["nickName"],
+            verified_status=row["verified"],
+            private_account=row["privateAccount"],
+            region=row["region"],
+            tiktok_seller=row["ttSeller"],
+            profile_signature=row["signature"],
+            num_followers=row["fans"],
+            num_following=row["following"],
+            num_likes=row["heart"],
+            num_videos=row["video"],
+            num_digg=row["digg"],
+            total_likes_over_num_followers=calculate_profile_engagement(
+                row["heart"], row["fans"]
+            ),
+            total_likes_over_num_videos=calculate_profile_engagement(
+                row["heart"], row["video"]
+            ),
+            video_transcripts=row["transcripts_combined"],
+        )
+
     return system_prompt
 
 
-def construct_interview_user_prompt() -> str:
-    """
-    Constructs a user prompt for an interview by loading Russell 4000 stock tickers from a CSV file,
-    formatting them into a string, and inserting them into a predefined prompt template.
+def construct_user_prompt(interview_type: str) -> str:
+    if interview_type == "finfluencer_identification":
+        return finfluencer_identification_user_prompt
 
-    Returns:
-        str: The constructed user prompt containing the formatted Russell 4000 stock tickers.
-    """
-    # Load Russell 4000 stock tickers
-    full_file_path = f"{base_dir}/../config/russell4000_stock_tickers.csv"
-    russell4000_stock_tickers = pd.read_csv(full_file_path)
+    elif interview_type == "portfoliomanager_reflection":
+        return portfoliomanager_reflection_user_prompt
 
-    # Construct Russell 4000 stock ticker string
-    russell4000_stock_tickers["combined_ticker"] = russell4000_stock_tickers.apply(
-        lambda row: f"{row['COMNAM']} ({row['TICKER']})", axis=1
-    )
-    russell4000_stock_ticker_list = russell4000_stock_tickers[
-        "combined_ticker"
-    ].to_list()
-    russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
+    elif interview_type == "investmentadvisor_reflection":
+        return investmentadvisor_reflection_user_prompt
 
-    # Construct user prompt
-    user_prompt = interview_user_prompt.format(
-        russell_4000_tickers=russell4000_stock_ticker_str
-    )
+    elif interview_type == "financialanalyst_reflection":
+        return financialanalyst_reflection_user_prompt
 
-    return user_prompt
+    elif interview_type == "economist_reflection":
+        return economist_reflection_user_prompt
+
+    elif interview_type == "interview":
+        # Load Russell 4000 stock tickers
+        full_file_path = f"{base_dir}/../config/russell4000_stock_tickers.csv"
+        russell4000_stock_tickers = pd.read_csv(full_file_path)
+
+        # Construct Russell 4000 stock ticker string
+        russell4000_stock_tickers["combined_ticker"] = russell4000_stock_tickers.apply(
+            lambda row: f"{row['COMNAM']} ({row['TICKER']})", axis=1
+        )
+        russell4000_stock_ticker_list = russell4000_stock_tickers[
+            "combined_ticker"
+        ].to_list()
+        russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
+
+        # Construct user prompt
+        return interview_user_prompt.format(
+            russell_4000_tickers=russell4000_stock_ticker_str
+        )
+
+    else:
+        raise ValueError(f"Interview Type {interview_type} is not supported.")
+
+
+def extract_llm_responses(text):
+    # Split the text by double newlines to separate different questions
+    questions_blocks = text.split("\n\n")
+
+    # Initialize lists to store the extracted data
+    questions_list = []
+    explanations_list = []
+    symbols_list = []
+    categories_list = []
+    speculations_list = []
+    values_list = []
+
+    # Define regex patterns for each field
+    question_pattern = r"\*\*question: (.*?)\*\*"
+    explanation_pattern = r"\*\*explanation: (.*?)\*\*"
+    symbol_pattern = r"\*\*symbol: (.*?)\*\*"
+    category_pattern = r"\*\*category: (.*?)\*\*"
+    speculation_pattern = r"\*\*speculation: (.*?)\*\*"
+    value_pattern = r"\*\*value: (.*?)\*\*"
+
+    # Iterate through each question block and extract the fields
+    for block in questions_blocks:
+        question = re.search(question_pattern, block, re.DOTALL)
+        explanation = re.search(explanation_pattern, block, re.DOTALL)
+        symbol = re.search(symbol_pattern, block, re.DOTALL)
+        category = re.search(category_pattern, block, re.DOTALL)
+        speculation = re.search(speculation_pattern, block, re.DOTALL)
+        value = re.search(value_pattern, block, re.DOTALL)
+
+        questions_list.append(question.group(1) if question else None)
+        explanations_list.append(explanation.group(1) if explanation else None)
+        symbols_list.append(symbol.group(1) if symbol else None)
+        categories_list.append(category.group(1) if category else None)
+        speculations_list.append(speculation.group(1) if speculation else None)
+        values_list.append(value.group(1) if value else None)
+
+    # Create a DataFrame
+    data = {
+        "question": questions_list,
+        "explanation": explanations_list,
+        "symbol": symbols_list,
+        "category": categories_list,
+        "speculation": speculations_list,
+        "value": values_list,
+    }
+    df = pd.DataFrame(data)
+
+    # Flatten the DataFrame into a single Series
+    flattened_series = pd.Series()
+    for index, row in df.iterrows():
+        question_prefix = row["question"]
+        if row["explanation"]:
+            flattened_series[f"{question_prefix} - explanation"] = row["explanation"]
+        if row["symbol"]:
+            flattened_series[f"{question_prefix} - symbol"] = row["symbol"]
+        if row["category"]:
+            flattened_series[f"{question_prefix} - category"] = row["category"]
+        if row["speculation"]:
+            flattened_series[f"{question_prefix} - speculation"] = row["speculation"]
+        if row["value"]:
+            flattened_series[f"{question_prefix} - value"] = row["value"]
+
+    return flattened_series
 
 
 def create_batch_file(
@@ -434,7 +572,7 @@ def create_batch_file(
             "method": "POST",
             "url": "/v1/chat/completions",
             "body": {
-                "model": "gpt-4o",  # gpt-4o or gpt-4-turbo
+                "model": GPT_MODEL,
                 "temperature": 0,
                 "messages": [
                     {"role": "system", "content": prompts.loc[i, system_prompt_field]},

@@ -1,36 +1,49 @@
 import os
 import pandas as pd
+from datetime import datetime
 from config.config import (
     PROJECT,
-    PROFILESEARCH_VIDEO_METADATA_FILE,
     PROFILESEARCH_PROFILE_METADATA_FILE,
+    PROFILESEARCH_VIDEO_METADATA_FILE,
+    POST_IDENTIFICATION_FILE,
+    PANEL_PROFILE_METADATA_FILE,
+    POST_REFLECTION_FILE,
     POST_INTERVIEW_FILE,
 )
 from src.utils import (
     extract_profile_id,
     extract_video_transcripts,
     construct_system_prompt,
+    construct_user_prompt,
     create_batch_file,
     batch_query,
-    construct_interview_user_prompt,
-)
-from src.prompt_template import (
-    finfluencer_identification_user_prompt,
+    extract_llm_responses,
 )
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
-def perform_profile_interview(is_interview: bool) -> None:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+def perform_profile_interview(
+    profile_metadata_file: str,
+    video_metadata_file: str,
+    output_file: str,
+    system_prompt_field: str,
+    user_prompt_field: str,
+    llm_response_field: str,
+    interview_type: str,
+) -> None:
 
     # Load profile and video metadata
     print("Loading profile and video metadata...")
     profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
+        f"{base_dir}/../data/{PROJECT}/{profile_metadata_file}"
     )
-    video_metadata = pd.read_csv(
-        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
-    )
+    video_metadata = pd.read_csv(f"{base_dir}/../data/{PROJECT}/{video_metadata_file}")
     video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
+
+    # Include interview date for digital interview
+    if interview_type == "interview":
+        profile_metadata["interview_date"] = datetime.today().date()
 
     # Preprocess profile and video metadata
     print("Preprocess profile and video metadata...")
@@ -45,39 +58,22 @@ def perform_profile_interview(is_interview: bool) -> None:
     profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
         extract_video_transcripts, args=(video_metadata,)
     )
-    if is_interview:  # Finfluencer interview
-        profile_metadata["interview_user_prompt"] = construct_interview_user_prompt()
-        profile_metadata["interview_system_prompt"] = profile_metadata.apply(
-            construct_system_prompt, args=(is_interview,), axis=1
-        )
 
-    else:  # Finfluencer identification
-        profile_metadata["identification_user_prompt"] = (
-            finfluencer_identification_user_prompt
-        )
-        profile_metadata["identification_system_prompt"] = profile_metadata.apply(
-            construct_system_prompt, args=(is_interview,), axis=1
-        )
+    profile_metadata[system_prompt_field] = profile_metadata.apply(
+        construct_system_prompt, args=(interview_type,), axis=1
+    )
+    profile_metadata[user_prompt_field] = construct_user_prompt(interview_type)
 
     # Generate custom ids
-    profile_metadata = profile_metadata.reset_index(drop=False)
-    profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+    if "custom_id" not in profile_metadata.columns:
+        profile_metadata = profile_metadata.reset_index(drop=False)
+        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
     # Create folder to contain batch files
     batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
     os.makedirs(batch_file_dir, exist_ok=True)
 
     # Perform batch query for survey questions
-    print("Prepare OpenAI batch files for batch API...")
-    if is_interview:  # Finfluencer interview
-        system_prompt_field = "interview_system_prompt"
-        user_prompt_field = "interview_user_prompt"
-        llm_response_field = "interview_llm_response"
-    else:
-        system_prompt_field = "identification_system_prompt"
-        user_prompt_field = "identification_user_prompt"
-        llm_response_field = "identification_llm_response"
-
     batch_file_dir = create_batch_file(
         profile_metadata,
         system_prompt_field=system_prompt_field,
@@ -98,17 +94,142 @@ def perform_profile_interview(is_interview: bool) -> None:
     llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
     profile_metadata_with_responses = pd.merge(
         left=profile_metadata,
-        right=llm_responses,
+        right=llm_responses[["custom_id", llm_response_field]],
         on="custom_id",
     )
 
     # Save profile metadata after analysis into CSV file
     print("Saving profile metadata with analysis...")
     profile_metadata_with_responses.to_csv(
-        f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}", index=False
+        f"{base_dir}/../data/{PROJECT}/{output_file}", index=False
     )
 
 
+def perform_finfluencer_identification() -> None:
+
+    # Perform financial influencer identification interview
+    perform_profile_interview(
+        profile_metadata_file=PROFILESEARCH_PROFILE_METADATA_FILE,
+        video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
+        output_file=POST_IDENTIFICATION_FILE,
+        system_prompt_field="identification_system_prompt",
+        user_prompt_field="identification_user_prompt",
+        llm_response_field="identification_llm_response",
+        interview_type="finfluencer_identification",
+    )
+
+    # Preprocess post identification results
+    post_identification_results = pd.read_csv(
+        f"{base_dir}/../data/{PROJECT}/{POST_IDENTIFICATION_FILE}"
+    )
+    extracted_responses = post_identification_results[
+        "identification_llm_response"
+    ].apply(extract_llm_responses)
+    post_identification_results = pd.concat(
+        [post_identification_results, extracted_responses], axis=1
+    )
+
+    # Filter out financial influencers that focuses on stock trading and equities, bonds and fixed income, or options trading and derivatives
+    filtered_results = post_identification_results[
+        (
+            post_identification_results[
+                "Which of these areas of finance are the primary focus of the influencer’s posts? - symbol"
+            ].str.contains("B1|B2|B3", na=False)
+        )
+        & (
+            post_identification_results[
+                "Is this a finfluencer? - category"
+            ].str.contains("Yes", na=False)
+        )
+    ]
+
+    # Save identified financial influencers
+    filtered_results.to_csv(
+        f"{base_dir}/../data/{PROJECT}/{PANEL_PROFILE_METADATA_FILE}", index=False
+    )
+
+    return None
+
+
+def generate_expert_reflections(
+    role: str, profile_metadata_file: str, output_file: str
+) -> None:
+
+    if role == "portfolio_manager":
+        system_prompt_field = "portfoliomanager_reflection_system_prompt"
+        user_prompt_field = "portfoliomanager_reflection_user_prompt"
+        llm_response_field = "expert_reflection_portfoliomanager"
+        interview_type = "portfoliomanager_reflection"
+
+    elif role == "investment_advisor":
+        system_prompt_field = "investmentadvisor_reflection_system_prompt"
+        user_prompt_field = "investmentadvisor_reflection_user_prompt"
+        llm_response_field = "expert_reflection_investmentadvisor"
+        interview_type = "investmentadvisor_reflection"
+
+    elif role == "financial_analyst":
+        system_prompt_field = "financialanalyst_reflection_system_prompt"
+        user_prompt_field = "financialanalyst_reflection_user_prompt"
+        llm_response_field = "expert_reflection_financialanalyst"
+        interview_type = "financialanalyst_reflection"
+
+    elif role == "economist":
+        system_prompt_field = "economist_reflection_system_prompt"
+        user_prompt_field = "economist_reflection_user_prompt"
+        llm_response_field = "expert_reflection_economist"
+        interview_type = "economist_reflection"
+
+    else:
+        raise ValueError(f"Role {role} is not supported.")
+
+    perform_profile_interview(
+        profile_metadata_file=profile_metadata_file,
+        video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
+        output_file=output_file,
+        system_prompt_field=system_prompt_field,
+        user_prompt_field=user_prompt_field,
+        llm_response_field=llm_response_field,
+        interview_type=interview_type,
+    )
+
+    return None
+
+
+def perform_digital_interview() -> None:
+
+    perform_profile_interview(
+        profile_metadata_file=POST_REFLECTION_FILE,
+        video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
+        output_file=POST_INTERVIEW_FILE,
+        system_prompt_field="digital_interview_system_prompt",
+        user_prompt_field="digital_interview_user_prompt",
+        llm_response_field="digital_interview_llm_response",
+        interview_type="interview",
+    )
+
+    return None
+
+
 if __name__ == "__main__":
-    perform_profile_interview(is_interview=False)
-    # perform_profile_interview(is_interview=True)
+    # perform_finfluencer_identification()
+    # generate_expert_reflections(
+    #     role="portfolio_manager",
+    #     profile_metadata_file=PANEL_PROFILE_METADATA_FILE,
+    #     output_file=POST_REFLECTION_FILE,
+    # )
+    # generate_expert_reflections(
+    #     role="investment_advisor",
+    #     profile_metadata_file=POST_REFLECTION_FILE,
+    #     output_file=POST_REFLECTION_FILE,
+    # )
+    # generate_expert_reflections(
+    #     role="financial_analyst",
+    #     profile_metadata_file=POST_REFLECTION_FILE,
+    #     output_file=POST_REFLECTION_FILE,
+    # )
+    # generate_expert_reflections(
+    #     role="economist",
+    #     profile_metadata_file=POST_REFLECTION_FILE,
+    #     output_file=POST_REFLECTION_FILE,
+    # )
+    perform_digital_interview()

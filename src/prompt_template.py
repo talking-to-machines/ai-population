@@ -1243,13 +1243,13 @@ Question 2: Indicate on a scale of 0 to 100, how influential this influencer is 
 Question 3: Indicate on a scale of 0 to 100, how credible or authoritative this influencer is – 0 means not at all credible or authoritative and 100 means very credible and authoritative? For example, an experienced analyst with a solid track record and formal education is considered more credible than an influencer making unverified claims and promoting speculative bets without disclaimers.
 
 Question 4: Which of these areas of finance are the primary focus of the influencer’s posts? Pick the most dominant theme or list two if it is truly split; however, one primary focus is always more preferable.
-B1) Stock Trading and Equities: Content centered on stock picks, technical analysis, and trading strategies
+B1) Stock Trading and Equities: Content centered on stock picks, technical analysis, trading strategies, and market indexes.
 B2) Bonds and Fixed Income: Content centered on interest rates, bond markets (government bonds, corporate bonds), Fed’s interest rate changes, and yield.
 B3) Options Trading and Derivatives: Content centered on option strategies (calls, puts, spreads) and futures or other derivatives.
-B4) Macroeconomic Analysis: Content centered on big-picture financial commentary – covering economic indicators, central bank policies, inflation, GDP, market indexes, economic reports, and how world events affect markets.
+B4) Macroeconomic Analysis: Content centered on big-picture financial commentary – covering economic indicators, central bank policies, inflation, GDP, economic reports, and how world events affect markets.
 B5) Cryptocurrency: Content centered on crypto assets (Bitcoin, Ethereum, altcoins, blockchain projects, NFTs), price updates, blockchain technology, certain crypto tokens, crypto trading tips, and news (regulatory updates and major moves in crypto markets).
 B6) Real Estate Investments: Content centered on property investing, rental income, house flipping, REITs, housing market trends, share housing market data, and tips on evaluating real estate deal.
-B8) Other Personal Finances
+B7) Other Personal Finances
 
 Question 5: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's individual stock predictions – 0 means very low quality and 100 means very high quality?
 
@@ -1265,7 +1265,142 @@ C4) Others
 """
 
 
-interview_system_prompt = """Please put yourself in the shoes of a TikTok finfluencer participating in a financial market survey. Your profile has been previously evaluated by an LLM during an onboarding phase and determined to be a finfluencer based on your profile and video content. Your videos will also be monitored daily.
+portfoliomanager_reflection_system_prompt = """Imagine you are an expert portfolio manager (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+Profile Image: {profile_image}
+Profile Name: {profile_name}
+Profile Nickname: {profile_nickname}
+Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
+Profile Signature: {profile_signature}
+Number of Followers: {num_followers} Followers
+Following: {num_following} Users
+Total Number of Likes: {num_likes}
+Total Number of Videos: {num_videos}
+Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
+Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}
+"""
+
+
+portfoliomanager_reflection_user_prompt = """Drawing on your expertise as an expert portfolio manager (with a PhD), write a set of observations/reflections about this financial influencer that:
+- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
+- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
+- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
+- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+
+Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+
+
+investmentadvisor_reflection_system_prompt = """Imagine you are an expert investment advisor (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+Profile Image: {profile_image}
+Profile Name: {profile_name}
+Profile Nickname: {profile_nickname}
+Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
+Profile Signature: {profile_signature}
+Number of Followers: {num_followers} Followers
+Following: {num_following} Users
+Total Number of Likes: {num_likes}
+Total Number of Videos: {num_videos}
+Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
+Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}
+"""
+
+
+investmentadvisor_reflection_user_prompt = """Drawing on your expertise as an expert investment advisor (with a PhD), write a set of observations/reflections about this financial influencer that:
+- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
+- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
+- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
+- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+
+Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+
+
+financialanalyst_reflection_system_prompt = """Imagine you are an expert chartered financial analyst (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+Profile Image: {profile_image}
+Profile Name: {profile_name}
+Profile Nickname: {profile_nickname}
+Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
+Profile Signature: {profile_signature}
+Number of Followers: {num_followers} Followers
+Following: {num_following} Users
+Total Number of Likes: {num_likes}
+Total Number of Videos: {num_videos}
+Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
+Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}
+"""
+
+
+financialanalyst_reflection_user_prompt = """Drawing on your expertise as an expert chartered financial analyst (with a PhD), write a set of observations/reflections about this financial influencer that:
+- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
+- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
+- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
+- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+
+Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+
+
+economist_reflection_system_prompt = """Imagine you are an expert economist (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+Profile Image: {profile_image}
+Profile Name: {profile_name}
+Profile Nickname: {profile_nickname}
+Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
+Profile Signature: {profile_signature}
+Number of Followers: {num_followers} Followers
+Following: {num_following} Users
+Total Number of Likes: {num_likes}
+Total Number of Videos: {num_videos}
+Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
+Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}
+"""
+
+
+economist_reflection_user_prompt = """Drawing on your expertise as an expert economist (with a PhD), write a set of observations/reflections about this financial influencer that:
+- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
+- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
+- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
+- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+
+Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+
+
+interview_system_prompt = """Please put yourself in the shoes of a TikTok financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
+1. Your profile and videos will be monitored daily
+2. You will undergo daily interviews to discuss your perspective on the financial markets
+3. You will receive high-level and abstract “expert reflections” from a professional portfolio manager, an investment advisor, a chartered financial analyst, and an economist regarding your profile and its content. These reflections are provided below:
+
+Expert Reflections from Professional Portfolio Manager
+{expert_reflection_portfoliomanager}
+
+Expert Reflections from Investment Advisor
+{expert_reflection_investmentadvisor}
+
+Expert Reflections from Chartered Financial Analyst
+{expert_reflection_financialanalyst}
+
+Expert Reflections from Economist
+{expert_reflection_economist}
 
 The details of your TikTok profile are as follows:
 Profile Image: {profile_image}
@@ -1287,8 +1422,7 @@ Video Transcripts (Sorted from Newest to Oldest):
 {video_transcripts}
 
 Instructions
-Analyze the provided profile and answer the following questions based strictly on the available data while maintaining the persona and perspective of this profile. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven.
-"""
+Answer the following questions based strictly on the available data while maintaining the persona and perspective of the Tiktok financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
 
 interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
@@ -1326,7 +1460,7 @@ For open-ended questions, format your output as follows (this is just an example
 **response: [Detailed response]**
 **speculation: 90**
 
-YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
+YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE TIKTOK FINANCIAL INFLUENCER PROFILE PROVIDED!
 
 Question 1: Do you agree or disagree with the following statement: “The U.S. economy is likely to enter a recession in the next 12 months?
 A1) Strongly Disagree
@@ -1359,28 +1493,37 @@ E1) Rise
 E2) Stay About The Same
 E3) Fall
 
-Question 6: Which specific stocks (if any) do you anticipate will **outperform** in the next 3-6 months? Please list up to 3 stock tickers. Can you give some background on these choices? Can you briefly explain why you picked them? Are there others you really think are outperformers? Why?
+Question 6: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?
 
-Question 7: Which specific stocks (if any) do you anticipate will **underperform** or decline in the next 3-6 months? Please list up to 3 stock tickers. Can you give some background on these choices? Can you briefly explain why you picked them? Are there others you really think are underperformers? Why?
+Question 7: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
 
-Question 8: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?
-
-Question 9: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
-
-Question 10: Did you mention any stocks or stock tickers in the Russell 4000 list (e.g., {russell_4000_tickers})?
+Question 8: Did you mention any stocks or stock tickers in the Russell 4000 list (e.g., {russell_4000_tickers})?
 F1) Yes
 F2) No
 
-Question 11: If the response to Question 10 is “Yes”, provide the full list of stocks/stock tickers that were mentioned, separated by a comma. Otherwise, respond with “NA”.
+Question 9: If the response to Question 8 is “Yes”, provide the full list of stocks/stock tickers that were mentioned, separated by a comma. Otherwise, respond with “NA”.
 
-Question 12: If a list of stocks/stock tickers was provided in Question 11, indicate on a scale of 0 to 100, your overall sentiment for each stock in this list - 0 means a very strong sell recommendation and 100 means a very positive buy recommendation. For example, a poor recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, and a strong buy recommendation would be 80+. Otherwise, respond with “NA”. Formatting your response based on the structure provided below
+Question 10: If a list of stocks/stock tickers was provided in Question 9, provide the following information for each stock in this list: 
+- Indicate on a scale of 0 to 100, your overall recommendation for each stock in this list - 0 means a very strong sell recommendation and 100 means a very positive buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
+- Provide a brief explanation for your investment recommendation.
+- Indicate on a scale of 0 to 100, a measure of confidence for your investment recommendation - 0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence.
+- Indicate on a scale of 0 to 100, a measure of virality for your investment recommendation - 0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality.
+
+For each stock in this list, format your response based on the structure provided below:
 **stock name: [stock name 1]**
 **stock ticker: [stock ticker 1]**
-**sentiment: 40**
+**recommendation: 40**
+**explanation: [Detailed reasoning for recommendation]**
+**confidence: 60**
+**virality: 85**
 
 **stock name: [stock name 2]**
 **stock ticker: [stock ticker 2]**
-**sentiment: 80**
+**recommendation: 50**
+**explanation: [Detailed reasoning for recommendation]**
+**confidence: 75**
+**virality: 65**
 
-Question 13: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
-"""
+Otherwise, if no stocks/stock tickers were provided in Question 9, respond with “NA”.
+
+Question 11: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?"""
