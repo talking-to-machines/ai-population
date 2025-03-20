@@ -1197,7 +1197,7 @@ Video Transcript: {video_transcript}
 """
 
 
-finfluencer_identification_user_prompt = """You will be presented with a series of questions related to the profile of a particular Tiktok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+finfluencer_identification_user_prompt = """You will be presented with a series of questions related to the profile of the Tiktok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
@@ -1503,15 +1503,17 @@ F2) No
 
 Question 9: If the response to Question 8 is “Yes”, provide the full list of stocks/stock tickers that were mentioned, separated by a comma. Otherwise, respond with “NA”.
 
-Question 10: If a list of stocks/stock tickers was provided in Question 9, provide the following information for each stock in this list: 
-- Indicate on a scale of 0 to 100, your overall recommendation for each stock in this list - 0 means a very strong sell recommendation and 100 means a very positive buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
+Question 10: If a list of stocks/stock tickers was provided in Question 9, provide the following information for each stock recommended: 
+- Indicate on a scale of 0 to 100, your overall recommendation for each stock in this list - 0 means a very strong sell recommendation and 100 means a very strong buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
 - Provide a brief explanation for your investment recommendation.
 - Indicate on a scale of 0 to 100, a measure of confidence for your investment recommendation - 0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence.
 - Indicate on a scale of 0 to 100, a measure of virality for your investment recommendation - 0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality.
+- Indicate the specific date when you recommended the stock. If you have recommended the same stock multiple times in different videos or posts, please list each recommendation separately along with its corresponding date of recommendation. This will be useful in tracking how your recommendation for the same stock may have changed over time.
 
 For each stock in this list, format your response based on the structure provided below:
 **stock name: [stock name 1]**
 **stock ticker: [stock ticker 1]**
+**recommendation date: 2025-01-16 16:00:41+00:00**
 **recommendation: 40**
 **explanation: [Detailed reasoning for recommendation]**
 **confidence: 60**
@@ -1519,6 +1521,7 @@ For each stock in this list, format your response based on the structure provide
 
 **stock name: [stock name 2]**
 **stock ticker: [stock ticker 2]**
+**recommendation date: 2025-02-11 09:22:41+00:00**
 **recommendation: 50**
 **explanation: [Detailed reasoning for recommendation]**
 **confidence: 75**

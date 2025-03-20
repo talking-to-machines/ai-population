@@ -30,6 +30,8 @@ POST_IDENTIFICATION_FILE = "profile_metadata_post_identification.csv"
 PANEL_PROFILE_METADATA_FILE = "profile_metadata_panel.csv"
 POST_REFLECTION_FILE = "profile_metadata_post_reflection.csv"
 POST_INTERVIEW_FILE = "profile_metadata_post_interview.csv"
+FORMATTED_POST_INTERVIEW_FILE = "profile_metadata_post_interview_formatted.csv"
+STOCK_RECOMMENDATION_FILE = "stock_recommendations_{interview_date}.csv"
 ### Configuration for Market Signals Finfluencer (END) ###
 
 ### Configuration for Market Signals Political Influencer (START) ###

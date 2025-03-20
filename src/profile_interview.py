@@ -9,6 +9,8 @@ from config.config import (
     PANEL_PROFILE_METADATA_FILE,
     POST_REFLECTION_FILE,
     POST_INTERVIEW_FILE,
+    FORMATTED_POST_INTERVIEW_FILE,
+    STOCK_RECOMMENDATION_FILE,
 )
 from src.utils import (
     extract_profile_id,
@@ -18,6 +20,7 @@ from src.utils import (
     create_batch_file,
     batch_query,
     extract_llm_responses,
+    extract_stock_recommendations,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -207,29 +210,94 @@ def perform_digital_interview() -> None:
         interview_type="interview",
     )
 
+    # Preprocess post interview results
+    post_interview_results = pd.read_csv(
+        f"{base_dir}/../data/{PROJECT}/{POST_INTERVIEW_FILE}"
+    )
+    extracted_responses = post_interview_results[
+        "digital_interview_llm_response"
+    ].apply(
+        extract_llm_responses,
+        args=(
+            [
+                "stock name",
+                "If a list of stocks/stock tickers was provided in Question 9",
+            ],
+        ),
+    )
+    post_interview_results = pd.concat(
+        [post_interview_results, extracted_responses], axis=1
+    )
+
+    # Extract stock recommendations
+    combined_stock_recommendations = pd.DataFrame()
+    for i in range(len(post_interview_results)):
+        profile_stock_recommendations = extract_stock_recommendations(
+            post_interview_results.iloc[i],
+            llm_response_field="digital_interview_llm_response",
+        )
+
+        if profile_stock_recommendations is None:  # No stock recommendations
+            continue
+
+        profile_stock_recommendations["profile"] = post_interview_results.loc[
+            i, "profile"
+        ]
+        profile_stock_recommendations["profile_url"] = post_interview_results.loc[
+            i, "profileUrl"
+        ]
+        profile_stock_recommendations["followers"] = post_interview_results.loc[
+            i, "fans"
+        ]
+        profile_stock_recommendations["influence"] = post_interview_results.loc[
+            i,
+            "Indicate on a scale of 0 to 100, how influential this influencer is – 0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition? - value",
+        ]
+        profile_stock_recommendations["credibility"] = post_interview_results.loc[
+            i,
+            "Indicate on a scale of 0 to 100, how credible or authoritative this influencer is – 0 means not at all credible or authoritative and 100 means very credible and authoritative? - value",
+        ]
+        profile_stock_recommendations["interview_date"] = post_interview_results.loc[
+            i, "interview_date"
+        ]
+
+        combined_stock_recommendations = pd.concat(
+            [combined_stock_recommendations, profile_stock_recommendations],
+            ignore_index=True,
+        )
+
+    # Save formatted interview results and stock recommendations
+    post_interview_results.to_csv(
+        f"{base_dir}/../data/{PROJECT}/{FORMATTED_POST_INTERVIEW_FILE}", index=False
+    )
+    combined_stock_recommendations.to_csv(
+        f"{base_dir}/../data/{PROJECT}/{STOCK_RECOMMENDATION_FILE.format(interview_date=datetime.today().date())}",
+        index=False,
+    )
+
     return None
 
 
 if __name__ == "__main__":
-    # perform_finfluencer_identification()
-    # generate_expert_reflections(
-    #     role="portfolio_manager",
-    #     profile_metadata_file=PANEL_PROFILE_METADATA_FILE,
-    #     output_file=POST_REFLECTION_FILE,
-    # )
-    # generate_expert_reflections(
-    #     role="investment_advisor",
-    #     profile_metadata_file=POST_REFLECTION_FILE,
-    #     output_file=POST_REFLECTION_FILE,
-    # )
-    # generate_expert_reflections(
-    #     role="financial_analyst",
-    #     profile_metadata_file=POST_REFLECTION_FILE,
-    #     output_file=POST_REFLECTION_FILE,
-    # )
-    # generate_expert_reflections(
-    #     role="economist",
-    #     profile_metadata_file=POST_REFLECTION_FILE,
-    #     output_file=POST_REFLECTION_FILE,
-    # )
+    perform_finfluencer_identification()
+    generate_expert_reflections(
+        role="portfolio_manager",
+        profile_metadata_file=PANEL_PROFILE_METADATA_FILE,
+        output_file=POST_REFLECTION_FILE,
+    )
+    generate_expert_reflections(
+        role="investment_advisor",
+        profile_metadata_file=POST_REFLECTION_FILE,
+        output_file=POST_REFLECTION_FILE,
+    )
+    generate_expert_reflections(
+        role="financial_analyst",
+        profile_metadata_file=POST_REFLECTION_FILE,
+        output_file=POST_REFLECTION_FILE,
+    )
+    generate_expert_reflections(
+        role="economist",
+        profile_metadata_file=POST_REFLECTION_FILE,
+        output_file=POST_REFLECTION_FILE,
+    )
     perform_digital_interview()

@@ -481,9 +481,14 @@ def construct_user_prompt(interview_type: str) -> str:
         raise ValueError(f"Interview Type {interview_type} is not supported.")
 
 
-def extract_llm_responses(text):
+def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Series:
     # Split the text by double newlines to separate different questions
     questions_blocks = text.split("\n\n")
+    questions_blocks = [
+        block
+        for block in questions_blocks
+        if not any(substring in block for substring in substring_exclusion_list)
+    ]  # remove blocks containing stock recommendations
 
     # Initialize lists to store the extracted data
     questions_list = []
@@ -492,6 +497,7 @@ def extract_llm_responses(text):
     categories_list = []
     speculations_list = []
     values_list = []
+    response_list = []
 
     # Define regex patterns for each field
     question_pattern = r"\*\*question: (.*?)\*\*"
@@ -500,6 +506,7 @@ def extract_llm_responses(text):
     category_pattern = r"\*\*category: (.*?)\*\*"
     speculation_pattern = r"\*\*speculation: (.*?)\*\*"
     value_pattern = r"\*\*value: (.*?)\*\*"
+    response_pattern = r"\*\*response: (.*?)\*\*"
 
     # Iterate through each question block and extract the fields
     for block in questions_blocks:
@@ -509,13 +516,15 @@ def extract_llm_responses(text):
         category = re.search(category_pattern, block, re.DOTALL)
         speculation = re.search(speculation_pattern, block, re.DOTALL)
         value = re.search(value_pattern, block, re.DOTALL)
+        response = re.search(response_pattern, block, re.DOTALL)
 
-        questions_list.append(question.group(1) if question else None)
+        questions_list.append(question.group(1).replace("”", "") if question else None)
         explanations_list.append(explanation.group(1) if explanation else None)
         symbols_list.append(symbol.group(1) if symbol else None)
         categories_list.append(category.group(1) if category else None)
         speculations_list.append(speculation.group(1) if speculation else None)
         values_list.append(value.group(1) if value else None)
+        response_list.append(response.group(1) if response else None)
 
     # Create a DataFrame
     data = {
@@ -525,6 +534,7 @@ def extract_llm_responses(text):
         "category": categories_list,
         "speculation": speculations_list,
         "value": values_list,
+        "response": response_list,
     }
     df = pd.DataFrame(data)
 
@@ -542,8 +552,72 @@ def extract_llm_responses(text):
             flattened_series[f"{question_prefix} - speculation"] = row["speculation"]
         if row["value"]:
             flattened_series[f"{question_prefix} - value"] = row["value"]
+        if row["response"]:
+            flattened_series[f"{question_prefix} - response"] = row["response"]
 
     return flattened_series
+
+
+def extract_stock_recommendations(
+    row: pd.Series, llm_response_field: str
+) -> pd.DataFrame:
+    # Split the text by double newlines to separate different stock recommendations
+    questions_blocks = row[llm_response_field].split("\n\n")
+    questions_blocks = [
+        block for block in questions_blocks if "stock name" in block
+    ]  # remove blocks containing stock recommendations
+
+    # Initialize lists to store the extracted data
+    stock_name_list = []
+    stock_ticker_list = []
+    recommendation_date_list = []
+    recommendation_list = []
+    explanation_list = []
+    confidence_list = []
+    virality_list = []
+
+    # Define regex patterns for each field
+    stock_name_pattern = r"\*\*stock name: (.*?)\*\*"
+    stock_ticker_pattern = r"\*\*stock ticker: (.*?)\*\*"
+    recommendation_date_pattern = r"\*\*recommendation date: (.*?)\*\*"
+    recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
+    explanation_pattern = r"\*\*explanation: (.*?)\*\*"
+    confidence_pattern = r"\*\*confidence: (.*?)\*\*"
+    virality_pattern = r"\*\*virality: (.*?)\*\*"
+
+    # Iterate through each question block and extract the fields
+    for block in questions_blocks:
+        stock_name = re.search(stock_name_pattern, block, re.DOTALL)
+        stock_ticker = re.search(stock_ticker_pattern, block, re.DOTALL)
+        recommendation_date = re.search(recommendation_date_pattern, block, re.DOTALL)
+        recommendation = re.search(recommendation_pattern, block, re.DOTALL)
+        explanation = re.search(explanation_pattern, block, re.DOTALL)
+        confidence = re.search(confidence_pattern, block, re.DOTALL)
+        virality = re.search(virality_pattern, block, re.DOTALL)
+
+        stock_name_list.append(stock_name.group(1) if stock_name else None)
+        stock_ticker_list.append(stock_ticker.group(1) if stock_ticker else None)
+        recommendation_date_list.append(
+            recommendation_date.group(1) if recommendation_date else None
+        )
+        recommendation_list.append(recommendation.group(1) if recommendation else None)
+        explanation_list.append(explanation.group(1) if explanation else None)
+        confidence_list.append(confidence.group(1) if confidence else None)
+        virality_list.append(virality.group(1) if virality else None)
+
+    # Create a DataFrame
+    data = {
+        "stock_name": stock_name_list,
+        "stock_ticker": stock_ticker_list,
+        "recommendation date": recommendation_date_list,
+        "recommendation": recommendation_list,
+        "explanation": explanation_list,
+        "confidence": confidence_list,
+        "virality": virality_list,
+    }
+    df = pd.DataFrame(data)
+
+    return df
 
 
 def create_batch_file(
