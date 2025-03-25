@@ -29,9 +29,11 @@ KEYWORDSEARCH_PROFILE_METADATA_FILE = "keywordsearch_profile_metadata.csv"
 POST_IDENTIFICATION_FILE = "profile_metadata_post_identification.csv"
 PANEL_PROFILE_METADATA_FILE = "profile_metadata_panel.csv"
 POST_REFLECTION_FILE = "profile_metadata_post_reflection.csv"
+POST_STOCK_EXTRACTION_FILE = "profile_metadata_post_extraction.csv"
 POST_INTERVIEW_FILE = "profile_metadata_post_interview.csv"
 FORMATTED_POST_INTERVIEW_FILE = "profile_metadata_post_interview_formatted.csv"
 STOCK_RECOMMENDATION_FILE = "stock_recommendations_{interview_date}.csv"
+RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 ### Configuration for Market Signals Finfluencer (END) ###
 
 ### Configuration for Market Signals Political Influencer (START) ###

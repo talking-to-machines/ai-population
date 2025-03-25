@@ -30,6 +30,7 @@ from config.config import (
     PROFILESEARCH_PROFILE_METADATA_FILE,
     KEYWORDSEARCH_PROFILE_METADATA_FILE,
     GPT_MODEL,
+    RUSSELL_4000_STOCK_TICKER_FILE,
 )
 
 openai_client = OpenAI()
@@ -442,7 +443,7 @@ def construct_system_prompt(row: pd.Series, interview_type: str) -> str:
     return system_prompt
 
 
-def construct_user_prompt(interview_type: str) -> str:
+def construct_user_prompt(row: pd.Series, interview_type: str) -> str:
     if interview_type == "finfluencer_identification":
         return finfluencer_identification_user_prompt
 
@@ -460,12 +461,12 @@ def construct_user_prompt(interview_type: str) -> str:
 
     elif interview_type == "interview":
         # Load Russell 4000 stock tickers
-        full_file_path = f"{base_dir}/../config/russell4000_stock_tickers.csv"
+        full_file_path = f"{base_dir}/../config/{RUSSELL_4000_STOCK_TICKER_FILE}"
         russell4000_stock_tickers = pd.read_csv(full_file_path)
 
         # Construct Russell 4000 stock ticker string
         russell4000_stock_tickers["combined_ticker"] = russell4000_stock_tickers.apply(
-            lambda row: f"{row['COMNAM']} ({row['TICKER']})", axis=1
+            lambda stock_row: f"{stock_row['COMNAM']} ({stock_row['TICKER']})", axis=1
         )
         russell4000_stock_ticker_list = russell4000_stock_tickers[
             "combined_ticker"
@@ -474,7 +475,8 @@ def construct_user_prompt(interview_type: str) -> str:
 
         # Construct user prompt
         return interview_user_prompt.format(
-            russell_4000_tickers=russell4000_stock_ticker_str
+            russell_4000_tickers=russell4000_stock_ticker_str,
+            stock_mentions=row["stock_mentions"],
         )
 
     else:
@@ -570,7 +572,8 @@ def extract_stock_recommendations(
     # Initialize lists to store the extracted data
     stock_name_list = []
     stock_ticker_list = []
-    recommendation_date_list = []
+    mention_date_list = []
+    mentioned_by_influencer_list = []
     recommendation_list = []
     explanation_list = []
     confidence_list = []
@@ -579,7 +582,8 @@ def extract_stock_recommendations(
     # Define regex patterns for each field
     stock_name_pattern = r"\*\*stock name: (.*?)\*\*"
     stock_ticker_pattern = r"\*\*stock ticker: (.*?)\*\*"
-    recommendation_date_pattern = r"\*\*recommendation date: (.*?)\*\*"
+    mention_date_pattern = r"\*\*mention date: (.*?)\*\*"
+    mentioned_by_influencer_pattern = r"\*\*mentioned by influencer: (.*?)\*\*"
     recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
     explanation_pattern = r"\*\*explanation: (.*?)\*\*"
     confidence_pattern = r"\*\*confidence: (.*?)\*\*"
@@ -589,7 +593,10 @@ def extract_stock_recommendations(
     for block in questions_blocks:
         stock_name = re.search(stock_name_pattern, block, re.DOTALL)
         stock_ticker = re.search(stock_ticker_pattern, block, re.DOTALL)
-        recommendation_date = re.search(recommendation_date_pattern, block, re.DOTALL)
+        mention_date = re.search(mention_date_pattern, block, re.DOTALL)
+        mentioned_by_influencer = re.search(
+            mentioned_by_influencer_pattern, block, re.DOTALL
+        )
         recommendation = re.search(recommendation_pattern, block, re.DOTALL)
         explanation = re.search(explanation_pattern, block, re.DOTALL)
         confidence = re.search(confidence_pattern, block, re.DOTALL)
@@ -597,8 +604,9 @@ def extract_stock_recommendations(
 
         stock_name_list.append(stock_name.group(1) if stock_name else None)
         stock_ticker_list.append(stock_ticker.group(1) if stock_ticker else None)
-        recommendation_date_list.append(
-            recommendation_date.group(1) if recommendation_date else None
+        mention_date_list.append(mention_date.group(1) if mention_date else None)
+        mentioned_by_influencer_list.append(
+            mentioned_by_influencer.group(1) if mentioned_by_influencer else None
         )
         recommendation_list.append(recommendation.group(1) if recommendation else None)
         explanation_list.append(explanation.group(1) if explanation else None)
@@ -609,7 +617,8 @@ def extract_stock_recommendations(
     data = {
         "stock_name": stock_name_list,
         "stock_ticker": stock_ticker_list,
-        "recommendation date": recommendation_date_list,
+        "mention date": mention_date_list,
+        "mentioned by influencer": mentioned_by_influencer_list,
         "recommendation": recommendation_list,
         "explanation": explanation_list,
         "confidence": confidence_list,
@@ -710,7 +719,8 @@ def batch_query(
             raise Exception("Batch job failed.")
         else:
             # Wait for 5 minutes before checking again
-            time.sleep(300)
+            # time.sleep(300)
+            time.sleep(60)
 
     # Retrieve batch results
     result_file_id = batch_job.output_file_id
@@ -870,7 +880,11 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
     for i in range(len(filtered_videos)):
         video_transcripts_combined += video_transcript_template.format(
             video_creation_date=filtered_videos.loc[i, "createTimeISO"],
-            video_text=filtered_videos.loc[i, "text"],
+            video_text=(
+                filtered_videos.loc[i, "text"].replace("\n", " ")
+                if not pd.isnull(filtered_videos.loc[i, "text"])
+                else ""
+            ),
             num_likes=filtered_videos.loc[i, "diggCount"],
             num_shares=filtered_videos.loc[i, "shareCount"],
             view_count=filtered_videos.loc[i, "playCount"],

@@ -1,6 +1,13 @@
 import os
 import pandas as pd
+import re
+import string
+from tqdm import tqdm
+from openai import OpenAI
+
+tqdm.pandas()
 from datetime import datetime
+from collections import Counter
 from config.config import (
     PROJECT,
     PROFILESEARCH_PROFILE_METADATA_FILE,
@@ -8,9 +15,13 @@ from config.config import (
     POST_IDENTIFICATION_FILE,
     PANEL_PROFILE_METADATA_FILE,
     POST_REFLECTION_FILE,
+    POST_STOCK_EXTRACTION_FILE,
     POST_INTERVIEW_FILE,
     FORMATTED_POST_INTERVIEW_FILE,
     STOCK_RECOMMENDATION_FILE,
+    RUSSELL_4000_STOCK_TICKER_FILE,
+    OPENAI_API_KEY,
+    GPT_MODEL,
 )
 from src.utils import (
     extract_profile_id,
@@ -23,7 +34,36 @@ from src.utils import (
     extract_stock_recommendations,
 )
 
+openai_client = OpenAI()
 base_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def row_query(row: pd.Series, prompts: list) -> str:
+    system_prompt = row[prompts[0]]
+    user_prompt = row[prompts[1]]
+
+    # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
+    if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
+        return ""
+
+    # Make a chat completion request
+    try:
+        response = openai_client.chat.completions.create(
+            model=GPT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0,
+        )
+
+        # Extract the assistant's response
+        return response.choices[0].message.content
+
+    except Exception as e:
+        # Handle errors (rate limits, etc.)
+        print(f"Error processing row: {e}")
+        return "Error or Timeout"
 
 
 def perform_profile_interview(
@@ -44,10 +84,6 @@ def perform_profile_interview(
     video_metadata = pd.read_csv(f"{base_dir}/../data/{PROJECT}/{video_metadata_file}")
     video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
 
-    # Include interview date for digital interview
-    if interview_type == "interview":
-        profile_metadata["interview_date"] = datetime.today().date()
-
     # Preprocess profile and video metadata
     print("Preprocess profile and video metadata...")
     video_metadata["profile_id"] = video_metadata["authorMeta"].apply(
@@ -65,47 +101,61 @@ def perform_profile_interview(
     profile_metadata[system_prompt_field] = profile_metadata.apply(
         construct_system_prompt, args=(interview_type,), axis=1
     )
-    profile_metadata[user_prompt_field] = construct_user_prompt(interview_type)
-
-    # Generate custom ids
-    if "custom_id" not in profile_metadata.columns:
-        profile_metadata = profile_metadata.reset_index(drop=False)
-        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
-
-    # Create folder to contain batch files
-    batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
-    os.makedirs(batch_file_dir, exist_ok=True)
-
-    # Perform batch query for survey questions
-    batch_file_dir = create_batch_file(
-        profile_metadata,
-        system_prompt_field=system_prompt_field,
-        user_prompt_field=user_prompt_field,
-        batch_file_name="batch_input.jsonl",
+    profile_metadata[user_prompt_field] = profile_metadata.apply(
+        construct_user_prompt, args=(interview_type,), axis=1
     )
 
-    print("Perform batch query using OpenAI API...")
-    llm_responses = batch_query(
-        batch_input_file_dir="batch_input.jsonl",
-        batch_output_file_dir="batch_output.jsonl",
-    )
-    llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
+    # # Generate custom ids
+    # if "custom_id" not in profile_metadata.columns:
+    #     profile_metadata = profile_metadata.reset_index(drop=False)
+    #     profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
-    # Merge LLM response with original dataset
-    print("Merge LLM response with original dataset...")
-    profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-    llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-    profile_metadata_with_responses = pd.merge(
-        left=profile_metadata,
-        right=llm_responses[["custom_id", llm_response_field]],
-        on="custom_id",
+    # # Create folder to contain batch files
+    # batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
+    # os.makedirs(batch_file_dir, exist_ok=True)
+
+    # # Perform batch query for survey questions
+    # batch_file_dir = create_batch_file(
+    #     profile_metadata,
+    #     system_prompt_field=system_prompt_field,
+    #     user_prompt_field=user_prompt_field,
+    #     batch_file_name="batch_input.jsonl",
+    # )
+
+    # print("Perform batch query using OpenAI API...")
+    # llm_responses = batch_query(
+    #     batch_input_file_dir="batch_input.jsonl",
+    #     batch_output_file_dir="batch_output.jsonl",
+    # )
+    # llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
+
+    # # Merge LLM response with original dataset
+    # print("Merge LLM response with original dataset...")
+    # profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+    # llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+    # profile_metadata_with_responses = pd.merge(
+    #     left=profile_metadata,
+    #     right=llm_responses[["custom_id", llm_response_field]],
+    #     on="custom_id",
+    # )
+
+    # # Save profile metadata after analysis into CSV file
+    # print("Saving profile metadata with analysis...")
+    # profile_metadata_with_responses.to_csv(
+    #     f"{base_dir}/../data/{PROJECT}/{output_file}", index=False
+    # )
+
+    # -------------------------------------------
+    # 3. Loop over each row & call ChatCompletion
+    # -------------------------------------------
+    print("Querying the OpenAI Chat Completion API (one row at a time)...")
+    profile_metadata[llm_response_field] = profile_metadata.progress_apply(
+        row_query, args=([system_prompt_field, user_prompt_field],), axis=1
     )
 
     # Save profile metadata after analysis into CSV file
     print("Saving profile metadata with analysis...")
-    profile_metadata_with_responses.to_csv(
-        f"{base_dir}/../data/{PROJECT}/{output_file}", index=False
-    )
+    profile_metadata.to_csv(f"{base_dir}/../data/{PROJECT}/{output_file}", index=False)
 
 
 def perform_finfluencer_identification() -> None:
@@ -198,10 +248,109 @@ def generate_expert_reflections(
     return None
 
 
+def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) -> str:
+    # Split the transcripts by double newline
+    transcript_chunks = row["transcripts_combined"].strip().split("\n\n")
+
+    # Prepare a list for storing the matched results
+    found_mentions = []
+
+    for chunk in transcript_chunks:
+        # Initialize variables for creation date and transcript text
+        creation_date = "Unknown"
+        transcript_text = ""
+
+        # Extract creation date using a regular expression
+        creation_date_match = re.search(r"Creation Date:\s*(.+)", chunk)
+        if creation_date_match:
+            creation_date = creation_date_match.group(1).strip()
+
+        # Extract video transcript using a regular expression
+        transcript_match = re.search(r"Video Transcript:\s*(.+)", chunk)
+        if transcript_match:
+            transcript_text = transcript_match.group(1).strip()
+
+        # Skip processing if no transcript text is found
+        if not transcript_text:
+            continue
+
+        # Check each stock in the Russell 4000
+        for _, row in russell_4000_stock.iterrows():
+            full_stock_name = row["COMNAM"].strip()
+            shorted_stock_name = row["SHORTEN_COMNAM"].strip()
+            stock_ticker = row["TICKER"].strip()
+
+            # Check if stock name is found in transcript chunk
+            transcript_text = transcript_text.translate(
+                str.maketrans(string.punctuation, " " * len(string.punctuation))
+            )  # Remove all punctuation from transcript_text
+            name_match = (
+                re.search(
+                    rf"\b{re.escape(shorted_stock_name.lower())}\b",
+                    transcript_text.lower(),
+                )
+                is not None
+            )
+
+            if name_match:
+                found_mentions.append(
+                    {
+                        "stock_name": full_stock_name,
+                        "stock_ticker": stock_ticker,
+                        "video_creation_date": creation_date,
+                    }
+                )
+
+    # Build a DataFrame from the matches
+    stock_mentions_df = pd.DataFrame(
+        found_mentions, columns=["stock_name", "stock_ticker", "video_creation_date"]
+    )
+
+    # Remove duplicates if you only want unique (stock, date) pairs
+    stock_mentions_df = stock_mentions_df.drop_duplicates().reset_index(drop=True)
+
+    # Create a formatted text string containing all the stocks mentioned and the questions for each stock
+    stock_mentions_formatted_str = ""
+    stock_question_template = """**stock name: {stock_name}**
+**stock ticker: {stock_ticker}**
+**mention date: {video_creation_date}**"""
+
+    for i in range(len(stock_mentions_df)):
+        if i != 0:
+            stock_mentions_formatted_str += "\n\n"
+        stock_mentions_formatted_str += stock_question_template.format(
+            stock_name=stock_mentions_df.loc[i, "stock_name"],
+            stock_ticker=stock_mentions_df.loc[i, "stock_ticker"],
+            video_creation_date=stock_mentions_df.loc[i, "video_creation_date"],
+        )
+
+    return stock_mentions_formatted_str
+
+
+def extract_stock_mentions(input_file: str, output_file: str) -> None:
+    # Load post reflection results
+    post_reflection_results = pd.read_csv(f"{base_dir}/../data/{PROJECT}/{input_file}")
+
+    # Extract stocks mention in past videos
+    russell_4000_stock = pd.read_csv(
+        f"{base_dir}/../config/{RUSSELL_4000_STOCK_TICKER_FILE}"
+    )
+    post_reflection_results["stock_mentions"] = post_reflection_results.progress_apply(
+        extract_stock_mentions_from_transcripts, args=(russell_4000_stock,), axis=1
+    )
+
+    # Save formatted post reflection results
+    post_reflection_results.to_csv(
+        f"{base_dir}/../data/{PROJECT}/{output_file}", index=False
+    )
+
+    return None
+
+
 def perform_digital_interview() -> None:
 
     perform_profile_interview(
-        profile_metadata_file=POST_REFLECTION_FILE,
+        profile_metadata_file=POST_STOCK_EXTRACTION_FILE,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=POST_INTERVIEW_FILE,
         system_prompt_field="digital_interview_system_prompt",
@@ -221,7 +370,7 @@ def perform_digital_interview() -> None:
         args=(
             [
                 "stock name",
-                "If a list of stocks/stock tickers was provided in Question 9",
+                "A list of Russell 4000 stocks was extracted from your past video transcripts",
             ],
         ),
     )
@@ -257,20 +406,35 @@ def perform_digital_interview() -> None:
             i,
             "Indicate on a scale of 0 to 100, how credible or authoritative this influencer is – 0 means not at all credible or authoritative and 100 means very credible and authoritative? - value",
         ]
-        profile_stock_recommendations["interview_date"] = post_interview_results.loc[
-            i, "interview_date"
-        ]
 
         combined_stock_recommendations = pd.concat(
             [combined_stock_recommendations, profile_stock_recommendations],
             ignore_index=True,
         )
 
+    # Remove duplicated entries and stocks that were not mentioned in the video transcripts
+    valid_stock_recommendations = (
+        combined_stock_recommendations.drop_duplicates().reset_index(drop=True)
+    )
+
+    # Sort by profile and mention date (descending order within each profile)
+    valid_stock_recommendations["mention date"] = pd.to_datetime(
+        valid_stock_recommendations["mention date"]
+    )
+    valid_stock_recommendations = valid_stock_recommendations.sort_values(
+        by=["profile", "mention date"], ascending=[True, False]
+    ).reset_index(drop=True)
+
+    # Remove stocks that are not mentioned by the influencer
+    valid_stock_recommendations = valid_stock_recommendations[
+        combined_stock_recommendations["mentioned by influencer"] == "Yes"
+    ].reset_index(drop=True)
+
     # Save formatted interview results and stock recommendations
     post_interview_results.to_csv(
         f"{base_dir}/../data/{PROJECT}/{FORMATTED_POST_INTERVIEW_FILE}", index=False
     )
-    combined_stock_recommendations.to_csv(
+    valid_stock_recommendations.to_csv(
         f"{base_dir}/../data/{PROJECT}/{STOCK_RECOMMENDATION_FILE.format(interview_date=datetime.today().date())}",
         index=False,
     )
@@ -299,5 +463,9 @@ if __name__ == "__main__":
         role="economist",
         profile_metadata_file=POST_REFLECTION_FILE,
         output_file=POST_REFLECTION_FILE,
+    )
+    extract_stock_mentions(
+        input_file=POST_REFLECTION_FILE,
+        output_file=POST_STOCK_EXTRACTION_FILE,
     )
     perform_digital_interview()

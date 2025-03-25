@@ -1469,7 +1469,7 @@ A3) Neither Agree/Disagree
 A4) Agree
 A5) Strongly Agree
 
-Question 2: How would you describe the current market sentiment among investors? Is sentiment very bearish, bearish, neutral, bullish, or very bullish?”.
+Question 2: How would you describe the current market sentiment among investors? Is sentiment very bearish, bearish, neutral, bullish, or very bullish?
 B1) Very Bearish
 B2) Bearish
 B3) Neutral
@@ -1501,32 +1501,25 @@ Question 8: Did you mention any stocks or stock tickers in the Russell 4000 list
 F1) Yes
 F2) No
 
-Question 9: If the response to Question 8 is “Yes”, provide the full list of stocks/stock tickers that were mentioned, separated by a comma. Otherwise, respond with “NA”.
+Question 9: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
 
-Question 10: If a list of stocks/stock tickers was provided in Question 9, provide the following information for each stock recommended: 
-- Indicate on a scale of 0 to 100, your overall recommendation for each stock in this list - 0 means a very strong sell recommendation and 100 means a very strong buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
-- Provide a brief explanation for your investment recommendation.
-- Indicate on a scale of 0 to 100, a measure of confidence for your investment recommendation - 0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence.
-- Indicate on a scale of 0 to 100, a measure of virality for your investment recommendation - 0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality.
-- Indicate the specific date when you recommended the stock. If you have recommended the same stock multiple times in different videos or posts, please list each recommendation separately along with its corresponding date of recommendation. This will be useful in tracking how your recommendation for the same stock may have changed over time.
+Question 10: We have compiled a comprehensive list of Russell 4000 stocks extracted from your past transcripts. Each entry includes the stock name, stock ticker, and mention date. Your task is to review each entry in this list (provided below) and provide a separate, complete response for every stock. Do not omit any stock from your final answer even if they are duplicates. For each stock, fill out the following fields:
+- mentioned by influencer: Confirm that you discussed or referenced this stock in your video on the given mention date by indicating Yes; otherwise indicate No.
+- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock - 0 means a very strong sell recommendation and 100 means a very strong buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
+- explanation: Provide a brief explanation for your recommendation.
+- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your investment recommendation - 0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence.
+- virality: Indicate on a scale of 0 to 100, a measure of virality for your investment recommendation - 0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality.
+Below is the full list of Russell 4000 stocks extracted from your past transcripts:
+{stock_mentions}
 
-For each stock in this list, format your response based on the structure provided below:
+For each listed stock, you must respond in the structure shown below (one block per listed stock):
 **stock name: [stock name 1]**
 **stock ticker: [stock ticker 1]**
-**recommendation date: 2025-01-16 16:00:41+00:00**
+**mention date: 2025-01-16 16:00:41+00:00**
+**mentioned by influencer: Yes**
 **recommendation: 40**
 **explanation: [Detailed reasoning for recommendation]**
 **confidence: 60**
 **virality: 85**
 
-**stock name: [stock name 2]**
-**stock ticker: [stock ticker 2]**
-**recommendation date: 2025-02-11 09:22:41+00:00**
-**recommendation: 50**
-**explanation: [Detailed reasoning for recommendation]**
-**confidence: 75**
-**virality: 65**
-
-Otherwise, if no stocks/stock tickers were provided in Question 9, respond with “NA”.
-
-Question 11: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?"""
+If no stocks are extracted from your past transcripts, respond with “NA”."""
