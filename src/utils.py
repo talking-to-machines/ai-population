@@ -23,12 +23,13 @@ from prompts.prompt_template import (
     interview_system_prompt,
     interview_user_prompt,
 )
+from config.base_config import *
 from config.market_signals_config import (
     RUSSELL_4000_STOCK_TICKER_FILE,
 )
 
 
-openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 
