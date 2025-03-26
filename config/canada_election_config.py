@@ -5,8 +5,8 @@ load_dotenv()
 
 PROJECT = "canada-elections"
 SEARCH_TERMS_FILE = "canada_election_search_terms.txt"
-KEYWORDSEARCH_VIDEO_METADATA_FILE = "keywordsearch_video_metadata"
-KEYWORDSEARCH_PROFILE_METADATA_FILE = "keywordsearch_profile_metadata"
+VIDEO_METADATA_FILE = "video_metadata"
+PROFILE_METADATA_FILE = "profile_metadata"
 # PROFILES_FILE = "canada_elections_profiles.txt"
 # POOL_TYPE = "LATEST"  # LATEST or STORAGE
 # POLLED_USER_POOL_FILE = "canada_elections_polled_user_pool.csv"

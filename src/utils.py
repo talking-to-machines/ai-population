@@ -22,6 +22,7 @@ from prompts.prompt_template import (
     economist_reflection_user_prompt,
     interview_system_prompt,
     interview_user_prompt,
+    profile_prompt_template,
 )
 from config.base_config import *
 from config.market_signals_config import (
@@ -1012,3 +1013,66 @@ def perform_profile_interview(
         profile_metadata.to_csv(
             f"{base_dir}/../data/{project_name}/{output_file}", index=False
         )
+
+
+def build_profile_prompt(
+    project_name: str, profile_metadata_file: str, video_metadata_file: str
+) -> None:
+    # Load profile and video metadata
+    print("Loading profile and video metadata...")
+    profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
+    )
+    video_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{video_metadata_file}"
+    )
+    video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
+
+    # Preprocess profile and video metadata
+    print("Preprocess profile and video metadata...")
+    video_metadata["profile_id"] = video_metadata["authorMeta"].apply(
+        extract_profile_id
+    )
+    video_metadata["profile_id"] = video_metadata["profile_id"].astype(str)
+    profile_metadata["id"] = profile_metadata["id"].astype(str)
+
+    # Construct past transcripts
+    print("Construct past transcripts...")
+    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
+        extract_video_transcripts, args=(video_metadata,)
+    )
+
+    # Construct profile prompt
+    print("Construct profile prompt...")
+    profile_metadata["profile_prompt"] = profile_metadata.apply(
+        lambda row: profile_prompt_template.format(
+            profile_image=row["avatar"],
+            profile_name=row["profile"],
+            profile_nickname=row["nickName"],
+            verified_status=row["verified"],
+            private_account=row["privateAccount"],
+            region=row["region"],
+            tiktok_seller=row["ttSeller"],
+            profile_signature=row["signature"],
+            num_followers=row["fans"],
+            num_following=row["following"],
+            num_likes=row["heart"],
+            num_videos=row["video"],
+            num_digg=row["digg"],
+            total_likes_over_num_followers=calculate_profile_engagement(
+                row["heart"], row["fans"]
+            ),
+            total_likes_over_num_videos=calculate_profile_engagement(
+                row["heart"], row["video"]
+            ),
+            video_transcripts=row["transcripts_combined"],
+        ),
+        axis=1,
+    )
+
+    # Save updated profile metadata
+    profile_metadata.to_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_file}", index=False
+    )
+
+    return None

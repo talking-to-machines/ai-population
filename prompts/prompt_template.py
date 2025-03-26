@@ -1197,6 +1197,25 @@ Video Transcript: {video_transcript}
 """
 
 
+profile_prompt_template = """Profile Image: {profile_image}
+Profile Name: {profile_name}
+Profile Nickname: {profile_nickname}
+Verified Status: {verified_status}
+Private Account: {private_account}
+Region: {region}
+TikTok Seller: {tiktok_seller}
+Profile Signature: {profile_signature}
+Number of Followers: {num_followers} Followers
+Following: {num_following} Users
+Total Number of Likes: {num_likes}
+Total Number of Videos: {num_videos}
+Total Number of Digg: {num_digg}
+Engagement Rate per Follower (Total Number of Likes / Total Number of Followers): {total_likes_over_num_followers}
+Engagement Rate per Post (Total Number of Likes / Total Number of Videos): {total_likes_over_num_videos}
+Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}"""
+
+
 finfluencer_identification_user_prompt = """You will be presented with a series of questions related to the profile of the Tiktok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
