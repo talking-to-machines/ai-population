@@ -66,12 +66,12 @@ def perform_keyword_search(
         video_metadata_file=video_metadata_file,
     )
 
-    # # Identify top n influencial profiles based on keyword search
-    # print(
-    #     f"Identifying top {TOP_N_PROFILES} influencial profiles from keyword search..."
-    # )
-    # identify_top_influencers(
-    #     top_n_profiles=TOP_N_PROFILES,
-    #     project_name=project_name,
-    #     profile_metadata_file=profile_metadata_file,
-    # )
+    # Identify top n influencial profiles based on keyword search
+    print(
+        f"Identifying top {TOP_N_PROFILES} influencial profiles from keyword search..."
+    )
+    identify_top_influencers(
+        top_n_profiles=TOP_N_PROFILES,
+        project_name=project_name,
+        profile_metadata_file=profile_metadata_file,
+    )

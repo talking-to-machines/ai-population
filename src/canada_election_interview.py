@@ -15,6 +15,7 @@ from config.canada_election_config import (
 #     perform_profile_interview,
 # )
 from src.keyword_search import perform_keyword_search
+from src.video_transcription import perform_video_transcription
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,4 +33,7 @@ if __name__ == "__main__":
 
     # Perform audio transcription of new videos
     print("Performing audio transcription of new videos...")
+    perform_video_transcription(
+        project_name=PROJECT, video_metadata_file=KEYWORDSEARCH_VIDEO_METADATA_FILE
+    )
     print()

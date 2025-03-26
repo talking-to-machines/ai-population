@@ -4,20 +4,20 @@ from src.utils import download_video, transcribe_videos
 from config.market_signals_config import *
 from tqdm import tqdm
 
-# Enable the progress_apply method
 tqdm.pandas()
 
-if __name__ == "__main__":
+
+def perform_video_transcription(project_name: str, video_metadata_file: str) -> None:
     print("Creating video downloads folder...")
     # Create the video downloads folder for project if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    video_download_folder_path = f"{base_dir}/../data/{PROJECT}/video-downloads"
+    video_download_folder_path = f"{base_dir}/../data/{project_name}/video-downloads"
     os.makedirs(video_download_folder_path, exist_ok=True)
 
     # Load video metadata
     print("Loading video metadata...")
     video_metadata_file_path = (
-        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
+        f"{base_dir}/../data/{project_name}/{video_metadata_file}"
     )
     if not os.path.exists(video_metadata_file_path):
         raise FileNotFoundError(
@@ -56,12 +56,12 @@ if __name__ == "__main__":
     # Download videos that have not been transcribed and perform transcription
     print("Downloading videos that have not been transcribed...")
     video_metadata_without_transcript.progress_apply(
-        download_video, args=(PROJECT,), axis=1
+        download_video, args=(project_name,), axis=1
     )
     print("Transcribing videos...")
     video_metadata_without_transcript["video_transcript"] = (
         video_metadata_without_transcript.progress_apply(
-            transcribe_videos, args=(PROJECT,), axis=1
+            transcribe_videos, args=(project_name,), axis=1
         )
     )
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         ignore_index=True,
     )
     video_metadata.to_csv(
-        f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}", index=False
+        f"{base_dir}/../data/{project_name}/{video_metadata_file}", index=False
     )
 
     # Clean up downloaded videos to save disk space
