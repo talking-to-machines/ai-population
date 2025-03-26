@@ -8,7 +8,7 @@ import re
 from pydub import AudioSegment
 from apify_client import ApifyClient
 from openai import OpenAI
-from src.prompt_template import (
+from prompts.prompt_template import (
     finfluencer_identification_system_prompt,
     video_transcript_template,
     finfluencer_identification_user_prompt,
@@ -23,17 +23,12 @@ from src.prompt_template import (
     interview_system_prompt,
     interview_user_prompt,
 )
-from config.config import (
-    PROJECT,
-    PROFILESEARCH_VIDEO_METADATA_FILE,
-    KEYWORDSEARCH_VIDEO_METADATA_FILE,
-    PROFILESEARCH_PROFILE_METADATA_FILE,
-    KEYWORDSEARCH_PROFILE_METADATA_FILE,
-    GPT_MODEL,
+from config.market_signals_config import (
     RUSSELL_4000_STOCK_TICKER_FILE,
 )
 
-openai_client = OpenAI()
+
+openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -53,6 +48,8 @@ def load_text_file(file_path) -> list:
 
 
 def update_video_metadata(
+    project_name: str,
+    video_metadata_file: str,
     client: ApifyClient,
     run: dict,
     profile_search: bool,
@@ -93,14 +90,7 @@ def update_video_metadata(
     )
 
     # Define the file path
-    if profile_search:
-        video_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
-        )
-    else:
-        video_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{KEYWORDSEARCH_VIDEO_METADATA_FILE}"
-        )
+    video_metadata_path = f"{base_dir}/../data/{project_name}/{video_metadata_file}"
 
     if os.path.exists(video_metadata_path):
         # Load existing video metadata file
@@ -139,7 +129,9 @@ def convert_str_to_dictionary(str_to_convert: str) -> dict:
         return {"id": None}
 
 
-def update_profile_metadata(profile_search: bool) -> None:
+def update_profile_metadata(
+    project_name: str, profile_metadata_file: str, video_metadata_file: str
+) -> None:
     """
     Updates the profile metadata for a given project by processing the video metadata.
 
@@ -147,14 +139,7 @@ def update_profile_metadata(profile_search: bool) -> None:
         profile_search (bool): A boolean indicating whether the search was for profiles or not.
     """
     # Load video metadata file
-    if profile_search:
-        video_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_VIDEO_METADATA_FILE}"
-        )
-    else:
-        video_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{KEYWORDSEARCH_VIDEO_METADATA_FILE}"
-        )
+    video_metadata_path = f"{base_dir}/../data/{project_name}/{video_metadata_file}"
     video_metadata = pd.read_csv(video_metadata_path)
 
     # Extract the authorMeta field
@@ -184,20 +169,15 @@ def update_profile_metadata(profile_search: bool) -> None:
     ].reset_index(drop=True)
 
     # Save profile metadata locally, overwrite existing profile metadata if it exist
-    if profile_search:
-        profile_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{PROFILESEARCH_PROFILE_METADATA_FILE}"
-        )
-    else:
-        profile_metadata_path = (
-            f"{base_dir}/../data/{PROJECT}/{KEYWORDSEARCH_PROFILE_METADATA_FILE}"
-        )
+    profile_metadata_path = f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
     profile_metadata.to_csv(profile_metadata_path, index=False)
 
     return None
 
 
-def identify_top_influencers(top_n_profiles: int) -> None:
+def identify_top_influencers(
+    top_n_profiles: int, project_name: str, profile_metadata_file: str
+) -> None:
     """
     Identifies the top N influencers based on the number of followers from a profile metadata file
     and saves their profiles to a text file.
@@ -209,9 +189,7 @@ def identify_top_influencers(top_n_profiles: int) -> None:
         None
     """
     # Load profile metadata file based on keyword search
-    profile_metadata_path = (
-        f"{base_dir}/../data/{PROJECT}/{KEYWORDSEARCH_PROFILE_METADATA_FILE}"
-    )
+    profile_metadata_path = f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
     profile_metadata = pd.read_csv(profile_metadata_path)
 
     # Sort profiles based on number of followers
@@ -224,7 +202,7 @@ def identify_top_influencers(top_n_profiles: int) -> None:
 
     # Save top n profiles to a text file
     profiles = profile_metadata_top_n_profiles["profile"].tolist()
-    profiles_path = f"{base_dir}/../config/{PROJECT}_profiles.txt"
+    profiles_path = f"{base_dir}/../config/{project_name}_profiles.txt"
 
     with open(profiles_path, "w") as file:
         for profile in profiles:
@@ -233,13 +211,13 @@ def identify_top_influencers(top_n_profiles: int) -> None:
     return None
 
 
-def download_video(row: pd.Series, PROJECT: str) -> None:
+def download_video(row: pd.Series, project_name: str) -> None:
     """
     Downloads a TikTok video using the provided information in the row.
 
     Args:
         row (pd.Series): A pandas Series containing the video information, including the 'webVideoUrl' and 'video_filename'.
-        PROJECT (str): The project name used to construct the output file path.
+        project_name (str): The project name used to construct the output file path.
 
     Returns:
         None
@@ -249,7 +227,7 @@ def download_video(row: pd.Series, PROJECT: str) -> None:
 
     # Output file name
     output_file = (
-        f"{base_dir}/../data/{PROJECT}/video-downloads/{row['video_filename']}"
+        f"{base_dir}/../data/{project_name}/video-downloads/{row['video_filename']}"
     )
 
     # Options for yt-dlp
@@ -287,13 +265,13 @@ def optimize_audio_file(input_file_path: str, output_file_path: str) -> None:
     audio.export(output_file_path, format="wav")
 
 
-def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
+def transcribe_videos(row: pd.Series, project_name: str) -> str:
     """
     Transcribes the audio from a video file using the OpenAI Whisper model.
     Args:
         row (pd.Series): A pandas Series containing information about the video file.
                          It must include a 'video_filename' key with the name of the video file.
-        PROJECT (str): The name of the project, used to construct the file paths.
+        project_name (str): The name of the project, used to construct the file paths.
     Returns:
         str: The transcription of the audio if successful, otherwise None.
     Raises:
@@ -301,9 +279,9 @@ def transcribe_videos(row: pd.Series, PROJECT: str) -> str:
         Exception: For other errors encountered during transcription, including file size issues.
     """
     input_file_path = (
-        f"{base_dir}/../data/{PROJECT}/video-downloads/{row['video_filename']}"
+        f"{base_dir}/../data/{project_name}/video-downloads/{row['video_filename']}"
     )
-    optimized_file_path = f"{base_dir}/../data/{PROJECT}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
+    optimized_file_path = f"{base_dir}/../data/{project_name}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
 
     try:
         with open(input_file_path, "rb") as audio_file:
@@ -631,6 +609,8 @@ def extract_stock_recommendations(
 
 def create_batch_file(
     prompts: pd.DataFrame,
+    project_name: str,
+    gpt_model: str,
     system_prompt_field: str,
     user_prompt_field: str = "question_prompt",
     batch_file_name: str = "batch_input.jsonl",
@@ -655,7 +635,7 @@ def create_batch_file(
             "method": "POST",
             "url": "/v1/chat/completions",
             "body": {
-                "model": GPT_MODEL,
+                "model": gpt_model,
                 "temperature": 0,
                 "messages": [
                     {"role": "system", "content": prompts.loc[i, system_prompt_field]},
@@ -667,7 +647,7 @@ def create_batch_file(
 
     # Creating batch file
     with open(
-        f"{base_dir}/../data/{PROJECT}/batch-files/{batch_file_name}", "w"
+        f"{base_dir}/../data/{project_name}/batch-files/{batch_file_name}", "w"
     ) as file:
         for obj in tasks:
             file.write(json.dumps(obj) + "\n")
@@ -676,6 +656,7 @@ def create_batch_file(
 
 
 def batch_query(
+    project_name: str,
     batch_input_file_dir: str,
     batch_output_file_dir: str,
 ) -> pd.DataFrame:
@@ -689,21 +670,17 @@ def batch_query(
     Returns:
         pd.DataFrame: A DataFrame containing the processed results from the batch query.
     """
-    # Load OpenAI client
-    client = OpenAI(
-        api_key=os.environ["OPENAI_API_KEY"],
-    )
-
     # Upload batch input file
-    batch_file = client.files.create(
+    batch_file = openai_client.files.create(
         file=open(
-            f"{base_dir}/../data/{PROJECT}/batch-files/{batch_input_file_dir}", "rb"
+            f"{base_dir}/../data/{project_name}/batch-files/{batch_input_file_dir}",
+            "rb",
         ),
         purpose="batch",
     )
 
     # Create batch job
-    batch_job = client.batches.create(
+    batch_job = openai_client.batches.create(
         input_file_id=batch_file.id,
         endpoint="/v1/chat/completions",
         completion_window="24h",
@@ -711,7 +688,7 @@ def batch_query(
 
     # Check batch status
     while True:
-        batch_job = client.batches.retrieve(batch_job.id)
+        batch_job = openai_client.batches.retrieve(batch_job.id)
         print(f"Batch job status: {batch_job.status}")
         if batch_job.status == "completed":
             break
@@ -719,23 +696,22 @@ def batch_query(
             raise Exception("Batch job failed.")
         else:
             # Wait for 5 minutes before checking again
-            # time.sleep(300)
-            time.sleep(60)
+            time.sleep(300)
 
     # Retrieve batch results
     result_file_id = batch_job.output_file_id
-    results = client.files.content(result_file_id).content
+    results = openai_client.files.content(result_file_id).content
 
     # Save the batch output
     with open(
-        f"{base_dir}/../data/{PROJECT}/batch-files/{batch_output_file_dir}", "wb"
+        f"{base_dir}/../data/{project_name}/batch-files/{batch_output_file_dir}", "wb"
     ) as file:
         file.write(results)
 
     # Loading data from saved output file
     response_list = []
     with open(
-        f"{base_dir}/../data/{PROJECT}/batch-files/{batch_output_file_dir}", "r"
+        f"{base_dir}/../data/{project_name}/batch-files/{batch_output_file_dir}", "r"
     ) as file:
         for line in file:
             # Parsing the JSON result string into a dict
@@ -901,3 +877,137 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
         )
 
     return video_transcripts_combined
+
+
+def row_query(row: pd.Series, args: list) -> str:
+    system_prompt = row[args[0]]
+    user_prompt = row[args[1]]
+    gpt_model = row[args[2]]
+
+    # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
+    if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
+        return ""
+
+    # Make a chat completion request
+    try:
+        response = openai_client.chat.completions.create(
+            model=gpt_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0,
+        )
+
+        # Extract the assistant's response
+        return response.choices[0].message.content
+
+    except Exception as e:
+        # Handle errors (rate limits, etc.)
+        print(f"Error processing row: {e}")
+        return "Error or Timeout"
+
+
+def perform_profile_interview(
+    project_name: str,
+    gpt_model: str,
+    profile_metadata_file: str,
+    video_metadata_file: str,
+    output_file: str,
+    system_prompt_field: str,
+    user_prompt_field: str,
+    llm_response_field: str,
+    interview_type: str,
+    batch_interview: bool = True,
+) -> None:
+
+    # Load profile and video metadata
+    print("Loading profile and video metadata...")
+    profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
+    )
+    video_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{video_metadata_file}"
+    )
+    video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
+
+    # Preprocess profile and video metadata
+    print("Preprocess profile and video metadata...")
+    video_metadata["profile_id"] = video_metadata["authorMeta"].apply(
+        extract_profile_id
+    )
+    video_metadata["profile_id"] = video_metadata["profile_id"].astype(str)
+    profile_metadata["id"] = profile_metadata["id"].astype(str)
+
+    # Generate system and user prompts
+    print("Generate system and user prompts...")
+    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
+        extract_video_transcripts, args=(video_metadata,)
+    )
+
+    profile_metadata[system_prompt_field] = profile_metadata.apply(
+        construct_system_prompt, args=(interview_type,), axis=1
+    )
+    profile_metadata[user_prompt_field] = profile_metadata.apply(
+        construct_user_prompt, args=(interview_type,), axis=1
+    )
+
+    if batch_interview:
+        # Generate custom ids
+        if "custom_id" not in profile_metadata.columns:
+            profile_metadata = profile_metadata.reset_index(drop=False)
+            profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+
+        # Create folder to contain batch files
+        batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
+        os.makedirs(batch_file_dir, exist_ok=True)
+
+        # Perform batch query for survey questions
+        batch_file_dir = create_batch_file(
+            profile_metadata,
+            project_name=project_name,
+            gpt_model=gpt_model,
+            system_prompt_field=system_prompt_field,
+            user_prompt_field=user_prompt_field,
+            batch_file_name="batch_input.jsonl",
+        )
+
+        print("Perform batch query using OpenAI API...")
+        llm_responses = batch_query(
+            project_name=project_name,
+            batch_input_file_dir="batch_input.jsonl",
+            batch_output_file_dir="batch_output.jsonl",
+        )
+        llm_responses.rename(
+            columns={"query_response": llm_response_field}, inplace=True
+        )
+
+        # Merge LLM response with original dataset
+        print("Merge LLM response with original dataset...")
+        profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+        profile_metadata_with_responses = pd.merge(
+            left=profile_metadata,
+            right=llm_responses[["custom_id", llm_response_field]],
+            on="custom_id",
+        )
+
+        # Save profile metadata after analysis into CSV file
+        print("Saving profile metadata with analysis...")
+        profile_metadata_with_responses.to_csv(
+            f"{base_dir}/../data/{project_name}/{output_file}", index=False
+        )
+
+    else:
+        print("Querying the OpenAI Chat Completion API (one row at a time)...")
+        profile_metadata[llm_response_field] = profile_metadata.progress_apply(
+            row_query,
+            args=([system_prompt_field, user_prompt_field, gpt_model],),
+            axis=1,
+        )
+
+        # Save profile metadata after analysis into CSV file
+        print("Saving profile metadata with analysis...")
+        profile_metadata.to_csv(
+            f"{base_dir}/../data/{project_name}/{output_file}", index=False
+        )

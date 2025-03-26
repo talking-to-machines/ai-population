@@ -1,12 +1,7 @@
 import os
 from apify_client import ApifyClient
 from src.utils import load_text_file, update_video_metadata, update_profile_metadata
-from config.config import (
-    PROJECT,
-    APIFY_API,
-    APIFY_ACTOR_ID,
-    PROFILES_FILE,
-)
+from config.market_signals_config import *
 
 
 if __name__ == "__main__":
@@ -40,8 +35,19 @@ if __name__ == "__main__":
 
     # Update video metadata store
     print("Updating video metadata...")
-    update_video_metadata(client, run, profile_search=True, filtering_list=PROFILES)
+    update_video_metadata(
+        project_name=PROJECT,
+        video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
+        client=client,
+        run=run,
+        profile_search=True,
+        filtering_list=PROFILES,
+    )
 
     # Update profile metadata store
     print("Updating profile metadata...")
-    update_profile_metadata(profile_search=True)
+    update_profile_metadata(
+        project_name=PROJECT,
+        profile_metadata_file=PROFILESEARCH_PROFILE_METADATA_FILE,
+        video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
+    )

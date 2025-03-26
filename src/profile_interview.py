@@ -3,165 +3,24 @@ import pandas as pd
 import re
 import string
 from tqdm import tqdm
-from openai import OpenAI
 
 tqdm.pandas()
 from datetime import datetime
-from collections import Counter
-from config.config import (
-    PROJECT,
-    PROFILESEARCH_PROFILE_METADATA_FILE,
-    PROFILESEARCH_VIDEO_METADATA_FILE,
-    POST_IDENTIFICATION_FILE,
-    PANEL_PROFILE_METADATA_FILE,
-    POST_REFLECTION_FILE,
-    POST_STOCK_EXTRACTION_FILE,
-    POST_INTERVIEW_FILE,
-    FORMATTED_POST_INTERVIEW_FILE,
-    STOCK_RECOMMENDATION_FILE,
-    RUSSELL_4000_STOCK_TICKER_FILE,
-    OPENAI_API_KEY,
-    GPT_MODEL,
-)
+from config.market_signals_config import *
 from src.utils import (
-    extract_profile_id,
-    extract_video_transcripts,
-    construct_system_prompt,
-    construct_user_prompt,
-    create_batch_file,
-    batch_query,
     extract_llm_responses,
     extract_stock_recommendations,
+    perform_profile_interview,
 )
 
-openai_client = OpenAI()
 base_dir = os.path.dirname(os.path.abspath(__file__))
-
-
-def row_query(row: pd.Series, prompts: list) -> str:
-    system_prompt = row[prompts[0]]
-    user_prompt = row[prompts[1]]
-
-    # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
-    if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
-        return ""
-
-    # Make a chat completion request
-    try:
-        response = openai_client.chat.completions.create(
-            model=GPT_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0,
-        )
-
-        # Extract the assistant's response
-        return response.choices[0].message.content
-
-    except Exception as e:
-        # Handle errors (rate limits, etc.)
-        print(f"Error processing row: {e}")
-        return "Error or Timeout"
-
-
-def perform_profile_interview(
-    profile_metadata_file: str,
-    video_metadata_file: str,
-    output_file: str,
-    system_prompt_field: str,
-    user_prompt_field: str,
-    llm_response_field: str,
-    interview_type: str,
-) -> None:
-
-    # Load profile and video metadata
-    print("Loading profile and video metadata...")
-    profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{PROJECT}/{profile_metadata_file}"
-    )
-    video_metadata = pd.read_csv(f"{base_dir}/../data/{PROJECT}/{video_metadata_file}")
-    video_metadata["createTimeISO"] = pd.to_datetime(video_metadata["createTimeISO"])
-
-    # Preprocess profile and video metadata
-    print("Preprocess profile and video metadata...")
-    video_metadata["profile_id"] = video_metadata["authorMeta"].apply(
-        extract_profile_id
-    )
-    video_metadata["profile_id"] = video_metadata["profile_id"].astype(str)
-    profile_metadata["id"] = profile_metadata["id"].astype(str)
-
-    # Generate system and user prompts
-    print("Generate system and user prompts...")
-    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
-        extract_video_transcripts, args=(video_metadata,)
-    )
-
-    profile_metadata[system_prompt_field] = profile_metadata.apply(
-        construct_system_prompt, args=(interview_type,), axis=1
-    )
-    profile_metadata[user_prompt_field] = profile_metadata.apply(
-        construct_user_prompt, args=(interview_type,), axis=1
-    )
-
-    # # Generate custom ids
-    # if "custom_id" not in profile_metadata.columns:
-    #     profile_metadata = profile_metadata.reset_index(drop=False)
-    #     profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
-
-    # # Create folder to contain batch files
-    # batch_file_dir = f"{base_dir}/../data/{PROJECT}/batch-files"
-    # os.makedirs(batch_file_dir, exist_ok=True)
-
-    # # Perform batch query for survey questions
-    # batch_file_dir = create_batch_file(
-    #     profile_metadata,
-    #     system_prompt_field=system_prompt_field,
-    #     user_prompt_field=user_prompt_field,
-    #     batch_file_name="batch_input.jsonl",
-    # )
-
-    # print("Perform batch query using OpenAI API...")
-    # llm_responses = batch_query(
-    #     batch_input_file_dir="batch_input.jsonl",
-    #     batch_output_file_dir="batch_output.jsonl",
-    # )
-    # llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
-
-    # # Merge LLM response with original dataset
-    # print("Merge LLM response with original dataset...")
-    # profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-    # llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-    # profile_metadata_with_responses = pd.merge(
-    #     left=profile_metadata,
-    #     right=llm_responses[["custom_id", llm_response_field]],
-    #     on="custom_id",
-    # )
-
-    # # Save profile metadata after analysis into CSV file
-    # print("Saving profile metadata with analysis...")
-    # profile_metadata_with_responses.to_csv(
-    #     f"{base_dir}/../data/{PROJECT}/{output_file}", index=False
-    # )
-
-    # -------------------------------------------
-    # 3. Loop over each row & call ChatCompletion
-    # -------------------------------------------
-    print("Querying the OpenAI Chat Completion API (one row at a time)...")
-    profile_metadata[llm_response_field] = profile_metadata.progress_apply(
-        row_query, args=([system_prompt_field, user_prompt_field],), axis=1
-    )
-
-    # Save profile metadata after analysis into CSV file
-    print("Saving profile metadata with analysis...")
-    profile_metadata.to_csv(f"{base_dir}/../data/{PROJECT}/{output_file}", index=False)
 
 
 def perform_finfluencer_identification() -> None:
 
     # Perform financial influencer identification interview
     perform_profile_interview(
+        project_name=PROJECT,
         profile_metadata_file=PROFILESEARCH_PROFILE_METADATA_FILE,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=POST_IDENTIFICATION_FILE,
@@ -236,6 +95,7 @@ def generate_expert_reflections(
         raise ValueError(f"Role {role} is not supported.")
 
     perform_profile_interview(
+        project_name=PROJECT,
         profile_metadata_file=profile_metadata_file,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=output_file,
@@ -350,6 +210,7 @@ def extract_stock_mentions(input_file: str, output_file: str) -> None:
 def perform_digital_interview() -> None:
 
     perform_profile_interview(
+        project_name=PROJECT,
         profile_metadata_file=POST_STOCK_EXTRACTION_FILE,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=POST_INTERVIEW_FILE,

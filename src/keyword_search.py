@@ -6,15 +6,7 @@ from src.utils import (
     update_profile_metadata,
     identify_top_influencers,
 )
-from config.config import (
-    RESULTS_PER_PAGE,
-    TOP_N_PROFILES,
-    PROJECT,
-    APIFY_API,
-    APIFY_ACTOR_ID,
-    SEARCH_TERMS_FILE,
-)
-
+from config.market_signals_config import *
 
 if __name__ == "__main__":
     # Create the project subfolder within the data folder if it does not exist
@@ -47,15 +39,28 @@ if __name__ == "__main__":
     # Update video metadata store
     print("Updating video metadata...")
     update_video_metadata(
-        client, run, profile_search=False, filtering_list=SEARCH_TERMS
+        project_name=PROJECT,
+        video_metadata_file=KEYWORDSEARCH_VIDEO_METADATA_FILE,
+        client=client,
+        run=run,
+        profile_search=False,
+        filtering_list=SEARCH_TERMS,
     )
 
     # Update profile metadata store
     print("Updating profile metadata...")
-    update_profile_metadata(profile_search=False)
+    update_profile_metadata(
+        project_name=PROJECT,
+        profile_metadata_file=KEYWORDSEARCH_PROFILE_METADATA_FILE,
+        video_metadata_file=KEYWORDSEARCH_VIDEO_METADATA_FILE,
+    )
 
     # Identify top n influencial profiles based on keyword search
     print(
         f"Identifying top {TOP_N_PROFILES} influencial profiles from keyword search..."
     )
-    identify_top_influencers(TOP_N_PROFILES)
+    identify_top_influencers(
+        top_n_profiles=TOP_N_PROFILES,
+        project_name=PROJECT,
+        profile_metadata_file=KEYWORDSEARCH_PROFILE_METADATA_FILE,
+    )

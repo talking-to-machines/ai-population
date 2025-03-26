@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from src.utils import download_video, transcribe_videos
-from config.config import PROJECT, PROFILESEARCH_VIDEO_METADATA_FILE
+from config.market_signals_config import *
 from tqdm import tqdm
 
 # Enable the progress_apply method
