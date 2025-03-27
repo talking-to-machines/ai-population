@@ -6,7 +6,9 @@ load_dotenv()
 PROJECT = "canada-elections"
 SEARCH_TERMS_FILE = "canada_election_search_terms.txt"
 KEYWORD_SEARCH_VIDEO_METADATA_FILE = "keyword_search_video_metadata.csv"
-PROFILE_METADATA_FILE = "profile_metadata.csv"
+PROFILE_SEARCH_VIDEO_METADATA_FILE = "profile_search_video_metadata.csv"
+KEYWORD_SEARCH_PROFILE_METADATA_FILE = "keyword_search_profile_metadata.csv"
+PROFILE_SEARCH_PROFILE_METADATA_FILE = "profile_search_profile_metadata.csv"
 POLLED_PROFILES_FILE = "polled_profiles.csv"
 TEMPORAL_INCLUSION_PERIOD = 7  # Profiles polled within the last 7 days will be excluded
 PROFILE_METADATA_POST_PROFILE_PROMPT_FILE = "profile_metadata_post_profile_prompt.csv"
@@ -20,8 +22,4 @@ PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE = (
     "profile_metadata_post_entity_geographic_inclusion.csv"
 )
 PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE = "profile_metadata_post_quota_inclusion.csv"
-PROFILE_METADATA_POST_POLLING_FILE = "polling_results_{poll_date}.csv"
-# PROFILES_FILE = "canada_elections_profiles.txt"
-# POOL_TYPE = "LATEST"  # LATEST or STORAGE
-# SURVEY_FILE = "canada_elections_survey.csv"
-# SURVEY_PROGRESS_LOG = "survey_progress_log.pkl"
+PROFILE_METADATA_POST_POLLING_FILE = "polling_results.csv"

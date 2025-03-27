@@ -7,6 +7,7 @@ from config.base_config import (
     APIFY_ACTOR_ID,
     PROFILE_SEARCH_RESULTS_PER_PAGE,
 )
+from src.video_transcription import perform_video_transcription
 
 
 def perform_profile_search(
@@ -15,6 +16,7 @@ def perform_profile_search(
     video_metadata_file: str,
     profile_list: list = [],
     profile_list_file: str = None,
+    perform_audio_transcription: bool = True,
     return_videos: bool = False,
 ) -> pd.DataFrame:
     # Create the project subfolder within the data folder if it does not exist
@@ -65,7 +67,14 @@ def perform_profile_search(
         video_metadata_file=video_metadata_file,
     )
 
-    # Extract latest videos from profile list
+    # Perform audio transcription of new videos
+    if perform_audio_transcription:
+        print("Performing audio transcription...")
+        perform_video_transcription(
+            project_name=project_name, video_metadata_file=video_metadata_file
+        )
+
+    # Extract videos from profile list
     if return_videos:
         updated_video_metadata = pd.read_csv(
             f"{base_dir}/../data/{project_name}/{video_metadata_file}"
