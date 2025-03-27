@@ -5,7 +5,7 @@ load_dotenv()
 
 PROJECT = "canada-elections"
 SEARCH_TERMS_FILE = "canada_election_search_terms.txt"
-VIDEO_METADATA_FILE = "video_metadata.csv"
+KEYWORD_SEARCH_VIDEO_METADATA_FILE = "keyword_search_video_metadata.csv"
 PROFILE_METADATA_FILE = "profile_metadata.csv"
 POLLED_PROFILES_FILE = "polled_profiles.csv"
 TEMPORAL_INCLUSION_PERIOD = 7  # Profiles polled within the last 7 days will be excluded

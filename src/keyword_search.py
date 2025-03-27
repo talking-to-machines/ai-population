@@ -7,7 +7,7 @@ from src.utils import (
     identify_top_influencers,
 )
 from config.base_config import (
-    RESULTS_PER_PAGE,
+    KEYWORD_SEARCH_RESULTS_PER_PAGE,
     TOP_N_PROFILES,
     APIFY_API,
     APIFY_ACTOR_ID,
@@ -34,7 +34,7 @@ def perform_keyword_search(
     # Prepare the Actor input
     run_input = {
         "excludePinnedPosts": False,
-        "resultsPerPage": RESULTS_PER_PAGE,
+        "resultsPerPage": KEYWORD_SEARCH_RESULTS_PER_PAGE,
         "searchQueries": search_terms,
         "searchSection": "/video",
         "shouldDownloadCovers": False,

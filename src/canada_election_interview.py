@@ -9,7 +9,7 @@ from config.base_config import GPT_MODEL
 from config.canada_election_config import (
     PROJECT,
     SEARCH_TERMS_FILE,
-    VIDEO_METADATA_FILE,
+    KEYWORD_SEARCH_VIDEO_METADATA_FILE,
     PROFILE_METADATA_FILE,
     POLLED_PROFILES_FILE,
     TEMPORAL_INCLUSION_PERIOD,
@@ -17,7 +17,6 @@ from config.canada_election_config import (
     PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
     PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
     PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE,
-    PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
     PROFILE_METADATA_POST_POLLING_FILE,
 )
 from src.utils import (
@@ -26,6 +25,7 @@ from src.utils import (
     perform_profile_interview_shorten,
 )
 from src.keyword_search import perform_keyword_search
+from src.profile_search import perform_profile_search
 from src.video_transcription import perform_video_transcription
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -166,7 +166,14 @@ def apply_entity_geographic_inclusion_criteria(
     return None
 
 
-def perform_polling(
+def apply_quota_inclusion_criteria(
+    profile: pd.Series,
+) -> pd.Series:  # TODO to be implemented
+
+    return None
+
+
+def conduct_polling(  # TODO to be implemented
     project_name: str,
     profile_metadata_input_file: str,
     profile_metadata_output_file: str,
@@ -213,31 +220,31 @@ if __name__ == "__main__":
         project_name=PROJECT,
         search_terms_file=SEARCH_TERMS_FILE,
         profile_metadata_file=PROFILE_METADATA_FILE,
-        video_metadata_file=VIDEO_METADATA_FILE,
+        video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE,
     )
     print()
 
     ## Perform audio transcription of new videos
     print("Performing audio transcription...")
     perform_video_transcription(
-        project_name=PROJECT, video_metadata_file=VIDEO_METADATA_FILE
+        project_name=PROJECT, video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE
+    )
+    print()
+
+    ## Build user profile prompt
+    print("Building user profile prompt...")
+    build_profile_prompt(
+        project_name=PROJECT,
+        profile_metadata_input_file=PROFILE_METADATA_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
+        video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE,
     )
     print()
 
     # Step 2: Poll Users
     print("Step 2: Poll Users")
-    ## Build user profile prompt
-    print("Build user profile prompt...")
-    build_profile_prompt(
-        project_name=PROJECT,
-        profile_metadata_input_file=PROFILE_METADATA_FILE,
-        profile_metadata_output_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
-        video_metadata_file=VIDEO_METADATA_FILE,
-    )
-    print()
-
     ## Apply temporal inclusion criteria (limit number of survey responses from a single user within a given timeframe)
-    print("Apply temporal inclusion criteria...")
+    print("Applying temporal inclusion criteria...")
     apply_temporal_inclusion_criteria(
         project_name=PROJECT,
         profile_metadata_input_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
@@ -247,7 +254,7 @@ if __name__ == "__main__":
     print()
 
     ## Apply null geography exclusion criteria (remove profiles without self-reported location information)
-    print("Apply null geography exclusion criteria...")
+    print("Applying null geography exclusion criteria...")
     apply_null_geography_exclusion_criteria(
         project_name=PROJECT,
         profile_metadata_input_file=PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
@@ -256,7 +263,7 @@ if __name__ == "__main__":
     print()
 
     ## Apply entity inclusion criteria (exclude profiles that do not belong to an individual (i.e., organisations, bots, etc) and geographic inclusion criteria (filter out profiles that are unlikely to reside in Level 1 geography (i.e., Canada))
-    print("Apply entity inclusion criteria and geographic inclusion criteria...")
+    print("Applying entity inclusion criteria and geographic inclusion criteria...")
     apply_entity_geographic_inclusion_criteria(
         project_name=PROJECT,
         profile_metadata_input_file=PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
@@ -264,17 +271,40 @@ if __name__ == "__main__":
     )
     print()
 
-    # Apply quota inclusion criteria (performing quota sampling to ensure that the sample is representative of the Canadian population)
-    print("Enforcing quota inclusion criteria...")
-    print()
-
-    # Perform digital polling on Canada election
-    print("Performing digital polling on Canada election...")
-    perform_polling(
-        project_name=PROJECT,
-        profile_metadata_input_file=PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
-        profile_metadata_output_file=PROFILE_METADATA_POST_POLLING_FILE.format(
-            poll_date=poll_date
-        ),
+    # Iterate through valid profile pool
+    print("Iterate through valid profile pool and store polling results...")
+    eligible_profile_pool = pd.read_csv(
+        f"{base_dir}/../data/{PROJECT}/{PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE}"
     )
-    print()
+    polling_results = pd.read_csv(
+        f"{base_dir}/../data/{PROJECT}/{POLLED_PROFILES_FILE}"
+    )
+    for i in tqdm(range(len(eligible_profile_pool))):
+        # Apply quota inclusion criteria
+        eligible_profile = apply_quota_inclusion_criteria(eligible_profile_pool.iloc[i])
+
+        if eligible_profile is None:  # Profile does not meet quota inclusion criteria
+            continue
+
+        # Sample last M videos from eligible profiles
+        profile_latest_videos = perform_profile_search(
+            project_name=PROJECT, profile_list=[eligible_profile], return_videos=True
+        )
+
+        # Perform digital election polling on eligible profiles
+        conduct_polling(
+            project_name=PROJECT,
+            profile=eligible_profile,
+            profile_latest_videos=profile_latest_videos,
+            results_file=PROFILE_METADATA_POST_POLLING_FILE,
+        )
+
+        # # Perform digital polling on Canada election
+        # print("Performing digital polling on Canada election...")
+        # perform_polling(
+        #     project_name=PROJECT,
+        #     profile_metadata_input_file=PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
+        #     profile_metadata_output_file=PROFILE_METADATA_POST_POLLING_FILE.format(
+        #         poll_date=poll_date
+        #     ),
+        # )
