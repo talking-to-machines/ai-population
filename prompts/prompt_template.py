@@ -1542,3 +1542,58 @@ For each listed stock, you must respond in the structure shown below (one block 
 **virality: 85**
 
 If no stocks are extracted from your past transcripts, respond with “NA”."""
+
+
+entity_geographic_inclusion_system_prompt = """You are analyzing a social media profile on TikTok to answer a set of questions. The TikTok profile data includes:
+{profile_prompt}
+
+Instructions
+Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+
+
+entity_geographic_inclusion_user_prompt = """You will be presented with a series of questions related to the profile of the TikTok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+
+For each question, follow these instructions strictly:
+1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
+2) Select only one symbol/category per question. A title, symbol, and category cannot appear more than once in your answer.
+3) Present the selected symbol for each question (if applicable) and write out in full the response associated with the selected symbol.
+4) For each selected symbol/category, indicate the level of speculation involved in this selection on a scale from 0 (not speculative at all, every single element of the profile data was useful in the selection) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation levels should be a direct measure of the amount of useful information available in the profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from the profile-- and should not be affected by additional information available to you from any other source.
+
+To ensure consistency, use the following guidelines to determine speculation levels:
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no information relevant to the question. (e.g., assumptions based on very general information)
+
+5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
+6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
+For categorical questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: How well does the user engage with their audience?**
+**explanation: [Detailed reasoning for selection]**
+**symbol: A1)**
+**category: Very Well**
+**speculation: 90**
+
+For numerical questions (0-100 scale), format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: Indicate on a scale of 0 to 100, how knowledgable is the user about finance – 0 means not at all knowledgeable and 100 means very knowledgeable?**
+**explanation: [Detailed reasoning for selection]**
+**value: 20**
+**speculation: 90**
+
+For open-ended questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
+**question: Are there any stocks you expect to **underperform** or decline in the next 3-6 months?**
+**response: [Detailed response]**
+**speculation: 90**
+
+YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
+
+Question 1: Is this an account of a real-life existing person, or of another kind of entity?
+A1) Person
+A2) Other
+
+Question 2: Does the user of this TikTok account live in Canada?
+B1) Yes 
+B2) No
+
+Question 3: If the response to Question 2 is “Yes,” specify the state (province) the user is living in. Otherwise, respond with “NA.”"""

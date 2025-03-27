@@ -14,7 +14,10 @@ PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE = (
     "profile_metadata_post_temporal_inclusion.csv"
 )
 PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE = (
-    "profile_metadta_post_geography_exclusion.csv"
+    "profile_metadata_post_geography_exclusion.csv"
+)
+PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE = (
+    "profile_metadata_post_entity_geographic_inclusion.csv"
 )
 # PROFILES_FILE = "canada_elections_profiles.txt"
 # POOL_TYPE = "LATEST"  # LATEST or STORAGE

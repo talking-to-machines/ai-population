@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 
 tqdm.pandas()
+from config.base_config import GPT_MODEL
 from config.canada_election_config import (
     PROJECT,
     SEARCH_TERMS_FILE,
@@ -15,9 +16,13 @@ from config.canada_election_config import (
     PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
     PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
     PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
+    PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE,
 )
-
-from src.utils import build_profile_prompt
+from src.utils import (
+    build_profile_prompt,
+    extract_llm_responses,
+    perform_profile_interview_shorten,
+)
 from src.keyword_search import perform_keyword_search
 from src.video_transcription import perform_video_transcription
 
@@ -105,6 +110,60 @@ def apply_null_geography_exclusion_criteria(
     return None
 
 
+def apply_entity_geographic_inclusion_criteria(
+    project_name: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
+) -> None:
+
+    # Perform entity geographic inclusion criteria interview
+    perform_profile_interview_shorten(
+        project_name=project_name,
+        gpt_model=GPT_MODEL,
+        profile_metadata_input_file=profile_metadata_input_file,
+        profile_metadata_output_file=profile_metadata_output_file,
+        system_prompt_field="entity_geographic_inclusion_system_prompt",
+        user_prompt_field="entity_geographic_inclusion_user_prompt",
+        llm_response_field="entity_geographic_inclusion_llm_response",
+        interview_type="entity_geographic_inclusion",
+        batch_interview=True,
+    )
+
+    # Preprocess post interview results
+    post_interview_profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}"
+    )
+    extracted_responses = post_interview_profile_metadata[
+        "entity_geographic_inclusion_llm_response"
+    ].apply(extract_llm_responses)
+    post_interview_profile_metadata = pd.concat(
+        [post_interview_profile_metadata, extracted_responses], axis=1
+    )
+
+    # Filter out profiles that are non-individuals (entity inclusion criteria)
+    filtered_profile_metadata = post_interview_profile_metadata[
+        post_interview_profile_metadata[
+            "Is this an account of a real-life existing person, or of another kind of entity? - category"
+        ]
+        == "Person"
+    ].reset_index(drop=True)
+
+    # Filter out profiles that are not based in Canada (geographic inclusion criteria)
+    filtered_profile_metadata = filtered_profile_metadata[
+        filtered_profile_metadata[
+            "Does the user of this TikTok account live in Canada? - category"
+        ]
+        == "Yes"
+    ].reset_index(drop=True)
+
+    # Save identified financial influencers
+    filtered_profile_metadata.to_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
+    )
+
+    return None
+
+
 if __name__ == "__main__":
     # Step 1: Get Pool
     print("Step 1: Get Pool")
@@ -147,7 +206,7 @@ if __name__ == "__main__":
     )
     print()
 
-    ## Apply null geogrpahy exclusion criteria (remove profiles without self-reported location information)
+    ## Apply null geography exclusion criteria (remove profiles without self-reported location information)
     print("Apply null geography exclusion criteria...")
     apply_null_geography_exclusion_criteria(
         project_name=PROJECT,
@@ -156,12 +215,13 @@ if __name__ == "__main__":
     )
     print()
 
-    ## Apply entity inclusion criteria (exclude profiles that do not belong to an individual (i.e., organisations, bots, etc)
-    print("Apply entity inclusion criteria...")
-    print()
-
-    ## Apply geographic inclusion criteria (filter out profiles that are unlikely to reside in Level 1 geography (i.e., Canada))
-    print("Apply geographic inclusion criteria...")
+    ## Apply entity inclusion criteria (exclude profiles that do not belong to an individual (i.e., organisations, bots, etc) and geographic inclusion criteria (filter out profiles that are unlikely to reside in Level 1 geography (i.e., Canada))
+    print("Apply entity inclusion criteria and geographic inclusion criteria...")
+    apply_entity_geographic_inclusion_criteria(
+        project_name=PROJECT,
+        profile_metadata_input_file=PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE,
+    )
     print()
 
     # Apply quota inclusion criteria (performing quota sampling to ensure that the sample is representative of the Canadian population)

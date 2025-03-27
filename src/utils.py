@@ -23,6 +23,8 @@ from prompts.prompt_template import (
     interview_system_prompt,
     interview_user_prompt,
     profile_prompt_template,
+    entity_geographic_inclusion_system_prompt,
+    entity_geographic_inclusion_user_prompt,
 )
 from config.base_config import *
 from config.market_signals_config import (
@@ -359,6 +361,12 @@ def construct_system_prompt(row: pd.Series, interview_type: str) -> str:
     elif interview_type == "interview":
         system_prompt_template = interview_system_prompt
 
+    elif interview_type == "entity_geographic_inclusion":
+        system_prompt = entity_geographic_inclusion_system_prompt.format(
+            profile_prompt=row["profile_prompt"]
+        )
+        return system_prompt
+
     else:
         raise ValueError(f"Interview Type {interview_type} is not supported.")
 
@@ -438,6 +446,9 @@ def construct_user_prompt(row: pd.Series, interview_type: str) -> str:
 
     elif interview_type == "economist_reflection":
         return economist_reflection_user_prompt
+
+    elif interview_type == "entity_geographic_inclusion":
+        return entity_geographic_inclusion_user_prompt
 
     elif interview_type == "interview":
         # Load Russell 4000 stock tickers
@@ -1012,6 +1023,94 @@ def perform_profile_interview(
         print("Saving profile metadata with analysis...")
         profile_metadata.to_csv(
             f"{base_dir}/../data/{project_name}/{output_file}", index=False
+        )
+
+
+def perform_profile_interview_shorten(
+    project_name: str,
+    gpt_model: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
+    system_prompt_field: str,
+    user_prompt_field: str,
+    llm_response_field: str,
+    interview_type: str,
+    batch_interview: bool = True,
+) -> None:
+
+    print("Loading profile metadata...")
+    profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
+    )
+
+    print("Generate system and user prompts...")
+    profile_metadata[system_prompt_field] = profile_metadata.apply(
+        construct_system_prompt, args=(interview_type,), axis=1
+    )
+    profile_metadata[user_prompt_field] = profile_metadata.apply(
+        construct_user_prompt, args=(interview_type,), axis=1
+    )
+
+    if batch_interview:
+        # Generate custom ids
+        if "custom_id" not in profile_metadata.columns:
+            profile_metadata = profile_metadata.reset_index(drop=False)
+            profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+
+        # Create folder to contain batch files
+        batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
+        os.makedirs(batch_file_dir, exist_ok=True)
+
+        # Perform batch query for survey questions
+        batch_file_dir = create_batch_file(
+            profile_metadata,
+            project_name=project_name,
+            gpt_model=gpt_model,
+            system_prompt_field=system_prompt_field,
+            user_prompt_field=user_prompt_field,
+            batch_file_name="batch_input.jsonl",
+        )
+
+        print("Perform batch query using OpenAI API...")
+        llm_responses = batch_query(
+            project_name=project_name,
+            batch_input_file_dir="batch_input.jsonl",
+            batch_output_file_dir="batch_output.jsonl",
+        )
+        llm_responses.rename(
+            columns={"query_response": llm_response_field}, inplace=True
+        )
+
+        # Merge LLM response with original dataset
+        print("Merge LLM response with original dataset...")
+        profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+        profile_metadata_with_responses = pd.merge(
+            left=profile_metadata,
+            right=llm_responses[["custom_id", llm_response_field]],
+            on="custom_id",
+        )
+
+        # Save profile metadata after analysis into CSV file
+        print("Saving profile metadata after interview...")
+        profile_metadata_with_responses.to_csv(
+            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
+            index=False,
+        )
+
+    else:
+        print("Querying the OpenAI Chat Completion API (one row at a time)...")
+        profile_metadata[llm_response_field] = profile_metadata.progress_apply(
+            row_query,
+            args=([system_prompt_field, user_prompt_field, gpt_model],),
+            axis=1,
+        )
+
+        # Save profile metadata after analysis into CSV file
+        print("Saving profile metadata after interview...")
+        profile_metadata.to_csv(
+            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
+            index=False,
         )
 
 
