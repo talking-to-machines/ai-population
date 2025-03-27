@@ -1597,3 +1597,9 @@ B1) Yes
 B2) No
 
 Question 3: If the response to Question 2 is “Yes,” specify the state (province) the user is living in. Otherwise, respond with “NA.”"""
+
+
+polling_system_prompt = """{profile_prompt}"""
+
+
+polling_user_prompt = """"""

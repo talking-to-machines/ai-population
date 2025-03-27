@@ -19,6 +19,8 @@ PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE = (
 PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE = (
     "profile_metadata_post_entity_geographic_inclusion.csv"
 )
+PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE = "profile_metadata_post_quota_inclusion.csv"
+PROFILE_METADATA_POST_POLLING_FILE = "polling_results_{poll_date}.csv"
 # PROFILES_FILE = "canada_elections_profiles.txt"
 # POOL_TYPE = "LATEST"  # LATEST or STORAGE
 # SURVEY_FILE = "canada_elections_survey.csv"

@@ -25,6 +25,8 @@ from prompts.prompt_template import (
     profile_prompt_template,
     entity_geographic_inclusion_system_prompt,
     entity_geographic_inclusion_user_prompt,
+    polling_system_prompt,
+    polling_user_prompt,
 )
 from config.base_config import *
 from config.market_signals_config import (
@@ -367,6 +369,12 @@ def construct_system_prompt(row: pd.Series, interview_type: str) -> str:
         )
         return system_prompt
 
+    elif interview_type == "polling":
+        system_prompt = polling_system_prompt.format(
+            profile_prompt=row["profile_prompt"]
+        )
+        return system_prompt
+
     else:
         raise ValueError(f"Interview Type {interview_type} is not supported.")
 
@@ -449,6 +457,9 @@ def construct_user_prompt(row: pd.Series, interview_type: str) -> str:
 
     elif interview_type == "entity_geographic_inclusion":
         return entity_geographic_inclusion_user_prompt
+
+    elif interview_type == "polling":
+        return polling_user_prompt
 
     elif interview_type == "interview":
         # Load Russell 4000 stock tickers

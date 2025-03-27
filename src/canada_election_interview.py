@@ -17,6 +17,8 @@ from config.canada_election_config import (
     PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
     PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
     PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE,
+    PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
+    PROFILE_METADATA_POST_POLLING_FILE,
 )
 from src.utils import (
     build_profile_prompt,
@@ -51,7 +53,7 @@ def apply_temporal_inclusion_criteria(
         # Identify profiles that were polled within the last N days
         recently_polled_profiles = polled_profiles[
             polled_profiles["poll_date"]
-            >= datetime.today() - timedelta(days=TEMPORAL_INCLUSION_PERIOD)
+            >= datetime.today().date() - timedelta(days=TEMPORAL_INCLUSION_PERIOD)
         ].reset_index(drop=True)
 
         # Exclude profiles that were polled within the last N days
@@ -156,7 +158,7 @@ def apply_entity_geographic_inclusion_criteria(
         == "Yes"
     ].reset_index(drop=True)
 
-    # Save identified financial influencers
+    # Save profiles that meet entity and geographic inclusion criteria
     filtered_profile_metadata.to_csv(
         f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
     )
@@ -164,7 +166,45 @@ def apply_entity_geographic_inclusion_criteria(
     return None
 
 
+def perform_polling(
+    project_name: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
+) -> None:
+
+    # Perform polling interview
+    perform_profile_interview_shorten(
+        project_name=project_name,
+        gpt_model=GPT_MODEL,
+        profile_metadata_input_file=profile_metadata_input_file,
+        profile_metadata_output_file=profile_metadata_output_file,
+        system_prompt_field="polling_system_prompt",
+        user_prompt_field="polling_user_prompt",
+        llm_response_field="polling_llm_response",
+        interview_type="polling",
+        batch_interview=True,
+    )
+
+    # Preprocess post interview results
+    post_interview_profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}"
+    )
+    extracted_responses = post_interview_profile_metadata["polling_llm_response"].apply(
+        extract_llm_responses
+    )
+    post_interview_profile_metadata = pd.concat(
+        [post_interview_profile_metadata, extracted_responses], axis=1
+    )
+
+    # Save the formatted polling interview results
+    post_interview_profile_metadata.to_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
+    )
+
+
 if __name__ == "__main__":
+    poll_date = datetime.today().date()
+
     # Step 1: Get Pool
     print("Step 1: Get Pool")
     ## Perform key word search for TikTok videos discussing Canada elections
@@ -228,6 +268,13 @@ if __name__ == "__main__":
     print("Enforcing quota inclusion criteria...")
     print()
 
-    # Perform digital interview on Canada election
-    print("Performing digital interview on Canada election...")
+    # Perform digital polling on Canada election
+    print("Performing digital polling on Canada election...")
+    perform_polling(
+        project_name=PROJECT,
+        profile_metadata_input_file=PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_POLLING_FILE.format(
+            poll_date=poll_date
+        ),
+    )
     print()
