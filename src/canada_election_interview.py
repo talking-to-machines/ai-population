@@ -10,9 +10,11 @@ from config.canada_election_config import (
     SEARCH_TERMS_FILE,
     VIDEO_METADATA_FILE,
     PROFILE_METADATA_FILE,
-    SAMPLED_PROFILE_METADATA_FILE,
     POLLED_PROFILES_FILE,
     TEMPORAL_INCLUSION_PERIOD,
+    PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
+    PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
+    PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
 )
 
 from src.utils import build_profile_prompt
@@ -24,13 +26,13 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 def apply_temporal_inclusion_criteria(
     project_name: str,
-    profile_metadata_file: str,
-    sampled_profile_metadata_file: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
     polled_profiles_file: str,
 ) -> None:
     print("Load profile metadata...")
     profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
+        f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
     )
 
     print("Exclude profiles that have been polled within the last N days...")
@@ -52,7 +54,7 @@ def apply_temporal_inclusion_criteria(
             ~profile_metadata["profile"].isin(recently_polled_profiles["profile"])
         ]
         sampled_profile_metadata.to_csv(
-            f"{base_dir}/../data/{project_name}/{sampled_profile_metadata_file}",
+            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
             index=False,
         )
 
@@ -69,7 +71,7 @@ def apply_temporal_inclusion_criteria(
     else:  # If no profiles have been polled yet, all existing profiles will be polled
         sampled_profile_metadata = profile_metadata
         sampled_profile_metadata.to_csv(
-            f"{base_dir}/../data/{project_name}/{sampled_profile_metadata_file}",
+            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
             index=False,
         )
 
@@ -78,6 +80,27 @@ def apply_temporal_inclusion_criteria(
         newly_polled_profiles.to_csv(
             f"{base_dir}/../data/{project_name}/{polled_profiles_file}", index=False
         )
+
+    return None
+
+
+def apply_null_geography_exclusion_criteria(
+    project_name: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
+) -> None:
+    print("Load profile metadata...")
+    sampled_profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
+    )
+
+    print("Exclude profiles without self-reported location information...")
+    sampled_profile_metadata = sampled_profile_metadata[
+        sampled_profile_metadata["region"].notnull()
+    ].reset_index(drop=True)
+    sampled_profile_metadata.to_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
+    )
 
     return None
 
@@ -108,7 +131,8 @@ if __name__ == "__main__":
     print("Build user profile prompt...")
     build_profile_prompt(
         project_name=PROJECT,
-        profile_metadata_file=PROFILE_METADATA_FILE,
+        profile_metadata_input_file=PROFILE_METADATA_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
         video_metadata_file=VIDEO_METADATA_FILE,
     )
     print()
@@ -117,14 +141,19 @@ if __name__ == "__main__":
     print("Apply temporal inclusion criteria...")
     apply_temporal_inclusion_criteria(
         project_name=PROJECT,
-        profile_metadata_file=PROFILE_METADATA_FILE,
-        sampled_profile_metadata_file=SAMPLED_PROFILE_METADATA_FILE,
+        profile_metadata_input_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
         polled_profiles_file=POLLED_PROFILES_FILE,
     )
     print()
 
     ## Apply null geogrpahy exclusion criteria (remove profiles without self-reported location information)
     print("Apply null geography exclusion criteria...")
+    apply_null_geography_exclusion_criteria(
+        project_name=PROJECT,
+        profile_metadata_input_file=PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE,
+        profile_metadata_output_file=PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE,
+    )
     print()
 
     ## Apply entity inclusion criteria (exclude profiles that do not belong to an individual (i.e., organisations, bots, etc)

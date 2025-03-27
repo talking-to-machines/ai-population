@@ -7,9 +7,15 @@ PROJECT = "canada-elections"
 SEARCH_TERMS_FILE = "canada_election_search_terms.txt"
 VIDEO_METADATA_FILE = "video_metadata.csv"
 PROFILE_METADATA_FILE = "profile_metadata.csv"
-SAMPLED_PROFILE_METADATA_FILE = "sampled_profile_metadata.csv"
 POLLED_PROFILES_FILE = "polled_profiles.csv"
 TEMPORAL_INCLUSION_PERIOD = 7  # Profiles polled within the last 7 days will be excluded
+PROFILE_METADATA_POST_PROFILE_PROMPT_FILE = "profile_metadata_post_profile_prompt.csv"
+PROFILE_METADATA_POST_TEMPORAL_INCLUSION_FILE = (
+    "profile_metadata_post_temporal_inclusion.csv"
+)
+PROFILE_METADATA_POST_GEOGRAPHY_EXCLUSION_FILE = (
+    "profile_metadta_post_geography_exclusion.csv"
+)
 # PROFILES_FILE = "canada_elections_profiles.txt"
 # POOL_TYPE = "LATEST"  # LATEST or STORAGE
 # SURVEY_FILE = "canada_elections_survey.csv"

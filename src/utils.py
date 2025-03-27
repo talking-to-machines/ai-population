@@ -1016,12 +1016,15 @@ def perform_profile_interview(
 
 
 def build_profile_prompt(
-    project_name: str, profile_metadata_file: str, video_metadata_file: str
+    project_name: str,
+    profile_metadata_input_file: str,
+    profile_metadata_output_file: str,
+    video_metadata_file: str,
 ) -> None:
     # Load profile and video metadata
     print("Loading profile and video metadata...")
     profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
+        f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
     )
     video_metadata = pd.read_csv(
         f"{base_dir}/../data/{project_name}/{video_metadata_file}"
@@ -1072,7 +1075,7 @@ def build_profile_prompt(
 
     # Save updated profile metadata
     profile_metadata.to_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_file}", index=False
+        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
     )
 
     return None
