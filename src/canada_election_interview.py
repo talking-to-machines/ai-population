@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+from pathlib import Path
+from datetime import datetime, timedelta
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -8,6 +10,9 @@ from config.canada_election_config import (
     SEARCH_TERMS_FILE,
     VIDEO_METADATA_FILE,
     PROFILE_METADATA_FILE,
+    SAMPLED_PROFILE_METADATA_FILE,
+    POLLED_PROFILES_FILE,
+    TEMPORAL_INCLUSION_PERIOD,
 )
 
 from src.utils import build_profile_prompt
@@ -15,6 +20,66 @@ from src.keyword_search import perform_keyword_search
 from src.video_transcription import perform_video_transcription
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def apply_temporal_inclusion_criteria(
+    project_name: str,
+    profile_metadata_file: str,
+    sampled_profile_metadata_file: str,
+    polled_profiles_file: str,
+) -> None:
+    print("Load profile metadata...")
+    profile_metadata = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{profile_metadata_file}"
+    )
+
+    print("Exclude profiles that have been polled within the last N days...")
+    polled_profiles_file_path = Path(
+        f"{base_dir}/../data/{project_name}/{polled_profiles_file}"
+    )
+    if polled_profiles_file_path.exists():
+        polled_profiles = pd.read_csv(polled_profiles_file_path)
+        polled_profiles["poll_date"] = pd.to_datetime(polled_profiles["poll_date"])
+
+        # Identify profiles that were polled within the last N days
+        recently_polled_profiles = polled_profiles[
+            polled_profiles["poll_date"]
+            >= datetime.today() - timedelta(days=TEMPORAL_INCLUSION_PERIOD)
+        ].reset_index(drop=True)
+
+        # Exclude profiles that were polled within the last N days
+        sampled_profile_metadata = profile_metadata[
+            ~profile_metadata["profile"].isin(recently_polled_profiles["profile"])
+        ]
+        sampled_profile_metadata.to_csv(
+            f"{base_dir}/../data/{project_name}/{sampled_profile_metadata_file}",
+            index=False,
+        )
+
+        # Update polled profiles with profiles that will be polled in the current survey iteration
+        newly_polled_profiles = sampled_profile_metadata[["profile"]]
+        newly_polled_profiles["poll_date"] = datetime.today().date()
+        updated_polled_profiles = pd.concat(
+            [recently_polled_profiles, newly_polled_profiles], ignore_index=True
+        )
+        updated_polled_profiles.to_csv(
+            f"{base_dir}/../data/{project_name}/{polled_profiles_file}", index=False
+        )
+
+    else:  # If no profiles have been polled yet, all existing profiles will be polled
+        sampled_profile_metadata = profile_metadata
+        sampled_profile_metadata.to_csv(
+            f"{base_dir}/../data/{project_name}/{sampled_profile_metadata_file}",
+            index=False,
+        )
+
+        newly_polled_profiles = sampled_profile_metadata[["profile"]]
+        newly_polled_profiles["poll_date"] = datetime.today().date()
+        newly_polled_profiles.to_csv(
+            f"{base_dir}/../data/{project_name}/{polled_profiles_file}", index=False
+        )
+
+    return None
 
 
 if __name__ == "__main__":
@@ -50,6 +115,12 @@ if __name__ == "__main__":
 
     ## Apply temporal inclusion criteria (limit number of survey responses from a single user within a given timeframe)
     print("Apply temporal inclusion criteria...")
+    apply_temporal_inclusion_criteria(
+        project_name=PROJECT,
+        profile_metadata_file=PROFILE_METADATA_FILE,
+        sampled_profile_metadata_file=SAMPLED_PROFILE_METADATA_FILE,
+        polled_profiles_file=POLLED_PROFILES_FILE,
+    )
     print()
 
     ## Apply null geogrpahy exclusion criteria (remove profiles without self-reported location information)
