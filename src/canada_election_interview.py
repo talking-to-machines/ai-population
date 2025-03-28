@@ -10,7 +10,9 @@ from config.canada_election_config import (
     PROJECT,
     SEARCH_TERMS_FILE,
     KEYWORD_SEARCH_VIDEO_METADATA_FILE,
-    PROFILE_METADATA_FILE,
+    PROFILE_SEARCH_VIDEO_METADATA_FILE,
+    KEYWORD_SEARCH_PROFILE_METADATA_FILE,
+    PROFILE_SEARCH_PROFILE_METADATA_FILE,
     POLLED_PROFILES_FILE,
     TEMPORAL_INCLUSION_PERIOD,
     PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
@@ -23,10 +25,14 @@ from src.utils import (
     build_profile_prompt,
     extract_llm_responses,
     perform_profile_interview_shorten,
+    construct_system_prompt,
+    construct_user_prompt,
+    extract_video_transcripts,
+    calculate_profile_engagement,
 )
 from src.keyword_search import perform_keyword_search
 from src.profile_search import perform_profile_search
-from src.video_transcription import perform_video_transcription
+from prompts.prompt_template import profile_prompt_template
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -173,40 +179,77 @@ def apply_quota_inclusion_criteria(
     return None
 
 
-def conduct_polling(  # TODO to be implemented
+def conduct_polling(
     project_name: str,
-    profile_metadata_input_file: str,
-    profile_metadata_output_file: str,
+    profile: pd.Series,
+    profile_latest_videos: pd.DataFrame,
+    polling_results_file: str,
+    poll_date: datetime,
 ) -> None:
+    # Format past video transcripts
+    video_transcripts_combined = extract_video_transcripts(
+        profile_id=profile["id"], video_metadata=profile_latest_videos
+    )
+
+    # Construct profile prompt
+    profile["profile_prompt"] = profile_prompt_template.format(
+        profile_image=profile["avatar"],
+        profile_name=profile["profile"],
+        profile_nickname=profile["nickName"],
+        verified_status=profile["verified"],
+        private_account=profile["privateAccount"],
+        region=profile["region"],
+        tiktok_seller=profile["ttSeller"],
+        profile_signature=profile["signature"],
+        num_followers=profile["fans"],
+        num_following=profile["following"],
+        num_likes=profile["heart"],
+        num_videos=profile["video"],
+        num_digg=profile["digg"],
+        total_likes_over_num_followers=calculate_profile_engagement(
+            profile["heart"], profile["fans"]
+        ),
+        total_likes_over_num_videos=calculate_profile_engagement(
+            profile["heart"], profile["video"]
+        ),
+        video_transcripts=video_transcripts_combined,
+    )
+    # TODO need to refer to technical paper on dependent and indepepdent features?
+    # TODO include construction of background-informed, feature building prompt
+
+    # Construct system prompt
+    profile["system_prompt"] = construct_system_prompt(
+        profile, interview_type="polling"
+    )
+
+    # Construct user prompt
+    profile["user_prompt"] = construct_user_prompt(profile, interview_type="polling")
 
     # Perform polling interview
-    perform_profile_interview_shorten(
-        project_name=project_name,
-        gpt_model=GPT_MODEL,
-        profile_metadata_input_file=profile_metadata_input_file,
-        profile_metadata_output_file=profile_metadata_output_file,
-        system_prompt_field="polling_system_prompt",
-        user_prompt_field="polling_user_prompt",
-        llm_response_field="polling_llm_response",
-        interview_type="polling",
-        batch_interview=True,
+    interview_response = ""  # TODO to be implemented
+
+    # Preprocess post interview responses
+    extracted_interview_responses = extract_llm_responses(
+        interview_response, substring_exclusion_list=[]
+    )
+    profile_with_interview_responses = pd.concat(
+        [profile, extracted_interview_responses], ignore_index=True
+    )
+    profile_with_interview_responses["poll_date"] = poll_date
+
+    # Save the formatted polling interview responses
+    past_polling_results = pd.read_csv(
+        f"{base_dir}/../data/{project_name}/{polling_results_file}"
+    )
+    updated_polling_results = pd.concat(
+        [past_polling_results, profile_with_interview_responses.to_frame().T],
+        ignore_index=True,
+    )
+    updated_polling_results.to_csv(
+        f"{base_dir}/../data/{project_name}/{polling_results_file}", index=False
     )
 
-    # Preprocess post interview results
-    post_interview_profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}"
-    )
-    extracted_responses = post_interview_profile_metadata["polling_llm_response"].apply(
-        extract_llm_responses
-    )
-    post_interview_profile_metadata = pd.concat(
-        [post_interview_profile_metadata, extracted_responses], axis=1
-    )
-
-    # Save the formatted polling interview results
-    post_interview_profile_metadata.to_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}", index=False
-    )
+    return None
 
 
 if __name__ == "__main__":
@@ -214,20 +257,15 @@ if __name__ == "__main__":
 
     # Step 1: Get Pool
     print("Step 1: Get Pool")
+
     ## Perform key word search for TikTok videos discussing Canada elections
     print("Performing key word search...")
     perform_keyword_search(
         project_name=PROJECT,
         search_terms_file=SEARCH_TERMS_FILE,
-        profile_metadata_file=PROFILE_METADATA_FILE,
+        profile_metadata_file=KEYWORD_SEARCH_PROFILE_METADATA_FILE,
         video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE,
-    )
-    print()
-
-    ## Perform audio transcription of new videos
-    print("Performing audio transcription...")
-    perform_video_transcription(
-        project_name=PROJECT, video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE
+        perform_audio_transcription=True,
     )
     print()
 
@@ -235,7 +273,7 @@ if __name__ == "__main__":
     print("Building user profile prompt...")
     build_profile_prompt(
         project_name=PROJECT,
-        profile_metadata_input_file=PROFILE_METADATA_FILE,
+        profile_metadata_input_file=KEYWORD_SEARCH_PROFILE_METADATA_FILE,
         profile_metadata_output_file=PROFILE_METADATA_POST_PROFILE_PROMPT_FILE,
         video_metadata_file=KEYWORD_SEARCH_VIDEO_METADATA_FILE,
     )
@@ -243,6 +281,7 @@ if __name__ == "__main__":
 
     # Step 2: Poll Users
     print("Step 2: Poll Users")
+
     ## Apply temporal inclusion criteria (limit number of survey responses from a single user within a given timeframe)
     print("Applying temporal inclusion criteria...")
     apply_temporal_inclusion_criteria(
@@ -271,7 +310,7 @@ if __name__ == "__main__":
     )
     print()
 
-    # Iterate through valid profile pool
+    ## Iterate through valid profile pool
     print("Iterate through valid profile pool and store polling results...")
     eligible_profile_pool = pd.read_csv(
         f"{base_dir}/../data/{PROJECT}/{PROFILE_METADATA_POST_ENTITY_GEOGRAPHIC_INCLUSION_FILE}"
@@ -280,15 +319,22 @@ if __name__ == "__main__":
         f"{base_dir}/../data/{PROJECT}/{POLLED_PROFILES_FILE}"
     )
     for i in tqdm(range(len(eligible_profile_pool))):
-        # Apply quota inclusion criteria
-        eligible_profile = apply_quota_inclusion_criteria(eligible_profile_pool.iloc[i])
+        ## Apply quota inclusion criteria
+        eligible_profile = apply_quota_inclusion_criteria(
+            profile=eligible_profile_pool.iloc[i]
+        )
 
         if eligible_profile is None:  # Profile does not meet quota inclusion criteria
             continue
 
-        # Sample last M videos from eligible profiles
+        ## Sample latest videos from eligible profiles
         profile_latest_videos = perform_profile_search(
-            project_name=PROJECT, profile_list=[eligible_profile], return_videos=True
+            project_name=PROJECT,
+            profile_metadata_file=PROFILE_SEARCH_PROFILE_METADATA_FILE,
+            video_metadata_file=PROFILE_SEARCH_VIDEO_METADATA_FILE,
+            profile_list=[eligible_profile],
+            perform_audio_transcription=True,
+            return_videos=True,
         )
 
         # Perform digital election polling on eligible profiles
@@ -296,15 +342,6 @@ if __name__ == "__main__":
             project_name=PROJECT,
             profile=eligible_profile,
             profile_latest_videos=profile_latest_videos,
-            results_file=PROFILE_METADATA_POST_POLLING_FILE,
+            polling_results_file=PROFILE_METADATA_POST_POLLING_FILE,
+            poll_date=poll_date,
         )
-
-        # # Perform digital polling on Canada election
-        # print("Performing digital polling on Canada election...")
-        # perform_polling(
-        #     project_name=PROJECT,
-        #     profile_metadata_input_file=PROFILE_METADATA_POST_QUOTA_INCLUSION_FILE,
-        #     profile_metadata_output_file=PROFILE_METADATA_POST_POLLING_FILE.format(
-        #         poll_date=poll_date
-        #     ),
-        # )
