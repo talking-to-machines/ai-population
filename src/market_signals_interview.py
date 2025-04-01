@@ -7,6 +7,7 @@ from tqdm import tqdm
 tqdm.pandas()
 from datetime import datetime
 from config.market_signals_config import *
+from config.base_config import *
 from src.utils import (
     extract_llm_responses,
     extract_stock_recommendations,
@@ -21,6 +22,7 @@ def perform_finfluencer_identification() -> None:
     # Perform financial influencer identification interview
     perform_profile_interview(
         project_name=PROJECT,
+        gpt_model=GPT_MODEL,
         profile_metadata_file=PROFILESEARCH_PROFILE_METADATA_FILE,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=POST_IDENTIFICATION_FILE,
@@ -96,6 +98,7 @@ def generate_expert_reflections(
 
     perform_profile_interview(
         project_name=PROJECT,
+        gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=output_file,
@@ -211,6 +214,7 @@ def perform_digital_interview() -> None:
 
     perform_profile_interview(
         project_name=PROJECT,
+        gpt_model=GPT_MODEL,
         profile_metadata_file=POST_STOCK_EXTRACTION_FILE,
         video_metadata_file=PROFILESEARCH_VIDEO_METADATA_FILE,
         output_file=POST_INTERVIEW_FILE,
