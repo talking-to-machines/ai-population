@@ -21,8 +21,8 @@ def perform_profile_search(
 ) -> pd.DataFrame:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "data", project_name), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
 
     # Define search parameters
     if profile_list_file:
