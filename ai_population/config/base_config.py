@@ -1,10 +1,10 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
 
-APIFY_API = os.getenv("APIFY_API")
-APIFY_ACTOR_ID = os.getenv("APIFY_ACTOR_ID")
+load_dotenv(dotenv_path="ai_population/config/.env")
+
+BRIGHTDATA_API = os.getenv("BRIGHTDATA_API")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -12,3 +12,4 @@ GPT_MODEL = "gpt-4o"  # gpt-4o, gpt-4o-mini
 KEYWORD_SEARCH_RESULTS_PER_PAGE = 1000
 PROFILE_SEARCH_RESULTS_PER_PAGE = 25
 TOP_N_PROFILES = 100
+WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS = 300  # in seconds

@@ -167,3 +167,5 @@ downloads/
 path/
 data/archive/
 archive/
+video-downloads/
+__pycache__/
