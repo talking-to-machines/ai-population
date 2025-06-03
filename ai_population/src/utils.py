@@ -13,28 +13,9 @@ from pydub import AudioSegment
 from apify_client import ApifyClient
 from openai import OpenAI
 from ai_population.prompts.prompt_template import (
-    tiktok_finfluencer_onboarding_system_prompt,
-    tiktok_finfluencer_onboarding_user_prompt,
     tiktok_video_prompt_template,
     tiktok_profile_prompt_template,
-    x_finfluencer_onboarding_system_prompt,
-    x_finfluencer_onboarding_user_prompt,
-    x_tweet_prompt_template,
-    x_profile_prompt_template,
-    portfoliomanager_reflection_system_prompt,
-    portfoliomanager_reflection_user_prompt,
-    investmentadvisor_reflection_system_prompt,
-    investmentadvisor_reflection_user_prompt,
-    financialanalyst_reflection_system_prompt,
-    financialanalyst_reflection_user_prompt,
-    economist_reflection_system_prompt,
-    economist_reflection_user_prompt,
-    interview_system_prompt,
     interview_user_prompt,
-    entity_geographic_inclusion_system_prompt,
-    entity_geographic_inclusion_user_prompt,
-    polling_system_prompt,
-    polling_user_prompt,
 )
 from ai_population.config.base_config import *
 from ai_population.config.market_signals_config import (
@@ -359,7 +340,7 @@ def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
 def construct_system_prompt(
     row: pd.Series, system_prompt_template: str, interview_type: str
 ) -> str:
-    if interview_type.startswith("market_signals_tiktok"):
+    if interview_type.startswith("tiktok_finfluencer"):
         profile_args = {
             "profile_image": row["profile_pic_url"],
             "profile_name": row["account_id"],
@@ -384,12 +365,12 @@ def construct_system_prompt(
             "like_engagement_rate": row["like_engagement_rate"],
             "video_transcripts": row["transcripts_combined"],
         }
-    elif interview_type.startswith("market_signals_x"):
+    elif interview_type.startswith("x_finfluencer"):
         profile_args = {}
     else:
         profile_args = {}
 
-    if interview_type == "market_signals_tiktok_interview":
+    if interview_type == "tiktok_finfluencer_interview":
         additional_args = {
             "expert_reflection_portfoliomanager": row[
                 "expert_reflection_portfoliomanager"
@@ -411,8 +392,8 @@ def construct_user_prompt(
     row: pd.Series, user_prompt_template: str, interview_type: str
 ) -> str:
     if interview_type in [
-        "market_signals_tiktok_interview",
-        "market_signals_x_interview",
+        "tiktok_finfluencer_interview",
+        "x_finfluencer_interview",
     ]:
         # Load Russell 4000 stock tickers
         russell4000_stock_tickers = pd.read_csv(
@@ -1162,14 +1143,19 @@ def perform_video_transcription(project_name: str, video_metadata_file: str) -> 
     """
     # Create the video downloads folder for project if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    video_download_folder_path = f"{base_dir}/../data/{project_name}/video-downloads"
+    video_download_folder_path = os.path.join(
+        base_dir, "../data", project_name, "video-downloads"
+    )
     os.makedirs(video_download_folder_path, exist_ok=True)
 
     # Load video metadata
-    if not os.path.exists(video_metadata_file):
-        raise FileNotFoundError(f"{video_metadata_file} not found.")
+    video_metadata_path = os.path.join(
+        base_dir, "../data", project_name, video_metadata_file
+    )
+    if not os.path.exists(video_metadata_path):
+        raise FileNotFoundError(f"{video_metadata_path} not found.")
     else:
-        video_metadata = pd.read_csv(video_metadata_file)
+        video_metadata = pd.read_csv(video_metadata_path)
 
     if "video_transcript" not in video_metadata.columns:
         video_metadata.dropna(subset=["post_id"], inplace=True)

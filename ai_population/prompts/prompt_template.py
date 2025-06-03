@@ -167,9 +167,8 @@ x_tweet_prompt_template = """"""
 x_profile_prompt_template = """"""
 
 
-# Expert Reflection Prompts
-
-portfoliomanager_reflection_system_prompt = """Imagine you are an expert portfolio manager (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+# Market Signals Expert Reflection Prompts
+tiktok_portfoliomanager_reflection_system_prompt = """Imagine you are an expert portfolio manager (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
 Profile Image: {profile_image}
 Profile Name: {profile_name}
 Profile Nickname: {profile_nickname}
@@ -190,7 +189,7 @@ Video Transcripts (Sorted from Newest to Oldest):
 """
 
 
-portfoliomanager_reflection_user_prompt = """Drawing on your expertise as an expert portfolio manager (with a PhD), write a set of observations/reflections about this financial influencer that:
+tiktok_portfoliomanager_reflection_user_prompt = """Drawing on your expertise as an expert portfolio manager (with a PhD), write a set of observations/reflections about this financial influencer that:
 - Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
 - Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
 - Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
@@ -199,7 +198,7 @@ portfoliomanager_reflection_user_prompt = """Drawing on your expertise as an exp
 Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
 
 
-investmentadvisor_reflection_system_prompt = """Imagine you are an expert investment advisor (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+tiktok_investmentadvisor_reflection_system_prompt = """Imagine you are an expert investment advisor (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
 Profile Image: {profile_image}
 Profile Name: {profile_name}
 Profile Nickname: {profile_nickname}
@@ -220,7 +219,7 @@ Video Transcripts (Sorted from Newest to Oldest):
 """
 
 
-investmentadvisor_reflection_user_prompt = """Drawing on your expertise as an expert investment advisor (with a PhD), write a set of observations/reflections about this financial influencer that:
+tiktok_investmentadvisor_reflection_user_prompt = """Drawing on your expertise as an expert investment advisor (with a PhD), write a set of observations/reflections about this financial influencer that:
 - Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
 - Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
 - Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
@@ -229,7 +228,7 @@ investmentadvisor_reflection_user_prompt = """Drawing on your expertise as an ex
 Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
 
 
-financialanalyst_reflection_system_prompt = """Imagine you are an expert chartered financial analyst (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+tiktok_financialanalyst_reflection_system_prompt = """Imagine you are an expert chartered financial analyst (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
 Profile Image: {profile_image}
 Profile Name: {profile_name}
 Profile Nickname: {profile_nickname}
@@ -250,7 +249,7 @@ Video Transcripts (Sorted from Newest to Oldest):
 """
 
 
-financialanalyst_reflection_user_prompt = """Drawing on your expertise as an expert chartered financial analyst (with a PhD), write a set of observations/reflections about this financial influencer that:
+tiktok_financialanalyst_reflection_user_prompt = """Drawing on your expertise as an expert chartered financial analyst (with a PhD), write a set of observations/reflections about this financial influencer that:
 - Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
 - Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
 - Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
@@ -259,7 +258,7 @@ financialanalyst_reflection_user_prompt = """Drawing on your expertise as an exp
 Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
 
 
-economist_reflection_system_prompt = """Imagine you are an expert economist (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
+tiktok_economist_reflection_system_prompt = """Imagine you are an expert economist (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
 Profile Image: {profile_image}
 Profile Name: {profile_name}
 Profile Nickname: {profile_nickname}
@@ -280,7 +279,7 @@ Video Transcripts (Sorted from Newest to Oldest):
 """
 
 
-economist_reflection_user_prompt = """Drawing on your expertise as an expert economist (with a PhD), write a set of observations/reflections about this financial influencer that:
+tiktok_economist_reflection_user_prompt = """Drawing on your expertise as an expert economist (with a PhD), write a set of observations/reflections about this financial influencer that:
 - Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
 - Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
 - Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
@@ -289,7 +288,8 @@ economist_reflection_user_prompt = """Drawing on your expertise as an expert eco
 Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
 
 
-interview_system_prompt = """Please put yourself in the shoes of a TikTok financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
+# Market Signals Interview Prompts
+tiktok_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a TikTok financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
 1. Your profile and videos will be monitored daily
 2. You will undergo daily interviews to discuss your perspective on the financial markets
 3. You will receive high-level and abstract “expert reflections” from a professional portfolio manager, an investment advisor, a chartered financial analyst, and an economist regarding your profile and its content. These reflections are provided below:
@@ -329,7 +329,7 @@ Instructions
 Answer the following questions based strictly on the available data while maintaining the persona and perspective of the Tiktok financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
 
-interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+tiktok_finfluencer_interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
@@ -429,6 +429,7 @@ For each listed stock, you must respond in the structure shown below (one block 
 If no stocks are extracted from your past transcripts, respond with “NA”."""
 
 
+# Election Polling
 entity_geographic_inclusion_system_prompt = """You are analyzing a social media profile on TikTok to answer a set of questions. The TikTok profile data includes:
 {profile_prompt}
 
