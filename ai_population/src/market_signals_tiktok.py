@@ -454,8 +454,11 @@ def perform_tiktok_keyword_search(
     keyword_search_results = pd.DataFrame(response_json)
     if "warning_code" in keyword_search_results.columns:
         keyword_search_results = keyword_search_results[
-            (keyword_search_results["warning_code"] != "dead_page")
-            & (keyword_search_results["error_code"] != "crawl_failed")
+            keyword_search_results["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in keyword_search_results.columns:
+        keyword_search_results = keyword_search_results[
+            keyword_search_results["error_code"] != "crawl_failed"
         ].reset_index(drop=True)
     keyword_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, output_file_path), index=False
@@ -546,9 +549,13 @@ def perform_tiktok_profile_search(
     profile_search_results = pd.DataFrame(response_json)
     if "warning_code" in profile_search_results.columns:
         profile_search_results = profile_search_results[
-            (profile_search_results["warning_code"] != "dead_page")
-            & (profile_search_results["error_code"] != "crawl_failed")
+            profile_search_results["warning_code"] != "dead_page"
         ].reset_index(drop=True)
+    if "error_code" in profile_search_results.columns:
+        profile_search_results = profile_search_results[
+            profile_search_results["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
     profile_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, output_file_path), index=False
     )
@@ -624,9 +631,13 @@ def perform_tiktok_profile_metadata_search(
     profile_metadata_search_results = pd.DataFrame(response_json)
     if "warning_code" in profile_metadata_search_results.columns:
         profile_metadata_search_results = profile_metadata_search_results[
-            (profile_metadata_search_results["warning_code"] != "dead_page")
-            & (profile_metadata_search_results["error_code"] != "crawl_failed")
+            profile_metadata_search_results["warning_code"] != "dead_page"
         ].reset_index(drop=True)
+    if "error_code" in profile_metadata_search_results.columns:
+        profile_metadata_search_results = profile_metadata_search_results[
+            profile_metadata_search_results["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
     profile_metadata_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, output_file_path), index=False
     )

@@ -15,7 +15,7 @@ from openai import OpenAI
 from ai_population.prompts.prompt_template import (
     tiktok_video_prompt_template,
     tiktok_profile_prompt_template,
-    interview_user_prompt,
+    tiktok_finfluencer_interview_user_prompt,
 )
 from ai_population.config.base_config import *
 from ai_population.config.market_signals_config import (
@@ -410,7 +410,7 @@ def construct_user_prompt(
         russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
 
         # Construct user prompt
-        return interview_user_prompt.format(
+        return tiktok_finfluencer_interview_user_prompt.format(
             russell_4000_tickers=russell4000_stock_ticker_str,
             stock_mentions=row["stock_mentions"],
         )
