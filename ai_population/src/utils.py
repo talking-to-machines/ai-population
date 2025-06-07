@@ -811,7 +811,7 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
             video_creation_date=filtered_videos.loc[i, "create_time"],
             video_description=(
                 filtered_videos.loc[i, "description"].replace("\n", " ")
-                if not pd.isnull(filtered_videos.loc[i, "text"])
+                if not pd.isnull(filtered_videos.loc[i, "description"])
                 else ""
             ),
             video_duration=filtered_videos.loc[i, "video_duration"],
@@ -891,12 +891,6 @@ def perform_profile_interview(
             & (video_metadata["error_code"] != "crawl_failed")
         ].reset_index(drop=True)
     video_metadata["create_time"] = pd.to_datetime(video_metadata["create_time"])
-
-    # Preprocess profile and video metadata
-    video_metadata["profile_id"] = video_metadata["profile_id"].apply(
-        lambda x: str(x)[1:]
-    )
-    profile_metadata["id"] = profile_metadata["id"].apply(lambda x: str(x)[1:])
 
     # Generate system and user prompts
     profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
@@ -1128,7 +1122,7 @@ def build_profile_prompt(
     return None
 
 
-def perform_video_transcription(project_name: str, video_metadata_file: str) -> None:
+def perform_video_transcription(project_name: str, video_file: str) -> None:
     """
         Perform video transcription for a given project by downloading videos, transcribing them,
         and updating the video metadata file.
@@ -1149,9 +1143,7 @@ def perform_video_transcription(project_name: str, video_metadata_file: str) -> 
     os.makedirs(video_download_folder_path, exist_ok=True)
 
     # Load video metadata
-    video_metadata_path = os.path.join(
-        base_dir, "../data", project_name, video_metadata_file
-    )
+    video_metadata_path = os.path.join(base_dir, "../data", project_name, video_file)
     if not os.path.exists(video_metadata_path):
         raise FileNotFoundError(f"{video_metadata_path} not found.")
     else:
@@ -1197,7 +1189,7 @@ def perform_video_transcription(project_name: str, video_metadata_file: str) -> 
         [video_metadata_with_transcript, video_metadata_without_transcript],
         ignore_index=True,
     )
-    video_metadata.to_csv(video_metadata_file, index=False)
+    video_metadata.to_csv(video_metadata_path, index=False)
 
     # Clean up downloaded videos to save disk space
     for file in os.listdir(video_download_folder_path):
