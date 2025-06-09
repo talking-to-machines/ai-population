@@ -568,6 +568,7 @@ def extract_stock_recommendations(
 def create_batch_file(
     prompts: pd.DataFrame,
     project_name: str,
+    execution_date: str,
     gpt_model: str,
     system_prompt_field: str,
     user_prompt_field: str = "question_prompt",
@@ -578,6 +579,8 @@ def create_batch_file(
 
     Args:
         prompts (pd.DataFrame): DataFrame containing the prompts data.
+        project_name (str): The name of the project.
+        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
         system_prompt_field (str): The column name in the DataFrame for the system prompt content.
         user_prompt_field (str, optional): The column name in the DataFrame for the user prompt content. Defaults to "question_prompt".
         batch_file_name (str, optional): The name of the output batch file. Defaults to "batch_input.jsonl".
@@ -605,7 +608,8 @@ def create_batch_file(
 
     # Creating batch file
     with open(
-        f"{base_dir}/../data/{project_name}/batch-files/{batch_file_name}", "w"
+        f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_file_name}",
+        "w",
     ) as file:
         for obj in tasks:
             file.write(json.dumps(obj) + "\n")
@@ -615,6 +619,7 @@ def create_batch_file(
 
 def batch_query(
     project_name: str,
+    execution_date: str,
     batch_input_file_dir: str,
     batch_output_file_dir: str,
 ) -> pd.DataFrame:
@@ -622,6 +627,8 @@ def batch_query(
     Executes a batch query using the OpenAI API and processes the results into a pandas DataFrame.
 
     Args:
+        project_name (str): The name of the project.
+        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
         batch_input_file_dir (str): The directory path of the batch input file.
         batch_output_file_dir (str): The directory path where the batch output file will be saved.
 
@@ -631,7 +638,7 @@ def batch_query(
     # Upload batch input file
     batch_file = openai_client.files.create(
         file=open(
-            f"{base_dir}/../data/{project_name}/batch-files/{batch_input_file_dir}",
+            f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_input_file_dir}",
             "rb",
         ),
         purpose="batch",
@@ -662,14 +669,16 @@ def batch_query(
 
     # Save the batch output
     with open(
-        f"{base_dir}/../data/{project_name}/batch-files/{batch_output_file_dir}", "wb"
+        f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_output_file_dir}",
+        "wb",
     ) as file:
         file.write(results)
 
     # Loading data from saved output file
     response_list = []
     with open(
-        f"{base_dir}/../data/{project_name}/batch-files/{batch_output_file_dir}", "r"
+        f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_output_file_dir}",
+        "r",
     ) as file:
         for line in file:
             # Parsing the JSON result string into a dict
@@ -862,6 +871,7 @@ def row_query(row: pd.Series, args: list) -> str:
 
 def perform_profile_interview(
     project_name: str,
+    execution_date: str,
     gpt_model: str,
     profile_metadata_file: str,
     video_file: str,
@@ -877,18 +887,26 @@ def perform_profile_interview(
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
 
     # Load profile and video metadata
     profile_metadata = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, profile_metadata_file)
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
     )
     video_metadata = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, video_file)
+        os.path.join(base_dir, "../data", project_name, execution_date, video_file)
     )
     if "warning_code" in video_metadata.columns:
         video_metadata = video_metadata[
-            (video_metadata["warning_code"] != "dead_page")
-            & (video_metadata["error_code"] != "crawl_failed")
+            video_metadata["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in video_metadata.columns:
+        video_metadata = video_metadata[
+            video_metadata["error_code"] != "crawl_failed"
         ].reset_index(drop=True)
     video_metadata["create_time"] = pd.to_datetime(video_metadata["create_time"])
 
@@ -912,7 +930,9 @@ def perform_profile_interview(
 
         # Create folder to contain batch files
         os.makedirs(
-            os.path.join(base_dir, "../data", project_name, "batch-files"),
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, "batch-files"
+            ),
             exist_ok=True,
         )
 
@@ -920,6 +940,7 @@ def perform_profile_interview(
         create_batch_file(
             profile_metadata,
             project_name=project_name,
+            execution_date=execution_date,
             gpt_model=gpt_model,
             system_prompt_field=f"{interview_type}_system_prompt",
             user_prompt_field=f"{interview_type}_user_prompt",
@@ -928,6 +949,7 @@ def perform_profile_interview(
 
         llm_responses = batch_query(
             project_name=project_name,
+            execution_date=execution_date,
             batch_input_file_dir="batch_input.jsonl",
             batch_output_file_dir="batch_output.jsonl",
         )
@@ -946,7 +968,10 @@ def perform_profile_interview(
 
         # Save profile metadata after analysis into CSV file
         profile_metadata_with_responses.to_csv(
-            os.path.join(base_dir, "../data", project_name, output_file), index=False
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
         )
 
     else:
@@ -964,12 +989,16 @@ def perform_profile_interview(
 
         # Save profile metadata after analysis into CSV file
         profile_metadata.to_csv(
-            os.path.join(base_dir, "../data", project_name, output_file), index=False
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
         )
 
 
 def perform_profile_interview_shorten(
     project_name: str,
+    execution_date: str,
     gpt_model: str,
     profile_metadata_input_file: str,
     profile_metadata_output_file: str,
@@ -1007,6 +1036,7 @@ def perform_profile_interview_shorten(
         batch_file_dir = create_batch_file(
             profile_metadata,
             project_name=project_name,
+            execution_date=execution_date,
             gpt_model=gpt_model,
             system_prompt_field=system_prompt_field,
             user_prompt_field=user_prompt_field,
@@ -1016,6 +1046,7 @@ def perform_profile_interview_shorten(
         print("Perform batch query using OpenAI API...")
         llm_responses = batch_query(
             project_name=project_name,
+            execution_date=execution_date,
             batch_input_file_dir="batch_input.jsonl",
             batch_output_file_dir="batch_output.jsonl",
         )
@@ -1122,13 +1153,16 @@ def build_profile_prompt(
     return None
 
 
-def perform_video_transcription(project_name: str, video_file: str) -> None:
+def perform_video_transcription(
+    project_name: str, execution_date: str, video_file: str
+) -> None:
     """
         Perform video transcription for a given project by downloading videos, transcribing them,
         and updating the video metadata file.
 
         Args:
             project_name (str): The name of the project. Used to organize data and video files.
+            execution_date (str): The date of the pipeline execution, used to create a unique directory name.
             video_metadata_file (str): The name of the CSV file containing video metadata.
                                        This file should be located in the project's data folder.
     s
@@ -1138,12 +1172,14 @@ def perform_video_transcription(project_name: str, video_file: str) -> None:
     # Create the video downloads folder for project if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     video_download_folder_path = os.path.join(
-        base_dir, "../data", project_name, "video-downloads"
+        base_dir, "../data", project_name, execution_date, "video-downloads"
     )
     os.makedirs(video_download_folder_path, exist_ok=True)
 
     # Load video metadata
-    video_metadata_path = os.path.join(base_dir, "../data", project_name, video_file)
+    video_metadata_path = os.path.join(
+        base_dir, "../data", project_name, execution_date, video_file
+    )
     if not os.path.exists(video_metadata_path):
         raise FileNotFoundError(f"{video_metadata_path} not found.")
     else:

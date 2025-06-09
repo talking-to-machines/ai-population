@@ -59,11 +59,16 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def perform_tiktok_onboarding_interview(
-    project_name: str, profile_metadata_file: str, video_file: str, output_file: str
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    video_file: str,
+    output_file: str,
 ) -> None:
     # Perform financial influencer identification interview
     perform_profile_interview(
         project_name=project_name,
+        execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         video_file=video_file,
@@ -76,7 +81,7 @@ def perform_tiktok_onboarding_interview(
 
     # Preprocess onboarding results
     onboarding_results = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, output_file)
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file)
     )
     extracted_responses = onboarding_results["onboarding_llm_response"].apply(
         extract_llm_responses
@@ -85,13 +90,14 @@ def perform_tiktok_onboarding_interview(
 
     # Save identified financial influencers
     onboarding_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file),
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
 
 
 def generate_expert_reflections(
     project_name: str,
+    execution_date: str,
     role: str,
     profile_metadata_file: str,
     video_file: str,
@@ -126,6 +132,7 @@ def generate_expert_reflections(
 
     perform_profile_interview(
         project_name=project_name,
+        execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         video_file=video_file,
@@ -244,7 +251,7 @@ def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) 
 
 
 def extract_stock_mentions(
-    project_name: str, input_file: str, output_file: str
+    project_name: str, execution_date: str, input_file: str, output_file: str
 ) -> None:
     """
     Extract stock mentions from fininfluencer profile data and save the results to a file.
@@ -255,6 +262,7 @@ def extract_stock_mentions(
 
     Args:
         project_name (str): The name of the project directory containing the input and output files.
+        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
         input_file (str): The name of the input CSV file containing fininfluencer profile data.
         output_file (str): The name of the output CSV file to save the processed data with stock mentions.
 
@@ -263,7 +271,7 @@ def extract_stock_mentions(
     """
     # Load fininfluencer profile data
     fininfluencer_profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file)
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file)
     )
 
     # Extract stocks mention in past videos
@@ -278,12 +286,14 @@ def extract_stock_mentions(
 
     # Save formatted post reflection results
     fininfluencer_profile_data.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file), index=False
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
     )
 
 
 def perform_tiktok_finfluencer_interview(
     project_name: str,
+    execution_date: str,
     profile_metadata_file: str,
     video_file: str,
     finfluencer_pool: str,
@@ -291,6 +301,7 @@ def perform_tiktok_finfluencer_interview(
 ) -> None:
     perform_profile_interview(
         project_name=project_name,
+        execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         video_file=video_file,
@@ -303,7 +314,7 @@ def perform_tiktok_finfluencer_interview(
 
     # Preprocess post interview results
     post_interview_results = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, output_file)
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file)
     )
     finfluencer_pool = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, finfluencer_pool)
@@ -375,13 +386,15 @@ def perform_tiktok_finfluencer_interview(
 
     # Save formatted interview results and stock recommendations
     post_interview_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file), index=False
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
     )
     valid_stock_recommendations.to_csv(
         os.path.join(
             base_dir,
             "../data",
             project_name,
+            execution_date,
             FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK,
         ),
         index=False,
@@ -390,6 +403,7 @@ def perform_tiktok_finfluencer_interview(
 
 def perform_tiktok_keyword_search(
     project_name: str,
+    execution_date: str,
     search_terms: list,
     output_file_path: str,
 ) -> pd.DataFrame:
@@ -399,6 +413,7 @@ def perform_tiktok_keyword_search(
     Args:
         project_name (str): The name of the project. A subfolder with this name will be created
             within the data folder to store the output file.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         search_terms (list): The list containing the search terms,
             one term per line.
         output_file_path (str): The file path where the resulting CSV file will be saved.
@@ -415,6 +430,9 @@ def perform_tiktok_keyword_search(
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
 
     # Initialise keyword search job
     data = [
@@ -465,7 +483,10 @@ def perform_tiktok_keyword_search(
             keyword_search_results["error_code"] != "crawl_failed"
         ].reset_index(drop=True)
     keyword_search_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file_path), index=False
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, output_file_path
+        ),
+        index=False,
     )
 
     return keyword_search_results
@@ -473,6 +494,7 @@ def perform_tiktok_keyword_search(
 
 def perform_tiktok_profile_search(
     project_name: str,
+    execution_date: str,
     input_file_path: str,
     output_file_path: str,
     start_date: str,
@@ -487,6 +509,7 @@ def perform_tiktok_profile_search(
 
     Args:
         project_name (str): Name of the project, used to create a subfolder in the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         input_file_path (str): Path to the CSV file containing TikTok account IDs under the column "account_id".
         output_file_path (str): Path to save the retrieved profile search results as a CSV file.
         start_date (str): The start date for the profile search.
@@ -499,6 +522,9 @@ def perform_tiktok_profile_search(
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
 
     # Define search parameters
     profile_list = pd.read_csv(
@@ -561,20 +587,27 @@ def perform_tiktok_profile_search(
         ].reset_index(drop=True)
 
     profile_search_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file_path), index=False
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, output_file_path
+        ),
+        index=False,
     )
 
     return profile_search_results
 
 
 def perform_tiktok_profile_metadata_search(
-    project_name: str, input_file_path: str, output_file_path: str = ""
+    project_name: str,
+    execution_date: str,
+    input_file_path: str,
+    output_file_path: str = "",
 ) -> pd.DataFrame:
     """
     Perform a TikTok profile metadata search using Bright Data API and save the results to a CSV file.
 
     Args:
         project_name (str): Name of the project. Used to create a subfolder within the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         input_file_path (str): Path to the input DataFrame containing TikTok account IDs. Must include a column named 'account_id'.
         output_file_path (str, optional): Path to save the output CSV file. Defaults to an empty string.
 
@@ -588,10 +621,13 @@ def perform_tiktok_profile_metadata_search(
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
 
     # Define list of profiles for search
     profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
     )
     assert (
         "account_id" in profile_data.columns
@@ -643,7 +679,10 @@ def perform_tiktok_profile_metadata_search(
         ].reset_index(drop=True)
 
     profile_metadata_search_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, output_file_path), index=False
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, output_file_path
+        ),
+        index=False,
     )
 
     return profile_metadata_search_results
@@ -651,6 +690,7 @@ def perform_tiktok_profile_metadata_search(
 
 def filter_tiktok_profiles(
     project_name: str,
+    execution_date: str,
     profile_metadata_file: str,
     video_file: str,
     verified_profile_pool: str,
@@ -660,6 +700,7 @@ def filter_tiktok_profiles(
 
     Args:
         project_name (str): Name of the project.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         profile_metadata_file (str): Path to the CSV file containing profile metadata.
         video_file (str): Path to the CSV file containing video data.
         verified_profile_pool (str): Path to the CSV file containing verified profiles.
@@ -670,13 +711,15 @@ def filter_tiktok_profiles(
             - filtered_videos: DataFrame of videos associated with the filtered profiles.
     """
     profile_metadata = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, profile_metadata_file)
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
+    )
+    video_data = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, video_file)
     )
     verified_profile_pool = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, verified_profile_pool)
-    )
-    video_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, video_file)
     )
 
     # Filter profiles based on criteria
@@ -689,7 +732,9 @@ def filter_tiktok_profiles(
         )  # Remove profiles that have been verified
     ].reset_index(drop=True)
     filtered_profiles.to_csv(
-        os.path.join(base_dir, "../data", project_name, profile_metadata_file),
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        ),
         index=False,
     )
 
@@ -699,14 +744,18 @@ def filter_tiktok_profiles(
         video_data["account_id"].isin(filtered_profile_list)
     ].reset_index(drop=True)
     filtered_videos.to_csv(
-        os.path.join(base_dir, "../data", project_name, video_file), index=False
+        os.path.join(base_dir, "../data", project_name, execution_date, video_file),
+        index=False,
     )
 
     return filtered_profiles, filtered_videos
 
 
 def update_verified_profile_pool(
-    project_name: str, input_file_path: str, verified_profile_pool: str
+    project_name: str,
+    execution_date: str,
+    input_file_path: str,
+    verified_profile_pool: str,
 ) -> None:
     """
     Updates the verified profile pool by adding new financial influencers
@@ -714,6 +763,7 @@ def update_verified_profile_pool(
 
     Args:
         project_name (str): The name of the project, used to locate the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         input_file_path (str): The relative path to the CSV file containing interviewed profiles.
         verified_profile_pool (str): The relative path to the CSV file containing the verified profile pool.
 
@@ -721,7 +771,7 @@ def update_verified_profile_pool(
         None: Updates the verified profile pool file in place.
     """
     interviewed_profiles = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
     )
     verified_profiles = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, verified_profile_pool)
@@ -769,6 +819,7 @@ if __name__ == "__main__":
     print("Perform keyword search using predefined list of search terms...")
     perform_tiktok_keyword_search(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         search_terms=SEARCH_TERMS_TIKTOK,
         output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
     )
@@ -777,6 +828,7 @@ if __name__ == "__main__":
     print("Perform profile metadata search for keyword search results...")
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
         output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
     )
@@ -787,6 +839,7 @@ if __name__ == "__main__":
     )
     filter_tiktok_profiles(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         video_file=KEYWORD_SEARCH_FILE_TIKTOK,
         verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
@@ -796,6 +849,7 @@ if __name__ == "__main__":
     print("Perform video transcription of new videos...")
     perform_video_transcription(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         video_file=KEYWORD_SEARCH_FILE_TIKTOK,
     )
 
@@ -803,12 +857,14 @@ if __name__ == "__main__":
     print("Perform onboarding interview to identify financial influencers...")
     perform_tiktok_onboarding_interview(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         video_file=KEYWORD_SEARCH_FILE_TIKTOK,
         output_file=ONBOARDING_RESULTS_FILE_TIKTOK,
     )
     update_verified_profile_pool(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=ONBOARDING_RESULTS_FILE_TIKTOK,
         verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
     )
@@ -819,11 +875,13 @@ if __name__ == "__main__":
     )
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=FINFLUENCER_POOL_FILE_TIKTOK,
         output_file_path=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
     )
     perform_tiktok_profile_search(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=FINFLUENCER_POOL_FILE_TIKTOK,
         output_file_path=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         start_date=PROFILE_SEARCH_START_DATE,
@@ -831,6 +889,7 @@ if __name__ == "__main__":
     )
     perform_video_transcription(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
     )
 
@@ -838,6 +897,7 @@ if __name__ == "__main__":
     print("Generate expert reflections of financial influencers...")
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         role="portfolio_manager",
         profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
@@ -845,6 +905,7 @@ if __name__ == "__main__":
     )
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
@@ -852,6 +913,7 @@ if __name__ == "__main__":
     )
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         role="financial_analyst",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
@@ -859,6 +921,7 @@ if __name__ == "__main__":
     )
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         role="economist",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
@@ -869,6 +932,7 @@ if __name__ == "__main__":
     print("Extract stock recommendations...")
     extract_stock_mentions(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         input_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
         output_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
     )
@@ -877,6 +941,7 @@ if __name__ == "__main__":
     print("Conduct digital interview on financial markets and stock recommendations...")
     perform_tiktok_finfluencer_interview(
         project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         finfluencer_pool=FINFLUENCER_POOL_FILE_TIKTOK,
