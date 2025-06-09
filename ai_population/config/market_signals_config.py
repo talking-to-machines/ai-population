@@ -10,10 +10,10 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 PIPELINE_EXECUTION_DATE = datetime.today().date().strftime("%d-%m-%Y")
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
-NUM_POST_PER_KEYWORD = 100
+NUM_POST_PER_KEYWORD = 50
 NUM_RESULTS_PER_PROFILE = 25
-PROFILE_SEARCH_START_DATE = "06-01-2025"
-PROFILE_SEARCH_END_DATE = "06-06-2025"
+PROFILE_SEARCH_START_DATE = "06-08-2025"
+PROFILE_SEARCH_END_DATE = "06-08-2025"
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 
 # Tiktok-specific configurations

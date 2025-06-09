@@ -627,7 +627,7 @@ def perform_tiktok_profile_metadata_search(
 
     # Define list of profiles for search
     profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
+        os.path.join(base_dir, "../data", project_name, input_file_path)
     )
     assert (
         "account_id" in profile_data.columns
@@ -656,6 +656,7 @@ def perform_tiktok_profile_metadata_search(
     # Retrieve keyword search results
     response_json = {"status": "running"}
     while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
         response = requests.get(
             f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
             headers={
@@ -666,7 +667,6 @@ def perform_tiktok_profile_metadata_search(
             },
         )
         response_json = response.json()
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
 
     profile_metadata_search_results = pd.DataFrame(response_json)
     if "warning_code" in profile_metadata_search_results.columns:

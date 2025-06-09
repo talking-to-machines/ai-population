@@ -206,13 +206,14 @@ def identify_top_influencers(
     return None
 
 
-def download_video(row: pd.Series, project_name: str) -> None:
+def download_video(row: pd.Series, project_name: str, execution_date: str) -> None:
     """
     Downloads a TikTok video using the provided information in the row.
 
     Args:
         row (pd.Series): A pandas Series containing the video information, including the 'webVideoUrl' and 'video_filename'.
         project_name (str): The project name used to construct the output file path.
+        execution_date (str): The execution date used to construct the output file path.
 
     Returns:
         None
@@ -221,9 +222,7 @@ def download_video(row: pd.Series, project_name: str) -> None:
     video_url = row["url"]
 
     # Output file name
-    output_file = (
-        f"{base_dir}/../data/{project_name}/video-downloads/{row['video_filename']}"
-    )
+    output_file = f"{base_dir}/../data/{project_name}/{execution_date}/video-downloads/{row['video_filename']}"
 
     # Skip if the video is already downloaded
     if os.path.exists(output_file):
@@ -264,23 +263,22 @@ def optimize_audio_file(input_file_path: str, output_file_path: str) -> None:
     audio.export(output_file_path, format="wav")
 
 
-def transcribe_videos(row: pd.Series, project_name: str) -> str:
+def transcribe_videos(row: pd.Series, project_name: str, execution_date: str) -> str:
     """
     Transcribes the audio from a video file using the OpenAI Whisper model.
     Args:
         row (pd.Series): A pandas Series containing information about the video file.
                          It must include a 'video_filename' key with the name of the video file.
         project_name (str): The name of the project, used to construct the file paths.
+        execution_date (str): The execution date, used to construct the file paths.
     Returns:
         str: The transcription of the audio if successful, otherwise None.
     Raises:
         FileNotFoundError: If the input video file is not found.
         Exception: For other errors encountered during transcription, including file size issues.
     """
-    input_file_path = (
-        f"{base_dir}/../data/{project_name}/video-downloads/{row['video_filename']}"
-    )
-    optimized_file_path = f"{base_dir}/../data/{project_name}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
+    input_file_path = f"{base_dir}/../data/{project_name}/{execution_date}/video-downloads/{row['video_filename']}"
+    optimized_file_path = f"{base_dir}/../data/{project_name}/{execution_date}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
 
     try:
         with open(input_file_path, "rb") as audio_file:
@@ -1209,11 +1207,11 @@ def perform_video_transcription(
 
     # Download videos that have not been transcribed and perform transcription
     video_metadata_without_transcript.progress_apply(
-        download_video, args=(project_name,), axis=1
+        download_video, args=(project_name, execution_date), axis=1
     )
     video_metadata_without_transcript["video_transcript"] = (
         video_metadata_without_transcript.progress_apply(
-            transcribe_videos, args=(project_name,), axis=1
+            transcribe_videos, args=(project_name, execution_date), axis=1
         )
     )
 
