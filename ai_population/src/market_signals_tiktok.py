@@ -65,6 +65,22 @@ def perform_tiktok_onboarding_interview(
     video_file: str,
     output_file: str,
 ) -> None:
+    """
+    Performs the TikTok onboarding interview process for financial influencer identification and saves the results.
+
+    This function executes a profile interview using specified prompt templates and processes the resulting data.
+    It reads the onboarding results, extracts LLM responses, appends them to the results, and saves the updated data.
+
+    Args:
+        project_name (str): The name of the project.
+        execution_date (str): The date of execution in string format.
+        profile_metadata_file (str): Path to the profile metadata file.
+        video_file (str): Path to the video file to be processed.
+        output_file (str): Name of the output CSV file to save results.
+
+    Returns:
+        None
+    """
     # Perform financial influencer identification interview
     perform_profile_interview(
         project_name=project_name,
@@ -103,6 +119,24 @@ def generate_expert_reflections(
     video_file: str,
     output_file: str,
 ) -> None:
+    """
+    Generates expert reflections for a given role based on TikTok video content and profile metadata.
+
+    Depending on the specified role, selects the appropriate prompt templates and response fields,
+    then invokes the profile interview process to generate and save the expert reflection.
+
+    Args:
+        project_name (str): The name of the project.
+        execution_date (str): The date of execution.
+        role (str): The expert role for reflection generation. Supported roles are
+            "portfolio_manager", "investment_advisor", "financial_analyst", and "economist".
+        profile_metadata_file (str): Path to the profile metadata file.
+        video_file (str): Path to the TikTok video file.
+        output_file (str): Path where the generated reflection will be saved.
+
+    Raises:
+        ValueError: If the provided role is not supported.
+    """
     if role == "portfolio_manager":
         system_prompt_template = tiktok_portfoliomanager_reflection_system_prompt
         user_prompt_template = tiktok_portfoliomanager_reflection_user_prompt
@@ -299,6 +333,30 @@ def perform_tiktok_finfluencer_interview(
     finfluencer_pool: str,
     output_file: str,
 ) -> None:
+    """
+    Conducts an interview process for TikTok financial influencers (finfluencers) by leveraging LLM-based profile analysis,
+    extracts stock recommendations from their video transcripts, and formats the results for further analysis.
+
+    This function performs the following steps:
+    1. Runs a profile interview using provided metadata and video files, saving the LLM responses.
+    2. Loads the interview results and the finfluencer pool metadata.
+    3. Extracts relevant LLM responses and stock recommendations from the interview results.
+    4. Enriches stock recommendations with additional profile information (account ID, profile URL, followers, influence, credibility).
+    5. Removes duplicate recommendations and filters out stocks not mentioned in the transcripts or by the influencer.
+    6. Sorts the recommendations by profile and mention date.
+    7. Saves the processed interview results and stock recommendations to CSV files.
+
+    Args:
+        project_name (str): Name of the project directory for data storage.
+        execution_date (str): Date of execution, used for organizing output files.
+        profile_metadata_file (str): Path to the CSV file containing profile metadata.
+        video_file (str): Path to the video transcript file.
+        finfluencer_pool (str): Path to the CSV file containing the pool of finfluencers and their attributes.
+        output_file (str): Filename for saving the interview results.
+
+    Returns:
+        None
+    """
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,

@@ -58,7 +58,7 @@ from ai_population.prompts.prompt_template import (
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-# def perform_tiktok_onboarding_interview(
+# def perform_x_onboarding_interview(
 #     project_name: str,
 #     execution_date: str,
 #     profile_metadata_file: str,
@@ -291,7 +291,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 #     )
 
 
-# def perform_tiktok_finfluencer_interview(
+# def perform_x_finfluencer_interview(
 #     project_name: str,
 #     execution_date: str,
 #     profile_metadata_file: str,
@@ -401,7 +401,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 #     )
 
 
-# def perform_tiktok_keyword_search(
+# def perform_x_keyword_search(
 #     project_name: str,
 #     execution_date: str,
 #     search_terms: list,
@@ -492,7 +492,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 #     return keyword_search_results
 
 
-# def perform_tiktok_profile_search(
+# def perform_x_profile_search(
 #     project_name: str,
 #     execution_date: str,
 #     input_file_path: str,
@@ -596,7 +596,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 #     return profile_search_results
 
 
-# def perform_tiktok_profile_metadata_search(
+# def perform_x_profile_metadata_search(
 #     project_name: str,
 #     execution_date: str,
 #     input_file_path: str,
@@ -688,7 +688,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 #     return profile_metadata_search_results
 
 
-# def filter_tiktok_profiles(
+# def filter_x_profiles(
 #     project_name: str,
 #     execution_date: str,
 #     profile_metadata_file: str,
@@ -837,7 +837,7 @@ if __name__ == "__main__":
     print(
         "Filter X profiles based on follower count, video count, and verified finfluencer list..."
     )
-    filter_tiktok_profiles(
+    filter_x_profiles(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
