@@ -14,8 +14,9 @@ from apify_client import ApifyClient
 from openai import OpenAI
 from ai_population.prompts.prompt_template import (
     tiktok_video_prompt_template,
+    x_tweet_prompt_template,
     tiktok_profile_prompt_template,
-    tiktok_finfluencer_interview_user_prompt,
+    finfluencer_interview_user_prompt,
 )
 from ai_population.config.base_config import *
 from ai_population.config.market_signals_config import (
@@ -361,27 +362,65 @@ def construct_system_prompt(
             "awg_engagement_rate": row["awg_engagement_rate"],
             "comment_engagement_rate": row["comment_engagement_rate"],
             "like_engagement_rate": row["like_engagement_rate"],
-            "video_transcripts": row["transcripts_combined"],
+            "video_transcripts": row["posts_combined"],
         }
     elif interview_type.startswith("x_finfluencer"):
-        profile_args = {}
+        profile_args = {
+            "profile_picture": row["profilePicture"],
+            "name": row["name"],
+            "account_id": row["account_id"],
+            "location": row["location"],
+            "description": row["description"],
+            "url": row["url"],
+            "created_at": row["createdAt"],
+            "is_verified": row["isVerified"],
+            "is_blue_verified": row["isBlueVerified"],
+            "protected": row["protected"],
+            "followers": row["followers"],
+            "following": row["following"],
+            "statuses_count": row["statusesCount"],
+            "favourites_count": row["favouritesCount"],
+            "media_count": row["mediaCount"],
+            "tweets": row["posts_combined"],
+        }
+
     else:
         profile_args = {}
 
     if interview_type == "tiktok_finfluencer_interview":
         additional_args = {
             "expert_reflection_portfoliomanager": row[
-                "expert_reflection_portfoliomanager"
+                "tiktok_finfluencer_expert_reflection_portfoliomanager_response"
             ],
             "expert_reflection_investmentadvisor": row[
-                "expert_reflection_investmentadvisor"
+                "tiktok_finfluencer_expert_reflection_investmentadvisor_response"
             ],
             "expert_reflection_financialanalyst": row[
-                "expert_reflection_financialanalyst"
+                "tiktok_finfluencer_expert_reflection_financialanalyst_response"
             ],
-            "expert_reflection_economist": row["expert_reflection_economist"],
+            "expert_reflection_economist": row[
+                "tiktok_finfluencer_expert_reflection_economist_response"
+            ],
         }
         profile_args.update(additional_args)
+    elif interview_type == "x_finfluencer_interview":
+        additional_args = {
+            "expert_reflection_portfoliomanager": row[
+                "x_finfluencer_expert_reflection_portfoliomanager_response"
+            ],
+            "expert_reflection_investmentadvisor": row[
+                "x_finfluencer_expert_reflection_investmentadvisor_response"
+            ],
+            "expert_reflection_financialanalyst": row[
+                "x_finfluencer_expert_reflection_financialanalyst_response"
+            ],
+            "expert_reflection_economist": row[
+                "x_finfluencer_expert_reflection_economist_response"
+            ],
+        }
+        profile_args.update(additional_args)
+    else:
+        pass
 
     return system_prompt_template.format(**profile_args)
 
@@ -408,7 +447,7 @@ def construct_user_prompt(
         russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
 
         # Construct user prompt
-        return tiktok_finfluencer_interview_user_prompt.format(
+        return finfluencer_interview_user_prompt.format(
             russell_4000_tickers=russell4000_stock_ticker_str,
             stock_mentions=row["stock_mentions"],
         )
@@ -476,7 +515,7 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
 
     # Flatten the DataFrame into a single Series
     flattened_series = pd.Series()
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         question_prefix = row["question"]
         if row["explanation"]:
             flattened_series[f"{question_prefix} - explanation"] = row["explanation"]
@@ -707,13 +746,14 @@ def extract_profile_id(author_metadata: str) -> str:
     return str(author_metadata_dict.get("id"))
 
 
-def extract_tagged_users(tagged_str: str) -> str:
+def extract_tagged_users(tagged_str: str, is_tiktok: bool = True) -> str:
     """
     Extracts user handles from a string representation of a list of tagged users.
 
     Args:
         tagged_str (str): A string representation of a list of dictionaries,
                           where each dictionary contains a "user_handle" key.
+        is_tiktok (bool): A boolean indicating whether the tagged users are from TikTok.
 
     Returns:
         str: A comma-separated string of user handles. If the input is invalid
@@ -723,7 +763,10 @@ def extract_tagged_users(tagged_str: str) -> str:
         user_list = []
         tagged_list = ast.literal_eval(tagged_str)
         for tag in tagged_list:
-            user_list.append(tag.get("user_handle", ""))
+            if is_tiktok:
+                user_list.append(tag.get("user_handle", ""))
+            else:  # For X (formerly Twitter)
+                user_list.append(tag.get("profile_name", ""))
 
         return ", ".join([user for user in user_list if user != ""])
 
@@ -789,7 +832,7 @@ def calculate_video_engagement(video_data: pd.Series) -> float:
     return video_engagement
 
 
-def extract_video_transcripts(profile_id, video_metadata) -> str:
+def extract_video_transcripts(profile_id: str, video_metadata: pd.DataFrame) -> str:
     """
     Extracts and combines video transcripts for a given profile ID from the provided video metadata.
 
@@ -804,7 +847,7 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
         creation date, description, duration, engagement metrics, tagged users, and hashtags, separated by newlines.
     """
     # Filter the rows where profile_id matches
-    filtered_videos = video_metadata[video_metadata["profile_id"] == profile_id].copy()
+    filtered_videos = video_metadata[video_metadata["account_id"] == profile_id].copy()
 
     # Sort the filtered videos by creation time from latest to oldest
     filtered_videos = filtered_videos.sort_values(
@@ -812,30 +855,65 @@ def extract_video_transcripts(profile_id, video_metadata) -> str:
     ).reset_index(drop=True)
 
     # Join the list of video transcripts into a single string, separated by newlines
-    video_transcripts_combined = ""
+    video_transcripts_list = []
     for i in range(len(filtered_videos)):
-        video_transcripts_combined += tiktok_video_prompt_template.format(
-            video_creation_date=filtered_videos.loc[i, "create_time"],
-            video_description=(
-                filtered_videos.loc[i, "description"].replace("\n", " ")
-                if not pd.isnull(filtered_videos.loc[i, "description"])
-                else ""
-            ),
-            video_duration=filtered_videos.loc[i, "video_duration"],
-            num_likes=filtered_videos.loc[i, "digg_count"],
-            num_shares=filtered_videos.loc[i, "share_count"],
-            view_count=filtered_videos.loc[i, "play_count"],
-            num_saves=filtered_videos.loc[i, "collect_count"],
-            num_comments=filtered_videos.loc[i, "comment_count"],
-            total_engagement_over_num_views=calculate_video_engagement(
-                filtered_videos.loc[i, :]
-            ),
-            tagged_users=extract_tagged_users(filtered_videos.loc[i, "tagged_user"]),
-            hashtags=extract_hashtags(filtered_videos.loc[i, "hashtags"]),
-            video_transcript=filtered_videos.loc[i, "video_transcript"],
-        )
+        video_transcripts_list += [
+            tiktok_video_prompt_template.format(
+                video_creation_date=filtered_videos.loc[i, "create_time"],
+                video_description=(
+                    filtered_videos.loc[i, "description"].replace("\n", " ")
+                    if not pd.isnull(filtered_videos.loc[i, "description"])
+                    else ""
+                ),
+                video_duration=filtered_videos.loc[i, "video_duration"],
+                num_likes=filtered_videos.loc[i, "digg_count"],
+                num_shares=filtered_videos.loc[i, "share_count"],
+                view_count=filtered_videos.loc[i, "play_count"],
+                num_saves=filtered_videos.loc[i, "collect_count"],
+                num_comments=filtered_videos.loc[i, "comment_count"],
+                total_engagement_over_num_views=calculate_video_engagement(
+                    filtered_videos.loc[i, :]
+                ),
+                tagged_users=extract_tagged_users(
+                    filtered_videos.loc[i, "tagged_user"]
+                ),
+                hashtags=extract_hashtags(filtered_videos.loc[i, "hashtags"]),
+                video_transcript=filtered_videos.loc[i, "video_transcript"],
+            )
+        ]
 
-    return video_transcripts_combined
+    return "\n\n".join(video_transcripts_list)
+
+
+def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
+    # Filter the rows where profile_id matches
+    filtered_tweets = tweet_metadata[tweet_metadata["account_id"] == profile_id].copy()
+
+    # Sort the filtered videos by creation time from latest to oldest
+    filtered_tweets = filtered_tweets.sort_values(
+        by="createdAt", ascending=False
+    ).reset_index(drop=True)
+
+    # Join the list of tweets into a single string, separated by newlines
+    tweets_list = []
+    for i in range(len(filtered_tweets)):
+        tweets_list += [
+            x_tweet_prompt_template.format(
+                created_at=filtered_tweets.loc[i, "createdAt"],
+                text=filtered_tweets.loc[i, "text"],
+                like_count=filtered_tweets.loc[i, "likeCount"],
+                view_count=filtered_tweets.loc[i, "viewCount"],
+                retweet_count=filtered_tweets.loc[i, "retweetCount"],
+                reply_count=filtered_tweets.loc[i, "replyCount"],
+                quote_count=filtered_tweets.loc[i, "quoteCount"],
+                bookmark_count=filtered_tweets.loc[i, "bookmarkCount"],
+                lang=filtered_tweets.loc[i, "lang"],
+                tagged_users=filtered_tweets.loc[i, "tagged_users"],
+                hashtags=filtered_tweets.loc[i, "hashtags"],
+            )
+        ]
+
+    return "\n\n".join(tweets_list)
 
 
 def row_query(row: pd.Series, args: list) -> str:
@@ -872,7 +950,7 @@ def perform_profile_interview(
     execution_date: str,
     gpt_model: str,
     profile_metadata_file: str,
-    video_file: str,
+    post_file: str,
     output_file: str,
     system_prompt_template: str,
     user_prompt_template: str,
@@ -880,7 +958,6 @@ def perform_profile_interview(
     interview_type: str,
     batch_interview: bool = True,
 ) -> None:
-
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -889,29 +966,42 @@ def perform_profile_interview(
         os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
     )
 
-    # Load profile and video metadata
+    # Load profile and post metadata
     profile_metadata = pd.read_csv(
         os.path.join(
             base_dir, "../data", project_name, execution_date, profile_metadata_file
         )
     )
-    video_metadata = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, video_file)
+    post_metadata = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, post_file)
     )
-    if "warning_code" in video_metadata.columns:
-        video_metadata = video_metadata[
-            video_metadata["warning_code"] != "dead_page"
+    if "warning_code" in post_metadata.columns:
+        post_metadata = post_metadata[
+            post_metadata["warning_code"] != "dead_page"
         ].reset_index(drop=True)
-    if "error_code" in video_metadata.columns:
-        video_metadata = video_metadata[
-            video_metadata["error_code"] != "crawl_failed"
+    if "error_code" in post_metadata.columns:
+        post_metadata = post_metadata[
+            post_metadata["error_code"] != "crawl_failed"
         ].reset_index(drop=True)
-    video_metadata["create_time"] = pd.to_datetime(video_metadata["create_time"])
 
     # Generate system and user prompts
-    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
-        extract_video_transcripts, args=(video_metadata,)
-    )
+    if interview_type.startswith("tiktok"):
+        post_metadata["create_time"] = pd.to_datetime(post_metadata["create_time"])
+        profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
+            extract_video_transcripts, args=(post_metadata,)
+        )
+    elif interview_type.startswith("x"):
+        try:
+            post_metadata["createdAt"] = pd.to_datetime(
+                post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
+            )
+        except ValueError:
+            post_metadata["createdAt"] = pd.to_datetime(post_metadata["createdAt"])
+        profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
+            extract_tweets, args=(post_metadata,)
+        )
+    else:
+        raise ValueError(f"Interview type: {interview_type} not supported.")
 
     profile_metadata[f"{interview_type}_system_prompt"] = profile_metadata.apply(
         construct_system_prompt, args=(system_prompt_template, interview_type), axis=1
@@ -1111,7 +1201,7 @@ def build_profile_prompt(
 
     # Construct past transcripts
     print("Construct past transcripts...")
-    profile_metadata["transcripts_combined"] = profile_metadata["id"].apply(
+    profile_metadata["posts_combined"] = profile_metadata["id"].apply(
         extract_video_transcripts, args=(video_metadata,)
     )
 
@@ -1138,7 +1228,7 @@ def build_profile_prompt(
             total_likes_over_num_videos=calculate_profile_engagement(
                 row["heart"], row["video"]
             ),
-            video_transcripts=row["transcripts_combined"],
+            video_transcripts=row["posts_combined"],
         ),
         axis=1,
     )
@@ -1230,3 +1320,66 @@ def perform_video_transcription(
         file_path = os.path.join(video_download_folder_path, file)
         if os.path.isfile(file_path):
             os.remove(file_path)
+
+
+def update_verified_profile_pool(
+    project_name: str,
+    execution_date: str,
+    input_file_path: str,
+    verified_profile_pool: str,
+) -> None:
+    """
+    Updates the verified profile pool by adding new financial influencers
+    identified from the interviewed profiles.
+
+    Args:
+        project_name (str): The name of the project, used to locate the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
+        input_file_path (str): The relative path to the CSV file containing interviewed profiles.
+        verified_profile_pool (str): The relative path to the CSV file containing the verified profile pool.
+
+    Returns:
+        None: Updates the verified profile pool file in place.
+    """
+    interviewed_profiles = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
+    )
+    verified_profiles = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, verified_profile_pool)
+    )
+
+    # Filter out financial influencers
+    finfluencer_profiles = interviewed_profiles[
+        interviewed_profiles["Is this a finfluencer? - category"].str.contains(
+            "Yes", na=False
+        )
+    ]
+
+    # Add new financial influencers to the verified profile pool
+    if not finfluencer_profiles.empty:
+        verified_profiles = pd.concat(
+            [
+                verified_profiles,
+                pd.DataFrame(
+                    {
+                        "account_id": finfluencer_profiles["account_id"].tolist(),
+                        "inclusion_date": execution_date,
+                        "influence": finfluencer_profiles[
+                            "Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? - value"
+                        ].tolist(),
+                        "credibility": finfluencer_profiles[
+                            "Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)? - value"
+                        ].tolist(),
+                    }
+                ),
+            ],
+            ignore_index=True,
+        )
+
+        # Save updated verified profile pool
+        verified_profiles.to_csv(
+            os.path.join(base_dir, "../data", project_name, verified_profile_pool),
+            index=False,
+        )
+    else:
+        pass

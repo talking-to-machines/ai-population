@@ -39,20 +39,21 @@ from ai_population.src.utils import (
     extract_stock_recommendations,
     perform_profile_interview,
     perform_video_transcription,
+    update_verified_profile_pool,
 )
 from ai_population.prompts.prompt_template import (
     tiktok_finfluencer_onboarding_system_prompt,
     tiktok_finfluencer_onboarding_user_prompt,
     tiktok_portfoliomanager_reflection_system_prompt,
-    tiktok_portfoliomanager_reflection_user_prompt,
+    portfoliomanager_reflection_user_prompt,
     tiktok_investmentadvisor_reflection_system_prompt,
-    tiktok_investmentadvisor_reflection_user_prompt,
+    investmentadvisor_reflection_user_prompt,
     tiktok_financialanalyst_reflection_system_prompt,
-    tiktok_financialanalyst_reflection_user_prompt,
+    financialanalyst_reflection_user_prompt,
     tiktok_economist_reflection_system_prompt,
-    tiktok_economist_reflection_user_prompt,
+    economist_reflection_user_prompt,
     tiktok_finfluencer_interview_system_prompt,
-    tiktok_finfluencer_interview_user_prompt,
+    finfluencer_interview_user_prompt,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,7 +63,7 @@ def perform_tiktok_onboarding_interview(
     project_name: str,
     execution_date: str,
     profile_metadata_file: str,
-    video_file: str,
+    post_file: str,
     output_file: str,
 ) -> None:
     """
@@ -75,7 +76,7 @@ def perform_tiktok_onboarding_interview(
         project_name (str): The name of the project.
         execution_date (str): The date of execution in string format.
         profile_metadata_file (str): Path to the profile metadata file.
-        video_file (str): Path to the video file to be processed.
+        post_file (str): Path to the post file to be processed.
         output_file (str): Name of the output CSV file to save results.
 
     Returns:
@@ -87,7 +88,7 @@ def perform_tiktok_onboarding_interview(
         execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
-        video_file=video_file,
+        post_file=post_file,
         output_file=output_file,
         system_prompt_template=tiktok_finfluencer_onboarding_system_prompt,
         user_prompt_template=tiktok_finfluencer_onboarding_user_prompt,
@@ -116,11 +117,11 @@ def generate_expert_reflections(
     execution_date: str,
     role: str,
     profile_metadata_file: str,
-    video_file: str,
+    post_file: str,
     output_file: str,
 ) -> None:
     """
-    Generates expert reflections for a given role based on TikTok video content and profile metadata.
+    Generates expert reflections for a given role based on TikTok posts and profile metadata.
 
     Depending on the specified role, selects the appropriate prompt templates and response fields,
     then invokes the profile interview process to generate and save the expert reflection.
@@ -131,7 +132,7 @@ def generate_expert_reflections(
         role (str): The expert role for reflection generation. Supported roles are
             "portfolio_manager", "investment_advisor", "financial_analyst", and "economist".
         profile_metadata_file (str): Path to the profile metadata file.
-        video_file (str): Path to the TikTok video file.
+        post_file (str): Path to the TikTok post file.
         output_file (str): Path where the generated reflection will be saved.
 
     Raises:
@@ -139,27 +140,33 @@ def generate_expert_reflections(
     """
     if role == "portfolio_manager":
         system_prompt_template = tiktok_portfoliomanager_reflection_system_prompt
-        user_prompt_template = tiktok_portfoliomanager_reflection_user_prompt
-        llm_response_field = "expert_reflection_portfoliomanager"
-        interview_type = "tiktok_finfluencer_portfoliomanager_reflection"
+        user_prompt_template = portfoliomanager_reflection_user_prompt
+        llm_response_field = (
+            "tiktok_finfluencer_expert_reflection_portfoliomanager_response"
+        )
+        interview_type = "tiktok_finfluencer_expert_reflection_portfoliomanager"
 
     elif role == "investment_advisor":
         system_prompt_template = tiktok_investmentadvisor_reflection_system_prompt
-        user_prompt_template = tiktok_investmentadvisor_reflection_user_prompt
-        llm_response_field = "expert_reflection_investmentadvisor"
-        interview_type = "tiktok_finfluencer_investmentadvisor_reflection"
+        user_prompt_template = investmentadvisor_reflection_user_prompt
+        llm_response_field = (
+            "tiktok_finfluencer_expert_reflection_investmentadvisor_response"
+        )
+        interview_type = "tiktok_finfluencer_expert_reflection_investmentadvisor"
 
     elif role == "financial_analyst":
         system_prompt_template = tiktok_financialanalyst_reflection_system_prompt
-        user_prompt_template = tiktok_financialanalyst_reflection_user_prompt
-        llm_response_field = "expert_reflection_financialanalyst"
-        interview_type = "tiktok_finfluencer_financialanalyst_reflection"
+        user_prompt_template = financialanalyst_reflection_user_prompt
+        llm_response_field = (
+            "tiktok_finfluencer_expert_reflection_financialanalyst_response"
+        )
+        interview_type = "tiktok_finfluencer_expert_reflection_financialanalyst"
 
     elif role == "economist":
         system_prompt_template = tiktok_economist_reflection_system_prompt
-        user_prompt_template = tiktok_economist_reflection_user_prompt
-        llm_response_field = "expert_reflection_economist"
-        interview_type = "tiktok_finfluencer_economist_reflection"
+        user_prompt_template = economist_reflection_user_prompt
+        llm_response_field = "tiktok_finfluencer_expert_reflection_economist_response"
+        interview_type = "tiktok_finfluencer_expert_reflection_economist"
 
     else:
         raise ValueError(f"Role {role} is not supported.")
@@ -169,7 +176,7 @@ def generate_expert_reflections(
         execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
-        video_file=video_file,
+        post_file=post_file,
         output_file=output_file,
         system_prompt_template=system_prompt_template,
         user_prompt_template=user_prompt_template,
@@ -178,17 +185,19 @@ def generate_expert_reflections(
     )
 
 
-def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) -> str:
+def extract_stock_mentions_from_transcripts(
+    row: pd.Series, russell_4000_stock: pd.DataFrame
+) -> str:
     """
-    Extracts stock mentions from video transcripts and formats them into a structured string.
+    Extracts stock mentions from past posts and formats them into a structured string.
 
-    This function processes a row containing combined video transcripts, identifies mentions
+    This function processes a row containing combined posts, identifies mentions
     of stocks listed in the Russell 4000 dataset, and returns a formatted string summarizing
-    the stock mentions along with their tickers and the creation dates of the videos.
+    the stock mentions along with their tickers and the creation dates of the posts.
 
     Args:
-        row (pd.Series): A pandas Series containing the column "transcripts_combined",
-                         which holds the combined video transcripts.
+        row (pd.Series): A pandas Series containing the column "posts_combined",
+                         which holds the combined posts.
         russell_4000_stock (pd.DataFrame): A DataFrame containing stock information with
                                            columns "COMNAM" (full stock name),
                                            "SHORTEN_COMNAM" (shortened stock name),
@@ -196,11 +205,11 @@ def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) 
 
     Returns:
         str: A formatted string summarizing the stock mentions, including the stock name,
-             ticker, and video creation date. Each stock mention is separated by double newlines.
+             ticker, and post date. Each stock mention is separated by double newlines.
     """
     # Split the transcripts by double newline
-    if not pd.isnull(row["transcripts_combined"]):
-        transcript_chunks = row["transcripts_combined"].strip().split("\n\n")
+    if not pd.isnull(row["posts_combined"]):
+        transcript_chunks = row["posts_combined"].strip().split("\n\n")
     else:
         transcript_chunks = []
 
@@ -254,13 +263,13 @@ def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) 
                     {
                         "stock_name": full_stock_name,
                         "stock_ticker": stock_ticker,
-                        "video_creation_date": creation_date,
+                        "post_date": creation_date,
                     }
                 )
 
     # Build a DataFrame from the matches
     stock_mentions_df = pd.DataFrame(
-        found_mentions, columns=["stock_name", "stock_ticker", "video_creation_date"]
+        found_mentions, columns=["stock_name", "stock_ticker", "post_date"]
     )
 
     # Remove duplicates if you only want unique (stock, date) pairs
@@ -270,7 +279,7 @@ def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) 
     stock_mentions_formatted_str = ""
     stock_question_template = """**stock name: {stock_name}**
 **stock ticker: {stock_ticker}**
-**mention date: {video_creation_date}**"""
+**mention date: {post_date}**"""
 
     for i in range(len(stock_mentions_df)):
         if i != 0:
@@ -278,7 +287,7 @@ def extract_stock_mentions_from_transcripts(row: pd.Series, russell_4000_stock) 
         stock_mentions_formatted_str += stock_question_template.format(
             stock_name=stock_mentions_df.loc[i, "stock_name"],
             stock_ticker=stock_mentions_df.loc[i, "stock_ticker"],
-            video_creation_date=stock_mentions_df.loc[i, "video_creation_date"],
+            post_date=stock_mentions_df.loc[i, "post_date"],
         )
 
     return stock_mentions_formatted_str
@@ -291,7 +300,7 @@ def extract_stock_mentions(
     Extract stock mentions from fininfluencer profile data and save the results to a file.
 
     This function processes a CSV file containing fininfluencer profile data, identifies
-    stock mentions in past video transcripts using a predefined list of stock tickers,
+    stock mentions in past posts using a predefined list of stock tickers,
     and saves the updated data with stock mentions to a new CSV file.
 
     Args:
@@ -308,7 +317,7 @@ def extract_stock_mentions(
         os.path.join(base_dir, "../data", project_name, execution_date, input_file)
     )
 
-    # Extract stocks mention in past videos
+    # Extract stocks mention in past posts
     russell_4000_stock = pd.read_csv(
         os.path.join(base_dir, "../config", RUSSELL_4000_STOCK_TICKER_FILE)
     )
@@ -329,16 +338,16 @@ def perform_tiktok_finfluencer_interview(
     project_name: str,
     execution_date: str,
     profile_metadata_file: str,
-    video_file: str,
+    post_file: str,
     finfluencer_pool: str,
     output_file: str,
 ) -> None:
     """
     Conducts an interview process for TikTok financial influencers (finfluencers) by leveraging LLM-based profile analysis,
-    extracts stock recommendations from their video transcripts, and formats the results for further analysis.
+    extracts stock recommendations from their posts, and formats the results for further analysis.
 
     This function performs the following steps:
-    1. Runs a profile interview using provided metadata and video files, saving the LLM responses.
+    1. Runs a profile interview using provided metadata and posts, saving the LLM responses.
     2. Loads the interview results and the finfluencer pool metadata.
     3. Extracts relevant LLM responses and stock recommendations from the interview results.
     4. Enriches stock recommendations with additional profile information (account ID, profile URL, followers, influence, credibility).
@@ -350,7 +359,7 @@ def perform_tiktok_finfluencer_interview(
         project_name (str): Name of the project directory for data storage.
         execution_date (str): Date of execution, used for organizing output files.
         profile_metadata_file (str): Path to the CSV file containing profile metadata.
-        video_file (str): Path to the video transcript file.
+        post_file (str): Path to the post file.
         finfluencer_pool (str): Path to the CSV file containing the pool of finfluencers and their attributes.
         output_file (str): Filename for saving the interview results.
 
@@ -362,10 +371,10 @@ def perform_tiktok_finfluencer_interview(
         execution_date=execution_date,
         gpt_model=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
-        video_file=video_file,
+        post_file=post_file,
         output_file=output_file,
         system_prompt_template=tiktok_finfluencer_interview_system_prompt,
-        user_prompt_template=tiktok_finfluencer_interview_user_prompt,
+        user_prompt_template=finfluencer_interview_user_prompt,
         llm_response_field="tiktok_finfluencer_interview",
         interview_type="tiktok_finfluencer_interview",
     )
@@ -424,7 +433,7 @@ def perform_tiktok_finfluencer_interview(
             ignore_index=True,
         )
 
-    # Remove duplicated entries and stocks that were not mentioned in the video transcripts
+    # Remove duplicated entries and stocks that were not mentioned in the posts
     valid_stock_recommendations = (
         combined_stock_recommendations.drop_duplicates().reset_index(drop=True)
     )
@@ -519,6 +528,7 @@ def perform_tiktok_keyword_search(
     # Retrieve keyword search results
     response_json = {"status": "running"}
     while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
         response = requests.get(
             f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
             headers={
@@ -529,7 +539,6 @@ def perform_tiktok_keyword_search(
             },
         )
         response_json = response.json()
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
 
     keyword_search_results = pd.DataFrame(response_json)
     if "warning_code" in keyword_search_results.columns:
@@ -622,6 +631,7 @@ def perform_tiktok_profile_search(
     # Retrieve profile search results
     response_json = {"status": "running"}
     while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
         response = requests.get(
             f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
             headers={
@@ -632,7 +642,6 @@ def perform_tiktok_profile_search(
             },
         )
         response_json = response.json()
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
 
     profile_search_results = pd.DataFrame(response_json)
     if "warning_code" in profile_search_results.columns:
@@ -750,31 +759,31 @@ def filter_tiktok_profiles(
     project_name: str,
     execution_date: str,
     profile_metadata_file: str,
-    video_file: str,
+    post_file: str,
     verified_profile_pool: str,
 ) -> tuple:
     """
-    Filters TikTok profiles and associated video data based on specified criteria.
+    Filters TikTok profiles and associated posts based on specified criteria.
 
     Args:
         project_name (str): Name of the project.
         execute_date (str): The date of the pipeline execution, used to create a unique directory name.
         profile_metadata_file (str): Path to the CSV file containing profile metadata.
-        video_file (str): Path to the CSV file containing video data.
+        post_file (str): Path to the CSV file containing post data.
         verified_profile_pool (str): Path to the CSV file containing verified profiles.
 
     Returns:
         tuple: A tuple containing two DataFrames:
             - filtered_profiles: DataFrame of profiles that meet the filtering criteria.
-            - filtered_videos: DataFrame of videos associated with the filtered profiles.
+            - filtered_posts: DataFrame of posts associated with the filtered profiles.
     """
     profile_metadata = pd.read_csv(
         os.path.join(
             base_dir, "../data", project_name, execution_date, profile_metadata_file
         )
     )
-    video_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, video_file)
+    post_data = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, post_file)
     )
     verified_profile_pool = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, verified_profile_pool)
@@ -796,112 +805,51 @@ def filter_tiktok_profiles(
         index=False,
     )
 
-    # Filter video files based on profiles that meet filtering criteria
+    # Filter posts based on profiles that meet filtering criteria
     filtered_profile_list = filtered_profiles["account_id"].tolist()
-    filtered_videos = video_data[
-        video_data["account_id"].isin(filtered_profile_list)
+    filtered_posts = post_data[
+        post_data["account_id"].isin(filtered_profile_list)
     ].reset_index(drop=True)
-    filtered_videos.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, video_file),
+    filtered_posts.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, post_file),
         index=False,
     )
 
-    return filtered_profiles, filtered_videos
-
-
-def update_verified_profile_pool(
-    project_name: str,
-    execution_date: str,
-    input_file_path: str,
-    verified_profile_pool: str,
-) -> None:
-    """
-    Updates the verified profile pool by adding new financial influencers
-    identified from the interviewed profiles.
-
-    Args:
-        project_name (str): The name of the project, used to locate the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file_path (str): The relative path to the CSV file containing interviewed profiles.
-        verified_profile_pool (str): The relative path to the CSV file containing the verified profile pool.
-
-    Returns:
-        None: Updates the verified profile pool file in place.
-    """
-    interviewed_profiles = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
-    )
-    verified_profiles = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, verified_profile_pool)
-    )
-
-    # Filter out financial influencers
-    finfluencer_profiles = interviewed_profiles[
-        interviewed_profiles["Is this a finfluencer? - category"].str.contains(
-            "Yes", na=False
-        )
-    ]
-
-    # Add new financial influencers to the verified profile pool
-    if not finfluencer_profiles.empty:
-        verified_profiles = pd.concat(
-            [
-                verified_profiles,
-                pd.DataFrame(
-                    {
-                        "account_id": finfluencer_profiles["account_id"].tolist(),
-                        "inclusion_date": PIPELINE_EXECUTION_DATE,
-                        "influence": finfluencer_profiles[
-                            "Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? - value"
-                        ].tolist(),
-                        "credibility": finfluencer_profiles[
-                            "Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)? - value"
-                        ].tolist(),
-                    }
-                ),
-            ],
-            ignore_index=True,
-        )
-
-        # Save updated verified profile pool
-        verified_profiles.to_csv(
-            os.path.join(base_dir, "../data", project_name, verified_profile_pool),
-            index=False,
-        )
-    else:
-        pass
+    return filtered_profiles, filtered_posts
 
 
 if __name__ == "__main__":
-    # Step 1: Perform search using predefined list of search terms
-    print("Perform keyword search using predefined list of search terms...")
-    perform_tiktok_keyword_search(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        search_terms=SEARCH_TERMS_TIKTOK,
-        output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
-    )
+    # # Step 1: Perform search using predefined list of search terms
+    # print("Perform keyword search using predefined list of search terms...")
+    # perform_tiktok_keyword_search(
+    #     project_name=PROJECT_NAME_TIKTOK,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     search_terms=SEARCH_TERMS_TIKTOK,
+    #     output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
+    # )
 
-    # Step 2: Extract profile metadata for search results
-    print("Perform profile metadata search for keyword search results...")
-    perform_tiktok_profile_metadata_search(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
-        output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-    )
+    # # Step 2: Extract profile metadata for search results
+    # print("Perform profile metadata search for keyword search results...")
+    # perform_tiktok_profile_metadata_search(
+    #     project_name=PROJECT_NAME_TIKTOK,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     input_file_path=os.path.join(
+    #         PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_TIKTOK
+    #     ),
+    #     output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    # )
 
-    # Step 3: Filter profiles that do not meet filtering criteria
-    print(
-        "Filter TikTok profiles based on follower count, video count, and verified finfluencer list..."
-    )
-    filter_tiktok_profiles(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        video_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
-    )
+    # # Step 3: Filter profiles that do not meet filtering criteria
+    # print(
+    #     "Filter TikTok profiles based on follower count, video count, and verified finfluencer list..."
+    # )
+    # filter_tiktok_profiles(
+    #     project_name=PROJECT_NAME_TIKTOK,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    #     post_file=KEYWORD_SEARCH_FILE_TIKTOK,
+    #     verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
+    # )
 
     # Step 4: Perform video transcription of new videos
     print("Perform video transcription of new videos...")
@@ -917,7 +865,7 @@ if __name__ == "__main__":
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        video_file=KEYWORD_SEARCH_FILE_TIKTOK,
+        post_file=KEYWORD_SEARCH_FILE_TIKTOK,
         output_file=ONBOARDING_RESULTS_FILE_TIKTOK,
     )
     update_verified_profile_pool(
@@ -958,7 +906,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         role="portfolio_manager",
         profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
     )
     generate_expert_reflections(
@@ -966,7 +914,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
-        video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
     )
     generate_expert_reflections(
@@ -974,7 +922,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         role="financial_analyst",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
-        video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
     )
     generate_expert_reflections(
@@ -982,11 +930,11 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         role="economist",
         profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
-        video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK,
     )
 
-    # Step 8: Extract stock mentions from financial influencers' past video transcripts
+    # Step 8: Extract stock mentions from financial influencers' past posts
     print("Extract stock recommendations...")
     extract_stock_mentions(
         project_name=PROJECT_NAME_TIKTOK,
@@ -1001,7 +949,7 @@ if __name__ == "__main__":
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
-        video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         finfluencer_pool=FINFLUENCER_POOL_FILE_TIKTOK,
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK,
     )

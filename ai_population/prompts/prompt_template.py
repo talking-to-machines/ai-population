@@ -1,5 +1,76 @@
-# Tiktok Market Signals Prompts
-tiktok_finfluencer_onboarding_system_prompt = """You are analyzing a social media profile on TikTok to identify individuals who may be financial influencers (finfluencer).
+# Tiktok Profile and Tweet Prompt Templates
+tiktok_video_prompt_template = """Creation Date: {video_creation_date}
+Video Description: {video_description}
+Video Duration: {video_duration}
+Number of Likes: {num_likes}
+Number of Shares: {num_shares}
+View Count: {view_count}
+Number of Saves: {num_saves}
+Number of Comments: {num_comments}
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): {total_engagement_over_num_views}
+Tagged Users: {tagged_users}
+Hashtags: {hashtags}
+Video Transcript: {video_transcript}"""
+
+tiktok_profile_prompt_template = """- Profile Image: {profile_image}
+- Profile Name: {profile_name}
+- Profile Nickname: {profile_nickname}
+- Profile Biography: {profile_biography}
+- Profile Signature: {profile_signature}
+- Profile Biography Link: {profile_bio_link}
+- Profile URL: {profile_url}
+- Profile Language: {profile_lang}
+- Profile Creation Date: {profile_creation}
+- Verified Status: {verified_status}
+- Number of Followers: {num_followers} Followers
+- Following: {num_following} Users
+- Total Number of Likes: {num_likes}
+- Total Number of Videos: {num_videos}
+- Total Number of Digg: {num_digg}
+- Private Account: {private_account}
+- Region: {region}
+- TikTok Seller: {tiktok_seller}
+- Average Engagement Rate: {awg_engagement_rate}
+- Comment Engagement Rate: {comment_engagement_rate}
+- Like Engagement Rate: {like_engagement_rate}
+- Video Transcripts (Sorted from Newest to Oldest):
+{video_transcripts}"""
+
+
+# X (formerly Twitter) Profile and Tweet Prompt Templates
+x_tweet_prompt_template = """Creation Date: {created_at} 
+Tweet Text: {text}
+Number of Likes: {like_count}
+Number of Views: {view_count}
+Number of Retweets: {retweet_count}
+Number of Replies: {reply_count}
+Number of Quotes: {quote_count}
+Number of Bookmarks: {bookmark_count}
+Language: {lang}
+Tagged Users: {tagged_users}
+Hashtags: {hashtags}"""
+
+x_profile_prompt_template = """- Profile Image: {profile_picture}
+- Profile Name: {name}
+- Profile ID: {account_id}
+- Location: {location}
+- Profile Description: {description}
+- Profile External Link: {url}
+- Profile Creation Date: {created_at}
+- Verified Profile: {is_verified}
+- Blue Verified Profile: {is_blue_verified}
+- Protected Profile: {protected}
+- Number of Followers: {followers} Followers
+- Following: {following} Users
+- Total Number of Tweets: {statuses_count}
+- Number of Favorites: {favourites_count}
+- Number of Media Content: {media_count}
+- Tweets (Sorted from Newest to Oldest):
+{tweets}"""
+
+
+# Tiktok Market Signals Onboarding Prompt Templates
+base_finfluencer_onboarding_system_prompt = """You are analyzing a social media profile on {platform} to identify individuals who may be financial influencers (finfluencer).
 
 DEFINITION OF A FINFLUENCER
 A finfluencer is a creator whose content analyses the financial markets and goes on to give opinions, predictions, or recommendations about:
@@ -28,36 +99,44 @@ HALLMARK SIGNS OF A NON-FINFLUENCER
 • “Not financial advice” disclaimers with no actual recommendation content.  
 • Focus on trading psychology, motivation, or platform tutorials **only**, with no picks or directional calls.
 
-Below are three Tiktok profiles and their most recent posts that exemplify a financial influencer:
-Example Profile 1:
-Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/a089791b375beffd40eaf995a4541032~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3963c468&x-expires=1748991600&x-signature=4ZYa6NLuLm7QPpnYYhJOnEEeeUo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
-Profile Name: fung.money
-Profile Nickname: ⚫️ Derrick | Money Professor😎
-Profile Biography: Ex-Wall St 🇺🇸🇨🇦
+Below are three {platform} profiles and their recent posts that exemplify a financial influencer:
+{finfluencer_examples}
+
+You will analyze a {platform} profile with the following details:
+{profile_prompt_template}
+
+Instructions
+Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+
+tiktok_finfluencer_examples = """Example Profile 1:
+- Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/a089791b375beffd40eaf995a4541032~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3963c468&x-expires=1748991600&x-signature=4ZYa6NLuLm7QPpnYYhJOnEEeeUo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
+- Profile Name: fung.money
+- Profile Nickname: ⚫️ Derrick | Money Professor😎
+- Profile Biography: Ex-Wall St 🇺🇸🇨🇦
 Bloomberg/CNBC🛸
 Tips to Grow Your💰
 Portfolio & Signals👇🏻
-Profile Signature: Ex-Wall St 🇺🇸🇨🇦
+- Profile Signature: Ex-Wall St 🇺🇸🇨🇦
 Bloomberg/CNBC🛸
 Tips to Grow Your💰
 Portfolio & Signals👇🏻
-Profile Biography Link: nan
-Profile URL: https://www.tiktok.com/@fung.money
-Profile Language: en
-Profile Creation Date: 2022-12-10T20:23:41.000Z
-Verified Status: False
-Number of Followers: 231800.0 Followers
-Following: 183.0 Users
-Total Number of Likes: 1500000.0
-Total Number of Videos: 171.0
-Total Number of Digg: 0.0
-Private Account: False
-Region: US
-TikTok Seller: False
-Average Engagement Rate: 0.044951153664171
-Comment Engagement Rate: 0.0015309360126916
-Like Engagement Rate: 0.0434202176514793
-Video Transcripts (Sorted from Newest to Oldest):
+- Profile Biography Link: nan
+- Profile URL: https://www.tiktok.com/@fung.money
+- Profile Language: en
+- Profile Creation Date: 2022-12-10T20:23:41.000Z
+- Verified Status: False
+- Number of Followers: 231800.0 Followers
+- Following: 183.0 Users
+- Total Number of Likes: 1500000.0
+- Total Number of Videos: 171.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: US
+- TikTok Seller: False
+- Average Engagement Rate: 0.044951153664171
+- Comment Engagement Rate: 0.0015309360126916
+- Like Engagement Rate: 0.0434202176514793
+- Video Transcripts (Sorted from Newest to Oldest):
 Creation Date: 2025-05-29 22:41:15+00:00
 Video Description: 05/29 - Target’s sales are falling and it’s not just the boycotts: In this video, I break down the real reasons behind the decline — including rising competition from Dollar General, Amazon’s same-day delivery, and TikTok Shop stealing impulse purchases. #target #amazon #retail #investing #money #trends #stocks #financialfreedom #creatorsearchinsights 
 Video Duration: 76.0
@@ -385,32 +464,32 @@ Video Transcript: Which stocks should we buy in a recession? I'm going to show y
 
 
 Example Profile 2:
-Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7312923100926967854~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=7183c5a6&x-expires=1748991600&x-signature=hsmS0YMPdA4TGnFAt%2BogtcALHus%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=maliva
-Profile Name: humphreytalks
-Profile Nickname: Humphrey Yang
-Profile Biography: humphreytalks@gmail.com
+- Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7312923100926967854~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=7183c5a6&x-expires=1748991600&x-signature=hsmS0YMPdA4TGnFAt%2BogtcALHus%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=maliva
+- Profile Name: humphreytalks
+- Profile Nickname: Humphrey Yang
+- Profile Biography: humphreytalks@gmail.com
 Personal Finance and Investing Videos
 Templates and YT↙️
-Profile Signature: humphreytalks@gmail.com
+- Profile Signature: humphreytalks@gmail.com
 Personal Finance and Investing Videos
 Templates and YT↙️
-Profile Biography Link: https://beacons.ai/humphreytalks
-Profile URL: https://www.tiktok.com/@humphreytalks
-Profile Language: en
-Profile Creation Date: 2019-11-10T17:25:41.000Z
-Verified Status: True
-Number of Followers: 3400000.0 Followers
-Following: 499.0 Users
-Total Number of Likes: 56100000.0
-Total Number of Videos: 1122.0
-Total Number of Digg: 0.0
-Private Account: False
-Region: US
-TikTok Seller: False
-Average Engagement Rate: 0.0100165818759936
-Comment Engagement Rate: 0.0001317567567567
-Like Engagement Rate: 0.0098848251192368
-Video Transcripts (Sorted from Newest to Oldest):
+- Profile Biography Link: https://beacons.ai/humphreytalks
+- Profile URL: https://www.tiktok.com/@humphreytalks
+- Profile Language: en
+- Profile Creation Date: 2019-11-10T17:25:41.000Z
+- Verified Status: True
+- Number of Followers: 3400000.0 Followers
+- Following: 499.0 Users
+- Total Number of Likes: 56100000.0
+- Total Number of Videos: 1122.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: US
+- TikTok Seller: False
+- Average Engagement Rate: 0.0100165818759936
+- Comment Engagement Rate: 0.0001317567567567
+- Like Engagement Rate: 0.0098848251192368
+- Video Transcripts (Sorted from Newest to Oldest):
 Creation Date: 2025-05-18 00:24:57+00:00
 Video Description: Two friends buy Tesla at the same time. But one sells it a month earlier 🤯 #tesla
 Video Duration: 33.0
@@ -738,28 +817,28 @@ Video Transcript: Lottery jackpots have gotten out of control and there's a math
 
 
 Example Profile 3:
-Profile Image: https://p16-sign-useast2a.tiktokcdn.com/tos-useast2a-avt-0068-euttp/b549b3b86b42a254db09fefbd0a5c34a~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3d8d310a&x-expires=1748991600&x-signature=w3W%2B055mL4a2FbIcLSkoZQuhyxw%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
-Profile Name: financialtimes
-Profile Nickname: FinancialTimes
-Profile Biography: Stay ahead, follow the FT
-Profile Signature: Stay ahead, follow the FT
-Profile Biography Link: https://www.ft.com/register?segmentid=486333ad-cc96-e0dc-de4b-b14e86eb6d59
-Profile URL: https://www.tiktok.com/@financialtimes
-Profile Language: en
-Profile Creation Date: 2024-02-23T15:46:14.000Z
-Verified Status: True
-Number of Followers: 163400.0 Followers
-Following: 6.0 Users
-Total Number of Likes: 1300000.0
-Total Number of Videos: 573.0
-Total Number of Digg: 0.0
-Private Account: False
-Region: GB
-TikTok Seller: False
-Average Engagement Rate: 0.0119617065920615
-Comment Engagement Rate: 0.0020500087427872
-Like Engagement Rate: 0.0099116978492743
-Video Transcripts (Sorted from Newest to Oldest):
+- Profile Image: https://p16-sign-useast2a.tiktokcdn.com/tos-useast2a-avt-0068-euttp/b549b3b86b42a254db09fefbd0a5c34a~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3d8d310a&x-expires=1748991600&x-signature=w3W%2B055mL4a2FbIcLSkoZQuhyxw%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
+- Profile Name: financialtimes
+- Profile Nickname: FinancialTimes
+- Profile Biography: Stay ahead, follow the FT
+- Profile Signature: Stay ahead, follow the FT
+- Profile Biography Link: https://www.ft.com/register?segmentid=486333ad-cc96-e0dc-de4b-b14e86eb6d59
+- Profile URL: https://www.tiktok.com/@financialtimes
+- Profile Language: en
+- Profile Creation Date: 2024-02-23T15:46:14.000Z
+- Verified Status: True
+- Number of Followers: 163400.0 Followers
+- Following: 6.0 Users
+- Total Number of Likes: 1300000.0
+- Total Number of Videos: 573.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: GB
+- TikTok Seller: False
+- Average Engagement Rate: 0.0119617065920615
+- Comment Engagement Rate: 0.0020500087427872
+- Like Engagement Rate: 0.0099116978492743
+- Video Transcripts (Sorted from Newest to Oldest):
 Creation Date: 2025-05-30 13:26:49+00:00
 Video Description: Prime Minister Keir Starmer and Reform party leader Nigel Farage clashed on economic issues this week. Farage said his party was the champion of the working class, while Starmer warned Farage’s proposed spending rises amounted to 'fantasy promises'. Host George Parker is joined by the FT’s Stephen Bush, Chris Giles and Anna Gross to discuss Reform’s fiscal plans. Tap the link above to listen to the full podcast.
 Video Duration: 95.0
@@ -1070,39 +1149,806 @@ Number of Comments: 64.0
 Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04007936507936508
 Tagged Users: 
 Hashtags: ft, financialtimes
-Video Transcript: I travel a lot by train, and I've noticed one thing, that on-board Wi-Fi almost never works. On services like Eurostar, you can't even get a phone signal half the time. Why is that? Well, one reason is that trains carry lots of bored people who want lots of bandwidth, for example, to stream videos. Another thing is that trains travel really fast, up to 200 miles an hour for a high-speed train. So it makes it more difficult for the train or for your device to stay connected as it jumps from one mobile phone antenna to another. And crucially, mobile phone operators, when they built all their towers, they focused on the areas where people live, like towns and cities, whereas trains, they're going through rural areas. The good news, at least, is that train and telecoms operators think they know the solution, which is basically to build more mobile phone antennas along the train tracks and in tunnels. That's what they're doing, for example, on the London Underground, where you can now get, on some lines, 4G. The problem is, it costs a bit of money. So would you be prepared to pay more for your train ticket if there were working Wi-Fi or mobile phone signal? Oh, and one more thing. Just imagine a carriage full of people listening to Zoom calls and, indeed, streaming music without headphones. Maybe if the Wi-Fi does start working, we'll wish that it didn't.
+Video Transcript: I travel a lot by train, and I've noticed one thing, that on-board Wi-Fi almost never works. On services like Eurostar, you can't even get a phone signal half the time. Why is that? Well, one reason is that trains carry lots of bored people who want lots of bandwidth, for example, to stream videos. Another thing is that trains travel really fast, up to 200 miles an hour for a high-speed train. So it makes it more difficult for the train or for your device to stay connected as it jumps from one mobile phone antenna to another. And crucially, mobile phone operators, when they built all their towers, they focused on the areas where people live, like towns and cities, whereas trains, they're going through rural areas. The good news, at least, is that train and telecoms operators think they know the solution, which is basically to build more mobile phone antennas along the train tracks and in tunnels. That's what they're doing, for example, on the London Underground, where you can now get, on some lines, 4G. The problem is, it costs a bit of money. So would you be prepared to pay more for your train ticket if there were working Wi-Fi or mobile phone signal? Oh, and one more thing. Just imagine a carriage full of people listening to Zoom calls and, indeed, streaming music without headphones. Maybe if the Wi-Fi does start working, we'll wish that it didn't."""
+
+x_finfluencer_examples = """Example Profile 1:
+- Profile Image: https://pbs.twimg.com/profile_images/1729294932181921792/lI2kq2Ey_normal.jpg
+- Profile Name: Joe Weisenthal
+- Profile ID: TheStalwart
+- Location: New York City
+- Profile Description: One half of Bloomberg's Odd Lots Podcast. One quarter of Light Sweet Crude.
+- Profile External Link: https://t.co/tKH5J61Zwy
+- Profile Creation Date: 2008-03-07T19:37:09.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 412120 Followers
+- Following: 6064 Users
+- Total Number of Tweets: 441349
+- Number of Favorites: 290679
+- Number of Media Content: 32563
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-13 19:14:00+00:00 
+Tweet Text: Here's a chart of a company that wants to be the Microstrategy of ethereum https://t.co/1MRHQep7Dk https://t.co/4Et0Mrt42p
+Number of Likes: 8
+Number of Views: 306
+Number of Retweets: 0
+Number of Replies: 1
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 19:05:42+00:00 
+Tweet Text: Markets caps for $HOOD ($64b) and $COIN ($61b) very close to each other.
+Number of Likes: 18
+Number of Views: 7694
+Number of Retweets: 3
+Number of Replies: 12
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 18:56:32+00:00 
+Tweet Text: Container volume at the Port of Los Angeles as 9% lower in May than it was in May 2024 https://t.co/2OwPt9VBQj
+Number of Likes: 50
+Number of Views: 10189
+Number of Retweets: 9
+Number of Replies: 6
+Number of Quotes: 0
+Number of Bookmarks: 7
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 18:50:46+00:00 
+Tweet Text: RT @business: Iran‚Äôs Supreme Leader Ayatollah Ali Khamenei vowed to ‚Äúact forcefully‚Äù and avenge an Israeli military strike on his country t‚Ä¶
+Number of Likes: 69
+Number of Views: 28422
+Number of Retweets: 25
+Number of Replies: 8
+Number of Quotes: 3
+Number of Bookmarks: 3
+Language: en
+Tagged Users: Bloomberg
+Hashtags: nan
+
+Creation Date: 2025-06-13 18:38:15+00:00 
+Tweet Text: RT @partiallypro: @TheStalwart Not even close to the overnight lows, pretty crazy still how resilient the market is
+Number of Likes: 20
+Number of Views: 12507
+Number of Retweets: 2
+Number of Replies: 5
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: Josh Fields, Joe Weisenthal
+Hashtags: nan
+
+Creation Date: 2025-06-13 18:34:39+00:00 
+Tweet Text: Stocks lows of the day. VIX shooting higher https://t.co/uZrI5srlpn
+Number of Likes: 42
+Number of Views: 12945
+Number of Retweets: 8
+Number of Replies: 22
+Number of Quotes: 0
+Number of Bookmarks: 3
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 18:27:25+00:00 
+Tweet Text: SPX back near its lows of the day https://t.co/JOBAdKPm5x
+Number of Likes: 57
+Number of Views: 15047
+Number of Retweets: 4
+Number of Replies: 14
+Number of Quotes: 3
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 17:39:07+00:00 
+Tweet Text: RT @IDF: This post is an illustration of the region. This map fails to precisely depict borders. We apologize for any offense caused by thi‚Ä¶
+Number of Likes: 8118
+Number of Views: 760984
+Number of Retweets: 917
+Number of Replies: 1279
+Number of Quotes: 569
+Number of Bookmarks: 269
+Language: en
+Tagged Users: Israel Defense Forces
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:43:09+00:00 
+Tweet Text: RT @apralky: Greenspan theorized that productivity enhancing technologies can fuel economic productivity 
+even before they are implemented,‚Ä¶
+Number of Likes: 0
+Number of Views: 0
+Number of Retweets: 9
+Number of Replies: 0
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: yung macro Âπ¥ËΩªÁöÑÂÆèËßÇ
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:34:16+00:00 
+Tweet Text: US-Vietnam trade agreement getting closer. https://t.co/b3nYk8fa7a https://t.co/WXpCfgh3kt
+Number of Likes: 66
+Number of Views: 19388
+Number of Retweets: 14
+Number of Replies: 31
+Number of Quotes: 2
+Number of Bookmarks: 9
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:30:59+00:00 
+Tweet Text: RT @GwartyGwart: @TheStalwart Weird. Doesn‚Äôt feel like you‚Äôre making fun of us here. Not sure I trust it
+Number of Likes: 26
+Number of Views: 13597
+Number of Retweets: 1
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: Joe Weisenthal, Gwart
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:29:05+00:00 
+Tweet Text: Stablecoins can offer lower fees for merchants. But also they mean fewer rewards/cash back for users. But there are some efforts to incentivize crypto payments for normal transactions, like this company offering restaurant reservations/special menus for users https://t.co/RlSXRhKteb
+Number of Likes: 83
+Number of Views: 20472
+Number of Retweets: 1
+Number of Replies: 25
+Number of Quotes: 1
+Number of Bookmarks: 17
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:11:08+00:00 
+Tweet Text: RT @bradlander: üö® BREAKING NEWS üö® 
+
+Our campaign‚Äôs momentum is UNSTOPPABLE. Today @ZohranKMamdani and I are officially cross-endorsing each‚Ä¶
+Number of Likes: 10369
+Number of Views: 366670
+Number of Retweets: 893
+Number of Replies: 164
+Number of Quotes: 156
+Number of Bookmarks: 157
+Language: en
+Tagged Users: Brad Lander, Zohran Kwame Mamdani
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:08:27+00:00 
+Tweet Text: RT @M_C_Klein: Great chart from Toby Nangle: https://t.co/k7h7hkMXJq
+Number of Likes: 109
+Number of Views: 20413
+Number of Retweets: 28
+Number of Replies: 5
+Number of Quotes: 5
+Number of Bookmarks: 25
+Language: en
+Tagged Users: Matthew C. Klein
+Hashtags: nan
+
+Creation Date: 2025-06-13 16:01:11+00:00 
+Tweet Text: WSJ reports that both Amazon and Walmart have looked into issuing stablecoins. Shares of $V down nearly 5% today. https://t.co/rNBYNphId7 https://t.co/hQoheWlkKJ
+Number of Likes: 167
+Number of Views: 32720
+Number of Retweets: 25
+Number of Replies: 27
+Number of Quotes: 12
+Number of Bookmarks: 39
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 15:32:33+00:00 
+Tweet Text: Interesting comment from one of the most famous/successful prediction market traders.
+Number of Likes: 186
+Number of Views: 34981
+Number of Retweets: 21
+Number of Replies: 23
+Number of Quotes: 0
+Number of Bookmarks: 31
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 14:58:41+00:00 
+Tweet Text: Trump says Iranian officials are calling him to talk, though many of the people who they were previously talking to are now dead https://t.co/rYoiC165h2
+Number of Likes: 174
+Number of Views: 42758
+Number of Retweets: 29
+Number of Replies: 26
+Number of Quotes: 5
+Number of Bookmarks: 14
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 14:45:23+00:00 
+Tweet Text: It looks like a US-Indonesia trade deal is a done deal https://t.co/qE433h3Izm https://t.co/QUllP8S8ns
+Number of Likes: 111
+Number of Views: 30480
+Number of Retweets: 25
+Number of Replies: 16
+Number of Quotes: 7
+Number of Bookmarks: 24
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 14:33:37+00:00 
+Tweet Text: RT @cpgrabow: Transcript: https://t.co/hjgczoE5nN
+
+Or listen here: https://t.co/xuH6zQGtim
+Number of Likes: 5
+Number of Views: 22227
+Number of Retweets: 2
+Number of Replies: 0
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: Colin Grabow
+Hashtags: nan
+
+Creation Date: 2025-06-13 14:33:35+00:00 
+Tweet Text: RT @cpgrabow: .@TheStalwart: "No one thinks [the Jones Act is] invigorating at all to the US shipbuilding industry, which is almost nonexis‚Ä¶
+Number of Likes: 95
+Number of Views: 18074
+Number of Retweets: 14
+Number of Replies: 6
+Number of Quotes: 0
+Number of Bookmarks: 11
+Language: en
+Tagged Users: Colin Grabow, Joe Weisenthal
+Hashtags: nan
 
 
-You will analyze a TikTok profile with the following details:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
+Example Profile 2:
+- Profile Image: https://pbs.twimg.com/profile_images/1466544057895641089/FcrS-FrV_normal.jpg
+- Profile Name: Liz Ann Sonders
+- Profile ID: LizAnnSonders
+- Location: Naples, FL 
+- Profile Description: Chief Investment Strategist, Charles Schwab & Co., Inc. Disclosures: https://t.co/UPkjXSZ9uc
+- Profile External Link: https://t.co/OeUMKHEdFE
+- Profile Creation Date: 2015-01-06T23:33:53.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 461967 Followers
+- Following: 726 Users
+- Total Number of Tweets: 35936
+- Number of Favorites: 6524
+- Number of Media Content: 25582
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-13 14:09:05+00:00 
+Tweet Text: When asked about how their current household finances compare to 5 years ago, consumers haven‚Äôt felt this pessimistic since February 2013 per ‚Å¶@UMich‚Å© https://t.co/0YXWdp5HwN
+Number of Likes: 244
+Number of Views: 25681
+Number of Retweets: 61
+Number of Replies: 44
+Number of Quotes: 13
+Number of Bookmarks: 14
+Language: en
+Tagged Users: University of Michigan
+Hashtags: nan
 
-Instructions
-Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+Creation Date: 2025-06-13 14:06:27+00:00 
+Tweet Text: June ‚Å¶@UMich‚Å© 1y inflation expectations (blue) down to 5.1% vs. 6.6% prior ‚Ä¶ 5-10y inflation expectations (orange) down to 4.1% vs. 4.2% prior https://t.co/Pp4cDMsNsK
+Number of Likes: 72
+Number of Views: 15170
+Number of Retweets: 23
+Number of Replies: 11
+Number of Quotes: 0
+Number of Bookmarks: 6
+Language: en
+Tagged Users: University of Michigan
+Hashtags: nan
+
+Creation Date: 2025-06-13 14:02:55+00:00 
+Tweet Text: June ‚Å¶@UMich‚Å© Consumer Sentiment Index up to 60.5 vs. 53.6 est. &amp; 52.2 prior ‚Ä¶ expectations up to 58.4; current conditions up to 63.7 https://t.co/4vZcTfa0Sf
+Number of Likes: 113
+Number of Views: 17760
+Number of Retweets: 37
+Number of Replies: 10
+Number of Quotes: 3
+Number of Bookmarks: 4
+Language: en
+Tagged Users: University of Michigan
+Hashtags: nan
+
+Creation Date: 2025-06-13 12:18:29+00:00 
+Tweet Text: Our latest #OnInvesting pod episode has dropped, on which ‚Å¶@KathyJones‚Å© and I riff on markets, and I get in the economic muddiness with ‚Å¶@CameronDawson‚Å©  https://t.co/IemJZT59bo
+Number of Likes: 40
+Number of Views: 15449
+Number of Retweets: 3
+Number of Replies: 20
+Number of Quotes: 0
+Number of Bookmarks: 7
+Language: en
+Tagged Users: Kathy Jones, Cameron Dawson
+Hashtags: OnInvesting
+
+Creation Date: 2025-06-13 11:34:00+00:00 
+Tweet Text: Performance: sectors/indexes yesterday and MTD/YTD https://t.co/4FZrfvEDZz
+Number of Likes: 31
+Number of Views: 14952
+Number of Retweets: 6
+Number of Replies: 1
+Number of Quotes: 2
+Number of Bookmarks: 1
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:33:33+00:00 
+Tweet Text: Performance: index tables and Mag7 chart/table updated thru yesterday‚Äôs close https://t.co/b7lVuglbIX
+Number of Likes: 51
+Number of Views: 14569
+Number of Retweets: 10
+Number of Replies: 0
+Number of Quotes: 1
+Number of Bookmarks: 4
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:33:03+00:00 
+Tweet Text: MA breadth charts updated thru yesterday‚Äôs close https://t.co/KMam1he1kX
+Number of Likes: 26
+Number of Views: 13697
+Number of Retweets: 5
+Number of Replies: 0
+Number of Quotes: 1
+Number of Bookmarks: 1
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:24:49+00:00 
+Tweet Text: In 2013, there were 35 major U.S. metro areas in which one could buy a luxury home for less than $1M ‚Ä¶ now, there are only 7 metros 
+‚Å¶@Redfin‚Å© https://t.co/FbH8dehySS
+Number of Likes: 142
+Number of Views: 25205
+Number of Retweets: 27
+Number of Replies: 26
+Number of Quotes: 3
+Number of Bookmarks: 10
+Language: en
+Tagged Users: Redfin
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:24:07+00:00 
+Tweet Text: Finished goods version of PPI moved up in May to +1.4% year/year vs. +0.4% prior https://t.co/v5LPKXZ4Ni
+Number of Likes: 45
+Number of Views: 13746
+Number of Retweets: 8
+Number of Replies: 1
+Number of Quotes: 0
+Number of Bookmarks: 2
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:23:25+00:00 
+Tweet Text: U.S. household net worth fell by 0.93% in 1Q2025 ‚Ä¶ largest decline since 3Q2022, but not comparable to that quarter in terms of magnitude https://t.co/p0WZRr7VAd
+Number of Likes: 72
+Number of Views: 13053
+Number of Retweets: 21
+Number of Replies: 7
+Number of Quotes: 0
+Number of Bookmarks: 8
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:22:24+00:00 
+Tweet Text: Big gap between median home list price and median sale price ‚Ä¶ former up to $426k and latter at $397 per ‚Å¶@Redfin‚Å© https://t.co/votBgSNYUM
+Number of Likes: 161
+Number of Views: 20367
+Number of Retweets: 45
+Number of Replies: 9
+Number of Quotes: 4
+Number of Bookmarks: 29
+Language: en
+Tagged Users: Redfin
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:21:45+00:00 
+Tweet Text: AAII members‚Äô equity allocations ticked up in May, albeit slightly (to 64.3%)
+‚Å¶@AAIISentiment‚Å© https://t.co/R0ZPT8Wptn
+Number of Likes: 23
+Number of Views: 12744
+Number of Retweets: 5
+Number of Replies: 4
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: AAII SentimentSurvey
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:21:17+00:00 
+Tweet Text: Inflation-adjusted average hourly earnings grew by 1.5% year/year in May ‚Ä¶ slower than prior month but still relatively strong https://t.co/TxAfrOtJlq
+Number of Likes: 61
+Number of Views: 12819
+Number of Retweets: 12
+Number of Replies: 4
+Number of Quotes: 0
+Number of Bookmarks: 3
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:20:56+00:00 
+Tweet Text: Portfolio management component of PPI fell for a second consecutive month in May ‚Ä¶ down by 1% m/m https://t.co/c9zKXsdDjM
+Number of Likes: 39
+Number of Views: 12745
+Number of Retweets: 3
+Number of Replies: 5
+Number of Quotes: 0
+Number of Bookmarks: 2
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:20:35+00:00 
+Tweet Text: Finished consumer goods component in PPI continued to deflate in May ‚Ä¶ down by 6.5% annualized over past three months https://t.co/EQwUO1iA3v
+Number of Likes: 55
+Number of Views: 12019
+Number of Retweets: 11
+Number of Replies: 5
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:20:00+00:00 
+Tweet Text: Bull-Bear ‚Å¶@AAIISentiment‚Å© spread ticked up last week, rising to +3.1% as optimism creeps back in https://t.co/R2rc4rPPzy
+Number of Likes: 29
+Number of Views: 16671
+Number of Retweets: 5
+Number of Replies: 3
+Number of Quotes: 1
+Number of Bookmarks: 6
+Language: en
+Tagged Users: AAII SentimentSurvey
+Hashtags: nan
+
+Creation Date: 2025-06-13 11:19:15+00:00 
+Tweet Text: 3m annualized change in core PPI eased to +0.85% in May https://t.co/mNkf5aDXql
+Number of Likes: 38
+Number of Views: 11900
+Number of Retweets: 5
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 2
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-12 17:56:53+00:00 
+Tweet Text: U.S. household net worth fell by $1.595 trillion in 1Q2025 ‚Ä¶ first decline sine 3Q2023, driven by weakness in equity market https://t.co/i5gGn68V6u
+Number of Likes: 187
+Number of Views: 16524
+Number of Retweets: 40
+Number of Replies: 53
+Number of Quotes: 2
+Number of Bookmarks: 12
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-12 17:02:50+00:00 
+Tweet Text: RT @KevRGordon: Going to join @ScottWapnerCNBC on @CNBCClosingBell at 3pm ET
+Number of Likes: 10
+Number of Views: 12476
+Number of Retweets: 2
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: Kevin Gordon, Scott Wapner, CNBC's Closing Bell
+Hashtags: nan
+
+Creation Date: 2025-06-12 17:02:00+00:00 
+Tweet Text: RT @KevRGordon: The Atlanta Fed's Wage Growth Tracker has been at 4.3% for four straight months https://t.co/HFkaBQ8HwF
+Number of Likes: 82
+Number of Views: 13849
+Number of Retweets: 19
+Number of Replies: 6
+Number of Quotes: 0
+Number of Bookmarks: 7
+Language: en
+Tagged Users: Kevin Gordon
+Hashtags: nan
 
 
-tiktok_finfluencer_onboarding_user_prompt = """You will be presented with a series of questions related to the profile of the Tiktok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+Example Profile 3:
+- Profile Image: https://pbs.twimg.com/profile_images/378800000557074315/275249c4889ec856ed268feef4abb00e_normal.jpeg
+- Profile Name: Aswath Damodaran
+- Profile ID: AswathDamodaran
+- Location: New York & San Diego
+- Profile Description: Fascinated by finance & markets and like writing about them, but teaching is my passion.
+- Profile External Link: https://t.co/2KZsqssYUK
+- Profile Creation Date: 2009-04-19T14:54:22.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 428246 Followers
+- Following: 3 Users
+- Total Number of Tweets: 3022
+- Number of Favorites: 89
+- Number of Media Content: 976
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-02 20:15:23+00:00 
+Tweet Text: My June 2025 update of the US ERP was disrupted by Moodys' downgrade of the US from Aaa to Aa1, with the potential of altering how I assess the US dollar risk free rate and how I compute equity risk premiums. https://t.co/WUI6H7yz3h
+Number of Likes: 364
+Number of Views: 57868
+Number of Retweets: 54
+Number of Replies: 5
+Number of Quotes: 5
+Number of Bookmarks: 103
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-05-03 16:10:57+00:00 
+Tweet Text: Stocks ended April 2025 at about the same levels that they started the month at, but that absence of change in aggregate values masked significant shifts and changes in market sentiment and trust in US institutions. https://t.co/s1DPON1L6N https://t.co/xUlYeGJvJX
+Number of Likes: 456
+Number of Views: 54692
+Number of Retweets: 88
+Number of Replies: 13
+Number of Quotes: 4
+Number of Bookmarks: 96
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-04-25 22:23:06+00:00 
+Tweet Text: With three trading days left in the month, I am updating my numbers through April 25. During the last week (4/21-4/25), US stocks were up, risk premiums for equity and bonds were down oil &amp; gold leveled off and bitcoin rose with stocks. https://t.co/ra2jbIIkyU
+Number of Likes: 361
+Number of Views: 41119
+Number of Retweets: 71
+Number of Replies: 6
+Number of Quotes: 2
+Number of Bookmarks: 56
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-04-21 03:00:14+00:00 
+Tweet Text: In every market downturn, the advice to buy the dip is widely offered. I look at contrarian investing, in all its different forms, in this post, with the pluses and minuses of each one. https://t.co/Yx5Ku6UcdS
+Number of Likes: 1370
+Number of Views: 166143
+Number of Retweets: 202
+Number of Replies: 17
+Number of Quotes: 16
+Number of Bookmarks: 1059
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-04-19 01:47:05+00:00 
+Tweet Text: Week three update of the tariff crisis with a drama about the Fed chair entering the mix. A week of relative stability, with the emphasis on the word "relative". The ERP inched up, treasury rates dropped and equity losses evened out across regions. https://t.co/wy8WGu8ona https://t.co/Dk4j2TJT78
+Number of Likes: 383
+Number of Views: 46250
+Number of Retweets: 56
+Number of Replies: 8
+Number of Quotes: 3
+Number of Bookmarks: 93
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-04-11 23:15:20+00:00 
+Tweet Text: Following up on my promise to update equity risk premiums by day, here was what the last week (4/7 - 4/11) delivered. Stocks, T.Bonds and gold were all up (a most unusual combination); the ERP and spreads dipped. The rollercoaster ride continues! https://t.co/jHV9UNujmk https://t.co/JcL5SctZKU
+Number of Likes: 478
+Number of Views: 58212
+Number of Retweets: 86
+Number of Replies: 18
+Number of Quotes: 1
+Number of Bookmarks: 163
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-04-08 13:13:50+00:00 
+Tweet Text: The Trump tariffs have roiled markets, with US equity indices down decisively on April 3 and 4. They have the potential to not just reset the pricing of stocks but the economic outlook, near and long term. I don't know what's coming but I try my best here: https://t.co/bwZtRExVb3 https://t.co/rrlWKrCnto
+Number of Likes: 820
+Number of Views: 139372
+Number of Retweets: 124
+Number of Replies: 13
+Number of Quotes: 8
+Number of Bookmarks: 433
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-03-31 16:27:28+00:00 
+Tweet Text: I believe that understanding and estimating the price of risk in market is central to investing. I wrote my first update on equity risk premiums after the 2008 crisis, and have had annual updates since. The 2024 update is accessible here: https://t.co/qM9gq4YMF0
+Number of Likes: 536
+Number of Views: 62547
+Number of Retweets: 77
+Number of Replies: 11
+Number of Quotes: 4
+Number of Bookmarks: 279
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-03-31 00:30:28+00:00 
+Tweet Text: Buffeted by talk of tariffs and trade wars on one hand, and by fears of inflation and recession on the other, the S&amp;P 500 buckled in March 2024, down 6.3%; the ERP rose to 4.61% and the expected return to 8.85%.  Spreadsheet: https://t.co/lfZfvQg0tw https://t.co/DtwhmPMQZ7
+Number of Likes: 348
+Number of Views: 56968
+Number of Retweets: 65
+Number of Replies: 13
+Number of Quotes: 3
+Number of Bookmarks: 105
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-03-15 17:45:57+00:00 
+Tweet Text: Its been an unsettling few weeks in markets and politics, and I attempt to find serenity by looking at how a globalization backlash and bringing the disruption playbook to government got us to where we are today.  https://t.co/sF3DKGpjVt
+Number of Likes: 499
+Number of Views: 93396
+Number of Retweets: 80
+Number of Replies: 10
+Number of Quotes: 12
+Number of Bookmarks: 280
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-03-03 14:33:22+00:00 
+Tweet Text: Since 2020, US equity markets have been "resilient" in the face of expert meltdowns. The market got shock treatment in February 2025, and came out bruised, but still standing, with the S&P 500's equity risk premium at 4.35% and the expected return at 8.57%.  https://t.co/ovfiRorvLc
+Number of Likes: 435
+Number of Views: 58510
+Number of Retweets: 61
+Number of Replies: 11
+Number of Quotes: 5
+Number of Bookmarks: 83
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-02-24 02:06:36+00:00 
+Tweet Text: In my eighth data update, I look at the use of debt at businesses in 2024 to fund operations, with fictional, real and frictional reasons all causing differences in debt usage across sectors and regions. https://t.co/3r3IIA3GHr
+Number of Likes: 293
+Number of Views: 56109
+Number of Retweets: 56
+Number of Replies: 8
+Number of Quotes: 0
+Number of Bookmarks: 156
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-02-13 03:13:43+00:00 
+Tweet Text: In my seventh data update, I look at what should be the end game for every business, by examining business profitability in 2024, with differences across sectors, regions and industries in focus. https://t.co/2RSFz9FpDA
+Number of Likes: 330
+Number of Views: 57343
+Number of Retweets: 48
+Number of Replies: 6
+Number of Quotes: 4
+Number of Bookmarks: 263
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-02-08 17:33:42+00:00 
+Tweet Text: In my sixth data update for 2025, I move from macro topics (interest rates, risk premiums) to micro and look at why hurdle rates matter, what goes into them and how to estimate them, using my estimates of costs of capital across global firms to illustrate. https://t.co/eJHYMR0KEg
+Number of Likes: 412
+Number of Views: 59341
+Number of Retweets: 56
+Number of Replies: 6
+Number of Quotes: 2
+Number of Bookmarks: 212
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-02-06 22:18:55+00:00 
+Tweet Text: In my version of the iconic Disney ride, "It's a small world",  I take a ride through global equity markets in 2024, starting with returns during the year, then looking at currencies, topping of with risk measures and ending with pricing. https://t.co/fjLuyKxKP9
+Number of Likes: 159
+Number of Views: 32610
+Number of Retweets: 21
+Number of Replies: 2
+Number of Quotes: 2
+Number of Bookmarks: 73
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-01-31 19:34:45+00:00 
+Tweet Text: In my valuation writing/teaching, I argue that a good valuation is a bridge between story and numbers, and how stories can change overnight. DeepSeek's entry into the AI business has changed the AI story, but is it a break, a change or a shift? https://t.co/GvQ1IGWuQ4
+Number of Likes: 977
+Number of Views: 119254
+Number of Retweets: 180
+Number of Replies: 17
+Number of Quotes: 17
+Number of Bookmarks: 530
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-01-28 21:42:47+00:00 
+Tweet Text: In my fourth data update, I venture into alien ground, to take a look at what interest rates did in 2024, and to try to dispel (again) the delusion that the Fed sets interest rates. https://t.co/7Mv3tLjnWb
+Number of Likes: 260
+Number of Views: 41992
+Number of Retweets: 44
+Number of Replies: 7
+Number of Quotes: 2
+Number of Bookmarks: 120
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-01-26 18:15:52+00:00 
+Tweet Text: In my third data update for 2024, I break down US stocks by grouping, first on sector/industry, then on market cap and finally on price to book. Contrary to practice, I see no evidence of either a small cap or a value premium any more. https://t.co/DJTehoOqJE
+Number of Likes: 556
+Number of Views: 83748
+Number of Retweets: 72
+Number of Replies: 3
+Number of Quotes: 8
+Number of Bookmarks: 343
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-01-25 15:28:01+00:00 
+Tweet Text: I start teaching my regular MBA classes on Monday, and you are welcome to follow virtually, albeit for no credit. I will be taking my valuation class on the road to Athens on March 14 &amp; 15. If interested in attending, please reach out to I-Deals Network: https://t.co/TbyTL0Wgl8
+Number of Likes: 1699
+Number of Views: 159163
+Number of Retweets: 169
+Number of Replies: 30
+Number of Quotes: 7
+Number of Bookmarks: 1013
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-01-18 00:04:54+00:00 
+Tweet Text: In my second data update for 2025, I focus on US equities and their performance in 2024, with both a historical perspective and a forward-looking lens. Suffice to say that stocks are richly priced, but whether they are too high is a judgment to make. https://t.co/LT5Ko33joD
+Number of Likes: 775
+Number of Views: 110394
+Number of Retweets: 119
+Number of Replies: 15
+Number of Quotes: 6
+Number of Bookmarks: 419
+Language: en
+Tagged Users: nan
+Hashtags: nan
+"""
+
+tiktok_finfluencer_onboarding_system_prompt = (
+    base_finfluencer_onboarding_system_prompt.format(
+        platform="Tiktok",
+        finfluencer_examples=tiktok_finfluencer_examples,
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
+
+x_finfluencer_onboarding_system_prompt = (
+    base_finfluencer_onboarding_system_prompt.format(
+        platform="X (formerly Twitter)",
+        finfluencer_examples=x_finfluencer_examples,
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+base_finfluencer_onboarding_user_prompt = """You will be presented with a series of questions related to the profile of the {platform} user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
@@ -1171,89 +2017,21 @@ C3) Seasoned Investors
 C4) Others
 """
 
+tiktok_finfluencer_onboarding_user_prompt = (
+    base_finfluencer_onboarding_user_prompt.format(platform="Tiktok")
+)
 
-tiktok_video_prompt_template = """Creation Date: {video_creation_date}
-Video Description: {video_description}
-Video Duration: {video_duration}
-Number of Likes: {num_likes}
-Number of Shares: {num_shares}
-View Count: {view_count}
-Number of Saves: {num_saves}
-Number of Comments: {num_comments}
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): {total_engagement_over_num_views}
-Tagged Users: {tagged_users}
-Hashtags: {hashtags}
-Video Transcript: {video_transcript}
-"""
-
-
-tiktok_profile_prompt_template = """Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}"""
-
-
-# X (formerly Twitter) Market Signals Prompts
-x_finfluencer_onboarding_system_prompt = """"""
-
-
-x_finfluencer_onboarding_user_prompt = """"""
-
-
-x_tweet_prompt_template = """"""
-
-
-x_profile_prompt_template = """"""
+x_finfluencer_onboarding_user_prompt = base_finfluencer_onboarding_user_prompt.format(
+    platform="X (formerly Twitter)"
+)
 
 
 # Market Signals Expert Reflection Prompts
-tiktok_portfoliomanager_reflection_system_prompt = """Imagine you are an expert portfolio manager (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
+base_expert_reflection_system_prompt = """Imagine you are an expert {expert_role} (with a PhD) analyzing the {platform} profile of a financial influencer with the following details:
+{profile_prompt_template}
 """
 
-
-tiktok_portfoliomanager_reflection_user_prompt = """Drawing on your expertise as an expert portfolio manager (with a PhD), write a set of observations/reflections about this financial influencer that:
+base_expert_reflection_user_prompt = """Drawing on your expertise as an expert {expert_role} (with a PhD), write a set of observations/reflections about this financial influencer that:
 - Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
 - Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
 - Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
@@ -1261,122 +2039,98 @@ tiktok_portfoliomanager_reflection_user_prompt = """Drawing on your expertise as
 
 Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
 
+tiktok_portfoliomanager_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Portfolio Manager",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
 
-tiktok_investmentadvisor_reflection_system_prompt = """Imagine you are an expert investment advisor (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
-"""
+x_portfoliomanager_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Portfolio Manager",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
 
+portfoliomanager_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Portfolio Manager"
+)
 
-tiktok_investmentadvisor_reflection_user_prompt = """Drawing on your expertise as an expert investment advisor (with a PhD), write a set of observations/reflections about this financial influencer that:
-- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
-- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
-- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
-- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+tiktok_investmentadvisor_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Investment Advisor",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
 
-Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+x_investmentadvisor_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Investment Advisor",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
 
+investmentadvisor_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Investment Advisor"
+)
 
-tiktok_financialanalyst_reflection_system_prompt = """Imagine you are an expert chartered financial analyst (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
-"""
+tiktok_financialanalyst_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Chartered Financial Analyst",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
 
+x_financialanalyst_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Chartered Financial Analyst",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
 
-tiktok_financialanalyst_reflection_user_prompt = """Drawing on your expertise as an expert chartered financial analyst (with a PhD), write a set of observations/reflections about this financial influencer that:
-- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
-- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
-- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
-- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
+financialanalyst_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Chartered Financial Analyst"
+)
 
-Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+tiktok_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
+    expert_role="Economist",
+    platform="TikTok",
+    profile_prompt_template=tiktok_profile_prompt_template,
+)
 
+x_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
+    expert_role="Economist",
+    platform="X (formerly Twitter)",
+    profile_prompt_template=x_profile_prompt_template,
+)
 
-tiktok_economist_reflection_system_prompt = """Imagine you are an expert economist (with a PhD) analyzing the Tiktok profile of a financial influencer with the following details:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
-"""
-
-
-tiktok_economist_reflection_user_prompt = """Drawing on your expertise as an expert economist (with a PhD), write a set of observations/reflections about this financial influencer that:
-- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
-- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
-- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
-- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
-
-Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
+economist_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Economist"
+)
 
 
 # Market Signals Interview Prompts
-tiktok_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a TikTok financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
+base_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a {platform} financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
 1. Your profile and videos will be monitored daily
 2. You will undergo daily interviews to discuss your perspective on the financial markets
 3. You will receive high-level and abstract “expert reflections” from a professional portfolio manager, an investment advisor, a chartered financial analyst, and an economist regarding your profile and its content. These reflections are provided below:
 
-Expert Reflections from Professional Portfolio Manager
+{expert_reflection_prompt_template}
+
+The details of your {platform} profile are as follows:
+{profile_prompt_template}
+
+Instructions
+Answer the following questions based strictly on the available data while maintaining the persona and perspective of the {platform} financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+
+expert_reflection_prompt_template = """Expert Reflections from Professional Portfolio Manager
 {expert_reflection_portfoliomanager}
 
 Expert Reflections from Investment Advisor
@@ -1386,38 +2140,23 @@ Expert Reflections from Chartered Financial Analyst
 {expert_reflection_financialanalyst}
 
 Expert Reflections from Economist
-{expert_reflection_economist}
+{expert_reflection_economist}"""
 
-The details of your TikTok profile are as follows:
-Profile Image: {profile_image}
-Profile Name: {profile_name}
-Profile Nickname: {profile_nickname}
-Profile Biography: {profile_biography}
-Profile Signature: {profile_signature}
-Profile Biography Link: {profile_bio_link}
-Profile URL: {profile_url}
-Profile Language: {profile_lang}
-Profile Creation Date: {profile_creation}
-Verified Status: {verified_status}
-Number of Followers: {num_followers} Followers
-Following: {num_following} Users
-Total Number of Likes: {num_likes}
-Total Number of Videos: {num_videos}
-Total Number of Digg: {num_digg}
-Private Account: {private_account}
-Region: {region}
-TikTok Seller: {tiktok_seller}
-Average Engagement Rate: {awg_engagement_rate}
-Comment Engagement Rate: {comment_engagement_rate}
-Like Engagement Rate: {like_engagement_rate}
-Video Transcripts (Sorted from Newest to Oldest):
-{video_transcripts}
+tiktok_finfluencer_interview_system_prompt = (
+    base_finfluencer_interview_system_prompt.format(
+        platform="TikTok",
+        expert_reflection_prompt_template=expert_reflection_prompt_template,
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
 
-Instructions
-Answer the following questions based strictly on the available data while maintaining the persona and perspective of the Tiktok financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+x_finfluencer_interview_system_prompt = base_finfluencer_interview_system_prompt.format(
+    platform="X (formerly Twitter)",
+    expert_reflection_prompt_template=expert_reflection_prompt_template,
+    profile_prompt_template=x_profile_prompt_template,
+)
 
-
-tiktok_finfluencer_interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+finfluencer_interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
@@ -1452,7 +2191,7 @@ For open-ended questions, format your output as follows (this is just an example
 **response: [Detailed response]**
 **speculation: 90**
 
-YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE TIKTOK FINANCIAL INFLUENCER PROFILE PROVIDED!
+YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
 Question 1: Do you agree or disagree with the following statement: “The U.S. economy is likely to enter a recession in the next 12 months?
 A1) Strongly Disagree
