@@ -335,18 +335,18 @@ def perform_x_finfluencer_interview(
     finfluencer_pool: str,
     output_file: str,
 ) -> None:
-    # perform_profile_interview(
-    #     project_name=project_name,
-    #     execution_date=execution_date,
-    #     gpt_model=GPT_MODEL,
-    #     profile_metadata_file=profile_metadata_file,
-    #     post_file=post_file,
-    #     output_file=output_file,
-    #     system_prompt_template=x_finfluencer_interview_system_prompt,
-    #     user_prompt_template=finfluencer_interview_user_prompt,
-    #     llm_response_field="x_finfluencer_interview",
-    #     interview_type="x_finfluencer_interview",
-    # )
+    perform_profile_interview(
+        project_name=project_name,
+        execution_date=execution_date,
+        gpt_model=GPT_MODEL,
+        profile_metadata_file=profile_metadata_file,
+        post_file=post_file,
+        output_file=output_file,
+        system_prompt_template=x_finfluencer_interview_system_prompt,
+        user_prompt_template=finfluencer_interview_user_prompt,
+        llm_response_field="x_finfluencer_interview",
+        interview_type="x_finfluencer_interview",
+    )
 
     # Preprocess post interview results
     post_interview_results = pd.read_csv(

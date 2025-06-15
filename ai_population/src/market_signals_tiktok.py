@@ -448,7 +448,7 @@ def perform_tiktok_finfluencer_interview(
 
     # Remove stocks that are not mentioned by the influencer
     valid_stock_recommendations = valid_stock_recommendations[
-        combined_stock_recommendations["mentioned by influencer"] == "Yes"
+        valid_stock_recommendations["mentioned by influencer"] == "Yes"
     ].reset_index(drop=True)
 
     # Save formatted interview results and stock recommendations
@@ -819,37 +819,37 @@ def filter_tiktok_profiles(
 
 
 if __name__ == "__main__":
-    # # Step 1: Perform search using predefined list of search terms
-    # print("Perform keyword search using predefined list of search terms...")
-    # perform_tiktok_keyword_search(
-    #     project_name=PROJECT_NAME_TIKTOK,
-    #     execution_date=PIPELINE_EXECUTION_DATE,
-    #     search_terms=SEARCH_TERMS_TIKTOK,
-    #     output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
-    # )
+    # Step 1: Perform search using predefined list of search terms
+    print("Perform keyword search using predefined list of search terms...")
+    perform_tiktok_keyword_search(
+        project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        search_terms=SEARCH_TERMS_TIKTOK,
+        output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
+    )
 
-    # # Step 2: Extract profile metadata for search results
-    # print("Perform profile metadata search for keyword search results...")
-    # perform_tiktok_profile_metadata_search(
-    #     project_name=PROJECT_NAME_TIKTOK,
-    #     execution_date=PIPELINE_EXECUTION_DATE,
-    #     input_file_path=os.path.join(
-    #         PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_TIKTOK
-    #     ),
-    #     output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-    # )
+    # Step 2: Extract profile metadata for search results
+    print("Perform profile metadata search for keyword search results...")
+    perform_tiktok_profile_metadata_search(
+        project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        input_file_path=os.path.join(
+            PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_TIKTOK
+        ),
+        output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    )
 
-    # # Step 3: Filter profiles that do not meet filtering criteria
-    # print(
-    #     "Filter TikTok profiles based on follower count, video count, and verified finfluencer list..."
-    # )
-    # filter_tiktok_profiles(
-    #     project_name=PROJECT_NAME_TIKTOK,
-    #     execution_date=PIPELINE_EXECUTION_DATE,
-    #     profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-    #     post_file=KEYWORD_SEARCH_FILE_TIKTOK,
-    #     verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
-    # )
+    # Step 3: Filter profiles that do not meet filtering criteria
+    print(
+        "Filter TikTok profiles based on follower count, video count, and verified finfluencer list..."
+    )
+    filter_tiktok_profiles(
+        project_name=PROJECT_NAME_TIKTOK,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+        post_file=KEYWORD_SEARCH_FILE_TIKTOK,
+        verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
+    )
 
     # Step 4: Perform video transcription of new videos
     print("Perform video transcription of new videos...")
