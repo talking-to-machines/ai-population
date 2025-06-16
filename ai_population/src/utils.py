@@ -1348,11 +1348,16 @@ def update_verified_profile_pool(
         os.path.join(base_dir, "../data", project_name, verified_profile_pool)
     )
 
-    # Filter out financial influencers
+    # Filter out financial influencers identified during onboarding interview
     finfluencer_profiles = interviewed_profiles[
         interviewed_profiles["Is this a finfluencer? - category"].str.contains(
             "Yes", na=False
         )
+    ]
+    # Filter out financial influencers that had a stock recommendation
+    finfluencer_profiles = interviewed_profiles[
+        interviewed_profiles["stock_mentions"].notna()
+        & (interviewed_profiles["stock_mentions"] != "")
     ]
 
     # Add new financial influencers to the verified profile pool

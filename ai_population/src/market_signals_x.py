@@ -230,9 +230,6 @@ def extract_stock_mentions_from_tweets(
             stock_ticker = row["TICKER"].strip()
 
             # Check if stock name is found in transcript chunk
-            tweet_description = tweet_description.translate(
-                str.maketrans(string.punctuation, " " * len(string.punctuation))
-            )  # Remove all punctuation from tweet_description
             name_match = (
                 re.search(
                     rf"\b{re.escape(full_stock_name.lower())}\b",
@@ -245,7 +242,12 @@ def extract_stock_mentions_from_tweets(
                 )
                 is not None
                 or re.search(
-                    rf"\b{re.escape(stock_ticker.lower())}\b",
+                    rf"\$\b{re.escape(stock_ticker.lower())}\b",
+                    tweet_description.lower(),
+                )
+                is not None
+                or re.search(
+                    rf"\#\b{re.escape(stock_ticker.lower())}\b",
                     tweet_description.lower(),
                 )
                 is not None
@@ -286,7 +288,7 @@ def extract_stock_mentions_from_tweets(
     return stock_mentions_formatted_str
 
 
-def extract_stock_mentions(
+def extract_x_stock_mentions(
     project_name: str, execution_date: str, input_file: str, output_file: str
 ) -> None:
     """
@@ -788,6 +790,12 @@ if __name__ == "__main__":
         post_file=KEYWORD_SEARCH_FILE_X,
         output_file=ONBOARDING_RESULTS_FILE_X,
     )
+    extract_x_stock_mentions(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        input_file=ONBOARDING_RESULTS_FILE_X,
+        output_file=ONBOARDING_RESULTS_FILE_X,
+    )
     update_verified_profile_pool(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -849,7 +857,7 @@ if __name__ == "__main__":
 
     # Step 7: Extract stock mentions from financial influencers' past posts
     print("Extract stock recommendations...")
-    extract_stock_mentions(
+    extract_x_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
