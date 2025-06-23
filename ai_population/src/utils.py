@@ -387,7 +387,10 @@ def construct_system_prompt(
     else:
         profile_args = {}
 
-    if interview_type == "tiktok_finfluencer_interview":
+    if interview_type in [
+        "tiktok_finfluencer_interview",
+        "tiktok_finfluencer_stock_recommendation",
+    ]:
         additional_args = {
             "expert_reflection_portfoliomanager": row[
                 "tiktok_finfluencer_expert_reflection_portfoliomanager_response"
@@ -403,7 +406,10 @@ def construct_system_prompt(
             ],
         }
         profile_args.update(additional_args)
-    elif interview_type == "x_finfluencer_interview":
+    elif interview_type in [
+        "x_finfluencer_interview",
+        "x_finfluencer_stock_recommendation",
+    ]:
         additional_args = {
             "expert_reflection_portfoliomanager": row[
                 "x_finfluencer_expert_reflection_portfoliomanager_response"
@@ -447,9 +453,21 @@ def construct_user_prompt(
         russell4000_stock_ticker_str = ", ".join(russell4000_stock_ticker_list)
 
         # Construct user prompt
-        return finfluencer_interview_user_prompt.format(
+        return user_prompt_template.format(
             russell_4000_tickers=russell4000_stock_ticker_str,
             stock_mentions=row["stock_mentions"],
+        )
+
+    if interview_type in [
+        "tiktok_finfluencer_stock_recommendation",
+        "x_finfluencer_stock_recommendation",
+    ]:
+        # Load stock mentioned and reference to post
+        return user_prompt_template.format(
+            stock_name=row["stock_name"],
+            stock_ticker=row["stock_ticker"],
+            mention_date=row["mention_date"],
+            post=row["post"],
         )
 
     else:
@@ -458,11 +476,12 @@ def construct_user_prompt(
 
 def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Series:
     # Split the text by double newlines to separate different questions
-    questions_blocks = text.split("\n\n")
+    questions_blocks = re.split(r"(?=\*\*question:)", text)
     questions_blocks = [
         block
         for block in questions_blocks
-        if not any(substring in block for substring in substring_exclusion_list)
+        if block
+        and not any(substring in block for substring in substring_exclusion_list)
     ]  # remove blocks containing stock recommendations
 
     # Initialize lists to store the extracted data
@@ -485,6 +504,8 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
 
     # Iterate through each question block and extract the fields
     for block in questions_blocks:
+        if pd.isnull(block) or not block:
+            continue
         question = re.search(question_pattern, block, re.DOTALL)
         explanation = re.search(explanation_pattern, block, re.DOTALL)
         symbol = re.search(symbol_pattern, block, re.DOTALL)
@@ -533,73 +554,146 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
     return flattened_series
 
 
-def extract_stock_recommendations(
-    row: pd.Series, llm_response_field: str
-) -> pd.DataFrame:
-    # Split the text by double newlines to separate different stock recommendations
-    questions_blocks = row[llm_response_field].split("\n\n")
-    questions_blocks = [
-        block for block in questions_blocks if "stock name" in block
-    ]  # remove blocks containing stock recommendations
+def coalesce_columns_by_regex(data: pd.DataFrame, regex_list: list) -> pd.DataFrame:
+    """
+    Coalesces columns in a DataFrame that match any of the provided regex patterns.
+    For each regex pattern in `regex_list`, finds all columns whose names match the pattern (case-insensitive).
+    Among the matching columns, retains the one with the fewest missing values, and fills its missing values
+    using the next best matching columns (row-wise, using backfill). All other matching columns are dropped.
+
+    Parameters:
+        data (pd.DataFrame): The input DataFrame whose columns are to be coalesced.
+        regex_list (list): A list of regex patterns (strings) to match column names.
+
+    Returns:
+        pd.DataFrame: The DataFrame with coalesced columns, where for each pattern only one column remains,
+        containing the most complete set of values from the original matching columns.
+    """
+    for pattern in regex_list:
+        compiled_pattern = re.compile(pattern, flags=re.IGNORECASE)
+        matching_cols = [col for col in data.columns if compiled_pattern.search(col)]
+        if not matching_cols:
+            continue
+
+        # Sort matching columns by null count (fewest nulls first)
+        sorted_cols = sorted(matching_cols, key=lambda col: data[col].isna().sum())
+
+        # Fill in missing values in the best column using bfill along row-wise for sorted matching columns
+        retained_col = sorted_cols[0]
+        data[retained_col] = data[sorted_cols].bfill(axis=1).iloc[:, 0]
+
+        # Drop all other matching columns
+        cols_to_drop = sorted_cols[1:]
+        data = data.drop(columns=cols_to_drop)
+    return data
+
+
+def format_stock_mentions(stock_mentions_str: str) -> pd.DataFrame:
+    """
+    Parses a formatted string containing multiple stock mentions and extracts structured information into a pandas DataFrame.
+
+    Each stock mention in the input string should follow the format:
+        **stock name: <name>**
+        **stock ticker: <ticker>**
+        **mention date: <date>**
+        **post: <post content>**
+
+    Args:
+        stock_mentions_str (str): A string containing one or more stock mention blocks, each starting with '**stock name:'.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns ['stock_name', 'stock_ticker', 'mention_date', 'post'], where each row corresponds to a stock mention extracted from the input string.
+    """
+    # Split the stock mention string starting with "**stock name:" to separate different stock mentions
+    stock_mention_list = re.split(r"(?=\*\*stock name:)", stock_mentions_str)
 
     # Initialize lists to store the extracted data
     stock_name_list = []
     stock_ticker_list = []
     mention_date_list = []
-    mentioned_by_influencer_list = []
-    recommendation_list = []
-    explanation_list = []
-    confidence_list = []
-    virality_list = []
+    post_list = []
 
     # Define regex patterns for each field
     stock_name_pattern = r"\*\*stock name: (.*?)\*\*"
     stock_ticker_pattern = r"\*\*stock ticker: (.*?)\*\*"
     mention_date_pattern = r"\*\*mention date: (.*?)\*\*"
-    mentioned_by_influencer_pattern = r"\*\*mentioned by influencer: (.*?)\*\*"
-    recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
-    explanation_pattern = r"\*\*explanation: (.*?)\*\*"
-    confidence_pattern = r"\*\*confidence: (.*?)\*\*"
-    virality_pattern = r"\*\*virality: (.*?)\*\*"
+    post_pattern = r"\*\*post: (.*?)\*\*"
 
     # Iterate through each question block and extract the fields
-    for block in questions_blocks:
-        stock_name = re.search(stock_name_pattern, block, re.DOTALL)
-        stock_ticker = re.search(stock_ticker_pattern, block, re.DOTALL)
-        mention_date = re.search(mention_date_pattern, block, re.DOTALL)
-        mentioned_by_influencer = re.search(
-            mentioned_by_influencer_pattern, block, re.DOTALL
-        )
-        recommendation = re.search(recommendation_pattern, block, re.DOTALL)
-        explanation = re.search(explanation_pattern, block, re.DOTALL)
-        confidence = re.search(confidence_pattern, block, re.DOTALL)
-        virality = re.search(virality_pattern, block, re.DOTALL)
+    for stock_mention_block in stock_mention_list:
+        if pd.isnull(stock_mention_block) or not stock_mention_block:
+            continue
+        stock_name = re.search(stock_name_pattern, stock_mention_block, re.DOTALL)
+        stock_ticker = re.search(stock_ticker_pattern, stock_mention_block, re.DOTALL)
+        mention_date = re.search(mention_date_pattern, stock_mention_block, re.DOTALL)
+        post = re.search(post_pattern, stock_mention_block, re.DOTALL)
 
         stock_name_list.append(stock_name.group(1) if stock_name else None)
         stock_ticker_list.append(stock_ticker.group(1) if stock_ticker else None)
         mention_date_list.append(mention_date.group(1) if mention_date else None)
-        mentioned_by_influencer_list.append(
-            mentioned_by_influencer.group(1) if mentioned_by_influencer else None
-        )
-        recommendation_list.append(recommendation.group(1) if recommendation else None)
-        explanation_list.append(explanation.group(1) if explanation else None)
-        confidence_list.append(confidence.group(1) if confidence else None)
-        virality_list.append(virality.group(1) if virality else None)
+        post_list.append(post.group(1) if post else None)
 
     # Create a DataFrame
     data = {
         "stock_name": stock_name_list,
         "stock_ticker": stock_ticker_list,
-        "mention date": mention_date_list,
-        "mentioned by influencer": mentioned_by_influencer_list,
-        "recommendation": recommendation_list,
-        "explanation": explanation_list,
-        "confidence": confidence_list,
-        "virality": virality_list,
+        "mention_date": mention_date_list,
+        "post": post_list,
     }
-    df = pd.DataFrame(data)
+    stock_mention_df = pd.DataFrame(data)
 
-    return df
+    return stock_mention_df
+
+
+def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
+    """
+    Extracts structured stock recommendation information from a formatted string.
+
+    The function parses a string containing stock recommendation details, where each field is denoted by a specific pattern (e.g., '**mentioned_by_finfluencer: ...**'), and returns the extracted fields as a pandas Series.
+
+    Args:
+        stock_recommendation_str (str): The input string containing stock recommendation details, formatted with specific markers for each field.
+
+    Returns:
+        pd.Series: A pandas Series with the following keys:
+            - "mentioned_by_finfluencer": The name of the finfluencer who mentioned the stock, or None if not found.
+            - "recommendation": The recommendation text, or None if not found.
+            - "explanation": The explanation for the recommendation, or None if not found.
+            - "confidence": The confidence level of the recommendation, or None if not found.
+            - "virality": The virality score or description, or None if not found.
+    """
+    # Define regex patterns for each field
+    mentioned_by_finfluencer_pattern = r"\*\*mentioned_by_finfluencer: (.*?)\*\*"
+    recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
+    explanation_pattern = r"\*\*explanation: (.*?)\*\*"
+    confidence_pattern = r"\*\*confidence: (.*?)\*\*"
+    virality_pattern = r"\*\*virality: (.*?)\*\*"
+
+    # Extract the relevant fields from the stock recommendation string
+    mentioned_by_finfluencer = re.search(
+        mentioned_by_finfluencer_pattern, stock_recommendation_str, re.DOTALL
+    )
+    recommendation = re.search(
+        recommendation_pattern, stock_recommendation_str, re.DOTALL
+    )
+    explanation = re.search(explanation_pattern, stock_recommendation_str, re.DOTALL)
+    confidence = re.search(confidence_pattern, stock_recommendation_str, re.DOTALL)
+    virality = re.search(virality_pattern, stock_recommendation_str, re.DOTALL)
+
+    # Create a pandas series from stock recommendation string
+    stock_recommendation_series = pd.Series(
+        {
+            "mentioned_by_finfluencer": (
+                mentioned_by_finfluencer.group(1) if mentioned_by_finfluencer else None
+            ),
+            "recommendation": recommendation.group(1) if recommendation else None,
+            "explanation": explanation.group(1) if explanation else None,
+            "confidence": confidence.group(1) if confidence else None,
+            "virality": virality.group(1) if virality else None,
+        }
+    )
+
+    return stock_recommendation_series
 
 
 def create_batch_file(
@@ -1012,9 +1106,11 @@ def perform_profile_interview(
 
     if batch_interview:
         # Generate custom ids
-        if "custom_id" not in profile_metadata.columns:
-            profile_metadata = profile_metadata.reset_index(drop=False)
-            profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+        if "custom_id" in profile_metadata.columns:
+            profile_metadata.drop(columns="custom_id", inplace=True)
+
+        profile_metadata = profile_metadata.reset_index(drop=False)
+        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
         # Create folder to contain batch files
         os.makedirs(
@@ -1112,9 +1208,11 @@ def perform_profile_interview_shorten(
 
     if batch_interview:
         # Generate custom ids
-        if "custom_id" not in profile_metadata.columns:
-            profile_metadata = profile_metadata.reset_index(drop=False)
-            profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+        if "custom_id" in profile_metadata.columns:
+            profile_metadata.drop(columns="custom_id", inplace=True)
+
+        profile_metadata = profile_metadata.reset_index(drop=False)
+        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
         # Create folder to contain batch files
         batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
@@ -1388,3 +1486,155 @@ def update_verified_profile_pool(
         )
     else:
         pass
+
+
+def extract_stock_mentions_from_posts(
+    row: pd.Series, russell_4000_stock: pd.DataFrame
+) -> str:
+    """
+    Extracts stock mentions from a user's posts based on a list of Russell 4000 stocks.
+
+    This function processes a row containing combined posts, splits the posts into individual chunks,
+    and searches each chunk for mentions of stocks from the provided Russell 4000 stock DataFrame.
+    Mentions are detected by matching the full stock name, shortened stock name, or ticker symbol
+    (with optional $ or # prefix). For each mention found, the function records the stock name,
+    ticker, post date, and the post content.
+
+    Args:
+        row (pd.Series): A pandas Series representing a row from a DataFrame, expected to contain a
+            "posts_combined" field with the user's posts as a single string.
+        russell_4000_stock (pd.DataFrame): A DataFrame containing Russell 4000 stock information,
+            with columns "COMNAM" (full name), "SHORTEN_COMNAM" (shortened name), and "TICKER" (ticker symbol).
+
+    Returns:
+        str: A formatted string listing all detected stock mentions, including stock name, ticker,
+            mention date, and the corresponding post content.
+    """
+    # Split the transcripts by double newline
+    if not pd.isnull(row["posts_combined"]):
+        transcript_chunks = re.split(r"(?=Creation Date:)", row["posts_combined"])
+    else:
+        transcript_chunks = []
+
+    # Prepare a list for storing the matched results
+    found_mentions = []
+
+    for chunk in transcript_chunks:
+        if pd.isnull(chunk) or not chunk:
+            continue
+
+        # Initialize variables for creation date and transcript text
+        creation_date = "Unknown"
+
+        # Extract creation date using a regular expression
+        creation_date_match = re.search(r"Creation Date:\s*(.+)", chunk)
+        if creation_date_match:
+            creation_date = creation_date_match.group(1).strip()
+
+        # Check each stock in the Russell 4000
+        for _, row in russell_4000_stock.iterrows():
+            full_stock_name = row["COMNAM"].strip()
+            shorted_stock_name = row["SHORTEN_COMNAM"].strip()
+            stock_ticker = row["TICKER"].strip()
+
+            # Check if stock name is found in transcript chunk
+            name_match = (
+                re.search(
+                    rf"\b{re.escape(full_stock_name.lower())}\b",
+                    chunk.lower(),
+                )
+                is not None
+                or re.search(
+                    rf"\b{re.escape(shorted_stock_name.lower())}\b",
+                    chunk.lower(),
+                )
+                is not None
+                or re.search(
+                    rf"\$\b{re.escape(stock_ticker.lower())}\b",
+                    chunk.lower(),
+                )
+                is not None
+                or re.search(
+                    rf"\#\b{re.escape(stock_ticker.lower())}\b",
+                    chunk.lower(),
+                )
+                is not None
+            )
+
+            if name_match:
+                found_mentions.append(
+                    {
+                        "stock_name": full_stock_name,
+                        "stock_ticker": stock_ticker,
+                        "post_date": creation_date,
+                        "post": chunk,
+                    }
+                )
+
+    # Build a DataFrame from the matches
+    stock_mentions_df = pd.DataFrame(
+        found_mentions, columns=["stock_name", "stock_ticker", "post_date", "post"]
+    )
+
+    # Remove duplicates if you only want unique (stock, date) pairs
+    stock_mentions_df = stock_mentions_df.drop_duplicates().reset_index(drop=True)
+
+    # Create a formatted text string containing all the stocks mentioned and the questions for each stock
+    stock_mentions_formatted_str = ""
+    stock_question_template = """**stock name: {stock_name}**
+**stock ticker: {stock_ticker}**
+**mention date: {post_date}**
+**post: {post}**"""
+
+    for i in range(len(stock_mentions_df)):
+        if i != 0:
+            stock_mentions_formatted_str += "\n\n"
+        stock_mentions_formatted_str += stock_question_template.format(
+            stock_name=stock_mentions_df.loc[i, "stock_name"],
+            stock_ticker=stock_mentions_df.loc[i, "stock_ticker"],
+            post_date=stock_mentions_df.loc[i, "post_date"],
+            post=stock_mentions_df.loc[i, "post"],
+        )
+
+    return stock_mentions_formatted_str
+
+
+def extract_stock_mentions(
+    project_name: str, execution_date: str, input_file: str, output_file: str
+) -> None:
+    """
+    Extracts stock ticker mentions from fininfluencer profile data and saves the results to a CSV file.
+
+    This function loads profile data for a given project and execution date, extracts stock mentions from past posts
+    using a reference list of Russell 4000 stock tickers, and writes the updated data with stock mention information
+    to an output CSV file.
+
+    Args:
+        project_name (str): Name of the project directory containing the data.
+        execution_date (str): Date string specifying the execution context (e.g., '2024-06-01').
+        input_file (str): Filename of the input CSV containing fininfluencer profile data.
+        output_file (str): Filename for the output CSV to save the results.
+
+    Returns:
+        None
+    """
+    # Load fininfluencer profile data
+    fininfluencer_profile_data = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file)
+    )
+
+    # Extract stocks mention in past posts
+    russell_4000_stock = pd.read_csv(
+        os.path.join(base_dir, "../config", RUSSELL_4000_STOCK_TICKER_FILE)
+    )
+    fininfluencer_profile_data["stock_mentions"] = (
+        fininfluencer_profile_data.progress_apply(
+            extract_stock_mentions_from_posts, args=(russell_4000_stock,), axis=1
+        )
+    )
+
+    # Save formatted post reflection results
+    fininfluencer_profile_data.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )

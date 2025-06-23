@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import string
 import requests
+import ast
 from requests.auth import HTTPBasicAuth
 from tqdm import tqdm
 from datetime import datetime, timezone
@@ -29,6 +30,9 @@ from ai_population.config.market_signals_config import (
     FINFLUENCER_POST_INTERVIEW_FILE_X,
     FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
     RUSSELL_4000_STOCK_TICKER_FILE,
+    ONBOARDING_INTERVIEW_REGEX_PATTERNS,
+    FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
+    STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -45,9 +49,12 @@ from ai_population.config.base_config import (
 )
 from ai_population.src.utils import (
     extract_llm_responses,
-    extract_stock_recommendations,
+    format_stock_mentions,
     perform_profile_interview,
     update_verified_profile_pool,
+    coalesce_columns_by_regex,
+    extract_stock_mentions,
+    format_stock_recommendations,
 )
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
@@ -62,6 +69,7 @@ from ai_population.prompts.prompt_template import (
     economist_reflection_user_prompt,
     x_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
+    stock_recommendation_interview_user_prompt,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -109,6 +117,11 @@ def perform_x_onboarding_interview(
         extract_llm_responses
     )
     onboarding_results = pd.concat([onboarding_results, extracted_responses], axis=1)
+
+    # Merge identical columns from interview response
+    onboarding_results = coalesce_columns_by_regex(
+        onboarding_results, ONBOARDING_INTERVIEW_REGEX_PATTERNS
+    )
 
     # Save identified financial influencers
     onboarding_results.to_csv(
@@ -182,161 +195,33 @@ def generate_expert_reflections(
     )
 
 
-def extract_stock_mentions_from_tweets(
-    row: pd.Series, russell_4000_stock: pd.DataFrame
-) -> str:
-    """
-    Extracts stock mentions from a DataFrame row containing combined tweet posts, matching against a list of Russell 4000 stocks.
-
-    Args:
-        row (pd.Series): A pandas Series representing a row from a DataFrame, expected to contain a "posts_combined" field with tweet data.
-        russell_4000_stock (pd.DataFrame): A DataFrame containing Russell 4000 stock information with columns "COMNAM", "SHORTEN_COMNAM", and "TICKER".
-
-    Returns:
-        str: A formatted string listing all unique stocks mentioned in the tweets, including stock name, ticker, and mention date.
-    """
-    # Split the tweets by double newline
-    if not pd.isnull(row["posts_combined"]):
-        tweet_chunks = row["posts_combined"].strip().split("\n\n")
-    else:
-        tweet_chunks = []
-
-    # Prepare a list for storing the matched results
-    found_mentions = []
-
-    for chunk in tweet_chunks:
-        # Initialize variables for creation date and tweet
-        creation_date = "Unknown"
-        tweet_description = ""
-
-        # Extract creation date using a regular expression
-        creation_date_match = re.search(r"Creation Date:\s*(.+)", chunk)
-        if creation_date_match:
-            creation_date = creation_date_match.group(1).strip()
-
-        # Extract posts using a regular expression
-        tweet_match = re.search(r"Tweet Description:\s*(.+)", chunk)
-        if tweet_match:
-            tweet_description = tweet_match.group(1).strip()
-
-        # Skip processing if no transcript text is found
-        if not tweet_description:
-            continue
-
-        # Check each stock in the Russell 4000
-        for _, row in russell_4000_stock.iterrows():
-            full_stock_name = row["COMNAM"].strip()
-            shorted_stock_name = row["SHORTEN_COMNAM"].strip()
-            stock_ticker = row["TICKER"].strip()
-
-            # Check if stock name is found in transcript chunk
-            name_match = (
-                re.search(
-                    rf"\b{re.escape(full_stock_name.lower())}\b",
-                    tweet_description.lower(),
-                )
-                is not None
-                or re.search(
-                    rf"\b{re.escape(shorted_stock_name.lower())}\b",
-                    tweet_description.lower(),
-                )
-                is not None
-                or re.search(
-                    rf"\$\b{re.escape(stock_ticker.lower())}\b",
-                    tweet_description.lower(),
-                )
-                is not None
-                or re.search(
-                    rf"\#\b{re.escape(stock_ticker.lower())}\b",
-                    tweet_description.lower(),
-                )
-                is not None
-            )
-
-            if name_match:
-                found_mentions.append(
-                    {
-                        "stock_name": full_stock_name,
-                        "stock_ticker": stock_ticker,
-                        "post_date": creation_date,
-                    }
-                )
-
-    # Build a DataFrame from the matches
-    stock_mentions_df = pd.DataFrame(
-        found_mentions, columns=["stock_name", "stock_ticker", "post_date"]
-    )
-
-    # Remove duplicates if you only want unique (stock, date) pairs
-    stock_mentions_df = stock_mentions_df.drop_duplicates().reset_index(drop=True)
-
-    # Create a formatted text string containing all the stocks mentioned and the questions for each stock
-    stock_mentions_formatted_str = ""
-    stock_question_template = """**stock name: {stock_name}**
-**stock ticker: {stock_ticker}**
-**mention date: {post_date}**"""
-
-    for i in range(len(stock_mentions_df)):
-        if i != 0:
-            stock_mentions_formatted_str += "\n\n"
-        stock_mentions_formatted_str += stock_question_template.format(
-            stock_name=stock_mentions_df.loc[i, "stock_name"],
-            stock_ticker=stock_mentions_df.loc[i, "stock_ticker"],
-            post_date=stock_mentions_df.loc[i, "post_date"],
-        )
-
-    return stock_mentions_formatted_str
-
-
-def extract_x_stock_mentions(
-    project_name: str, execution_date: str, input_file: str, output_file: str
-) -> None:
-    """
-    Extracts stock ticker mentions from fininfluencer profile data and saves the results to a CSV file.
-
-    This function loads a CSV file containing fininfluencer profile data, extracts stock ticker mentions from their posts
-    using a provided list of Russell 4000 stock tickers, and saves the updated data with a new 'stock_mentions' column
-    to an output CSV file.
-
-    Args:
-        project_name (str): The name of the project directory containing the data.
-        execution_date (str): The execution date used to locate the data files.
-        input_file (str): The filename of the input CSV containing fininfluencer profile data.
-        output_file (str): The filename for the output CSV to save the results.
-
-    Returns:
-        None
-    """
-    # Load fininfluencer profile data
-    fininfluencer_profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, input_file)
-    )
-
-    # Extract stocks mention from past posts
-    russell_4000_stock = pd.read_csv(
-        os.path.join(base_dir, "../config", RUSSELL_4000_STOCK_TICKER_FILE)
-    )
-    fininfluencer_profile_data["stock_mentions"] = (
-        fininfluencer_profile_data.progress_apply(
-            extract_stock_mentions_from_tweets, args=(russell_4000_stock,), axis=1
-        )
-    )
-
-    # Save formatted post reflection results
-    fininfluencer_profile_data.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
-        index=False,
-    )
-
-
 def perform_x_finfluencer_interview(
     project_name: str,
     execution_date: str,
     profile_metadata_file: str,
     post_file: str,
-    finfluencer_pool: str,
     output_file: str,
 ) -> None:
+    """
+    Conducts an interview process for X (Twitter) finfluencers, processes the results, and saves the formatted output.
+
+    This function performs the following steps:
+    1. Runs a profile interview using the provided project and execution details, metadata, and post files.
+    2. Loads the interview results from a CSV file.
+    3. Extracts and processes the LLM responses from the interview results.
+    4. Merges identical columns in the results based on predefined regex patterns.
+    5. Saves the formatted interview results back to the output CSV file.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Date of execution, used for organizing output files.
+        profile_metadata_file (str): Path to the profile metadata CSV file.
+        post_file (str): Path to the file containing posts to be used in the interview.
+        output_file (str): Name of the output CSV file to save the interview results.
+
+    Returns:
+        None
+    """
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
@@ -354,87 +239,143 @@ def perform_x_finfluencer_interview(
     post_interview_results = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file)
     )
-    finfluencer_pool = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, finfluencer_pool)
-    )
     extracted_responses = post_interview_results["x_finfluencer_interview"].apply(
-        extract_llm_responses,
-        args=(
-            [
-                "stock name",
-                "A list of Russell 4000 stocks was extracted from your past tweets",
-            ],
-        ),
+        extract_llm_responses
     )
     post_interview_results = pd.concat(
         [post_interview_results, extracted_responses], axis=1
     )
-
-    # Extract stock recommendations
-    combined_stock_recommendations = pd.DataFrame()
-    for i in range(len(post_interview_results)):
-        profile_stock_recommendations = extract_stock_recommendations(
-            post_interview_results.iloc[i],
-            llm_response_field="x_finfluencer_interview",
-        )
-
-        if profile_stock_recommendations is None:  # No stock recommendations
-            continue
-
-        profile_stock_recommendations["account_id"] = post_interview_results.loc[
-            i, "account_id"
-        ]
-        profile_stock_recommendations["url"] = (
-            "https://x.com/" + post_interview_results.loc[i, "account_id"]
-        )
-        profile_stock_recommendations["followers"] = post_interview_results.loc[
-            i, "followers"
-        ]
-        profile_stock_recommendations["influence"] = finfluencer_pool[
-            finfluencer_pool["account_id"]
-            == post_interview_results.loc[i, "account_id"]
-        ]["influence"].values[0]
-        profile_stock_recommendations["credibility"] = finfluencer_pool[
-            finfluencer_pool["account_id"]
-            == post_interview_results.loc[i, "account_id"]
-        ]["credibility"].values[0]
-
-        combined_stock_recommendations = pd.concat(
-            [combined_stock_recommendations, profile_stock_recommendations],
-            ignore_index=True,
-        )
-
-    # Remove duplicated entries and stocks that were not mentioned in the video transcripts
-    valid_stock_recommendations = (
-        combined_stock_recommendations.drop_duplicates().reset_index(drop=True)
+    # Merge identical columns from interview response
+    post_interview_results = coalesce_columns_by_regex(
+        post_interview_results, FINFLUENCER_INTERVIEW_REGEX_PATTERNS
     )
 
-    # Sort by profile and mention date (descending order within each profile)
-    valid_stock_recommendations["mention date"] = pd.to_datetime(
-        valid_stock_recommendations["mention date"]
-    )
-    valid_stock_recommendations = valid_stock_recommendations.sort_values(
-        by=["account_id", "mention date"], ascending=[True, False]
-    ).reset_index(drop=True)
-
-    # Remove stocks that are not mentioned by the influencer
-    valid_stock_recommendations = valid_stock_recommendations[
-        valid_stock_recommendations["mentioned by influencer"] == "Yes"
-    ].reset_index(drop=True)
-
-    # Save formatted interview results and stock recommendations
+    # Save formatted interview results
     post_interview_results.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
-    valid_stock_recommendations.to_csv(
+
+
+def perform_x_stock_recommendation_interview(
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    post_file: str,
+    finfluencer_pool: str,
+    output_file: str,
+) -> None:
+    """
+    Performs an interview process to generate and verify stock recommendations from finfluencer profiles on X (formerly Twitter).
+
+    This function processes profile metadata and finfluencer pool data to extract, format, and verify stock mentions. It saves the formatted data, performs an interview process using a language model, and outputs verified stock recommendations.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Date of execution, used for organizing data files.
+        profile_metadata_file (str): Filename for the profile metadata CSV.
+        post_file (str): Filename for the posts CSV.
+        finfluencer_pool (str): Filename for the finfluencer pool CSV.
+        output_file (str): Filename for saving the output CSV.
+
+    Returns:
+        None
+    """
+    finfluencer_pool = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, finfluencer_pool)
+    )
+    profile_metadata = pd.read_csv(
         os.path.join(
-            base_dir,
-            "../data",
-            project_name,
-            execution_date,
-            FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
-        ),
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
+    )
+
+    # Prepare stock mention dataset for interview
+    combined_stock_mentions = pd.DataFrame()
+    for i in range(len(profile_metadata)):
+        if (
+            pd.isnull(profile_metadata.loc[i, "stock_mentions"])
+            or not profile_metadata.loc[i, "stock_mentions"]
+        ):
+            continue  # No stock mentions
+
+        profile_stock_mentions = format_stock_mentions(
+            profile_metadata.loc[i, "stock_mentions"]
+        )
+        profile_stock_mentions["account_id"] = profile_metadata.loc[i, "account_id"]
+        profile_stock_mentions = pd.merge(
+            left=profile_stock_mentions,
+            right=profile_metadata,
+            how="left",
+            on="account_id",
+        )
+        profile_stock_mentions["url"] = (
+            "https://x.com/" + profile_metadata.loc[i, "account_id"]
+        )
+        profile_stock_mentions["followers"] = profile_metadata.loc[i, "followers"]
+        profile_stock_mentions["influence"] = finfluencer_pool[
+            finfluencer_pool["account_id"] == profile_metadata.loc[i, "account_id"]
+        ]["influence"].values[0]
+        profile_stock_mentions["credibility"] = finfluencer_pool[
+            finfluencer_pool["account_id"] == profile_metadata.loc[i, "account_id"]
+        ]["credibility"].values[0]
+        combined_stock_mentions = pd.concat(
+            [combined_stock_mentions, profile_stock_mentions], ignore_index=True
+        )
+
+    # Remove duplicated stocks recommendations
+    combined_stock_mentions = combined_stock_mentions.drop_duplicates().reset_index(
+        drop=True
+    )
+
+    # Save formatted stock mentions for interview process
+    combined_stock_mentions.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    # Perform interview for stock recommendations
+    perform_profile_interview(
+        project_name=project_name,
+        execution_date=execution_date,
+        gpt_model=GPT_MODEL,
+        profile_metadata_file=output_file,
+        post_file=post_file,
+        output_file=output_file,
+        system_prompt_template=x_finfluencer_interview_system_prompt,
+        user_prompt_template=stock_recommendation_interview_user_prompt,
+        llm_response_field="x_finfluencer_stock_recommendation",
+        interview_type="x_finfluencer_stock_recommendation",
+    )
+
+    stock_recommendations = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file)
+    )
+
+    # Extract stock recommendation responses
+    extracted_responses = stock_recommendations[
+        "x_finfluencer_stock_recommendation"
+    ].apply(format_stock_recommendations)
+    stock_recommendations = pd.concat(
+        [stock_recommendations, extracted_responses], axis=1
+    )
+
+    # Sort by profile and mention date (descending order within each profile)
+    stock_recommendations["mention_date"] = pd.to_datetime(
+        stock_recommendations["mention_date"]
+    )
+    stock_recommendations = stock_recommendations.sort_values(
+        by=["account_id", "mention_date"], ascending=[True, False]
+    ).reset_index(drop=True)
+
+    # Retain verified stock recommendations
+    valid_stock_recommendations = stock_recommendations[
+        stock_recommendations["mentioned_by_finfluencer"].isin(["Yes", "No"])
+    ].reset_index(drop=True)
+
+    # Save verified stock recommendations
+    valid_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
 
@@ -497,17 +438,23 @@ def perform_x_keyword_search(
     output_file_path: str,
 ) -> pd.DataFrame:
     """
-    Performs a keyword search on X (formerly Twitter) using specified search terms and saves the results to a CSV file.
+    Performs a keyword search using the X (formerly Twitter) API for a given list of search terms, processes the results, and saves them to a CSV file.
 
     Args:
-        project_name (str): Name of the project, used to create a subfolder for storing results.
-        execution_date (str): Date of execution, used to organize output files.
-        search_terms (list): List of keywords to search for.
-        output_file_path (str): Name of the output CSV file to save the results.
+        project_name (str): Name of the project, used to organize output data into subfolders.
+        execution_date (str): Date of execution, used to further organize output data.
+        search_terms (list): List of keywords or search terms to query.
+        output_file_path (str): Name of the CSV file to save the search results.
 
     Returns:
-        pd.DataFrame: DataFrame containing the search results.
+        pd.DataFrame: DataFrame containing the search results, including extracted account IDs, hashtags, and tagged users.
     """
+
+    def batched(iterable, n):
+        """Yield successive n-sized batches from iterable."""
+        for i in range(0, len(iterable), n):
+            yield iterable[i : i + n]
+
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -516,17 +463,24 @@ def perform_x_keyword_search(
         os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
     )
 
-    # Perform keyword search
-    response = requests.get(
-        "https://abundance.it.com/get_tweets_by_search_term",
-        params={
-            "search_term": search_terms,
-            "or_operator": 0,
-            "max_tweets": NUM_POST_PER_KEYWORD * len(search_terms),
-        },
-        auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-    )
-    keyword_search_results = pd.DataFrame(response.json())
+    # Perform keyword search in batches of 5 (due to limitations of API call)
+    all_search_results = []
+    for batch_terms in batched(search_terms, 5):
+        response = requests.get(
+            "https://abundance.it.com/get_tweets_by_search_term",
+            params={
+                "search_term": batch_terms,
+                "or_operator": 0,
+                "max_tweets": NUM_POST_PER_KEYWORD * len(batch_terms),
+            },
+            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+        )
+        all_search_results += response.json()
+
+    keyword_search_results = pd.DataFrame(all_search_results)
+    keyword_search_results = keyword_search_results.drop_duplicates(
+        subset="id"
+    ).reset_index(drop=True)
     keyword_search_results["account_id"] = keyword_search_results["author"].apply(
         lambda x: x.get("userName")
     )
@@ -790,7 +744,7 @@ if __name__ == "__main__":
         post_file=KEYWORD_SEARCH_FILE_X,
         output_file=ONBOARDING_RESULTS_FILE_X,
     )
-    extract_x_stock_mentions(
+    extract_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file=ONBOARDING_RESULTS_FILE_X,
@@ -857,20 +811,30 @@ if __name__ == "__main__":
 
     # Step 7: Extract stock mentions from financial influencers' past posts
     print("Extract stock recommendations...")
-    extract_x_stock_mentions(
+    extract_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
         output_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
     )
 
-    # Step 8: Conduct interview on financial markets and stock recommendations
-    print("Conduct digital interview on financial markets and stock recommendations...")
+    # Step 8: Conduct interview on financial markets
+    print("Conduct digital interview on financial markets...")
     perform_x_finfluencer_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        finfluencer_pool=FINFLUENCER_POOL_FILE_X,
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+    )
+
+    # Step 9: Conduct interview on stock recommendations
+    print("Conduct digital interview on stock recommendations...")
+    perform_x_stock_recommendation_interview(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+        finfluencer_pool=FINFLUENCER_POOL_FILE_X,
+        output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
     )

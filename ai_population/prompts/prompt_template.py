@@ -69,35 +69,38 @@ x_profile_prompt_template = """- Profile Image: {profile_picture}
 {tweets}"""
 
 
-# Tiktok Market Signals Onboarding Prompt Templates
+# Market Signals Onboarding Prompt Templates
 base_finfluencer_onboarding_system_prompt = """You are analyzing a social media profile on {platform} to identify individuals who may be financial influencers (finfluencer).
 
 DEFINITION OF A FINFLUENCER
-A finfluencer is a creator whose content analyses the financial markets and goes on to give opinions, predictions, or recommendations about:
-• Individual equities/stocks (e.g., stock market, S&P 500, tickers, options, day-trading setups, etc.)
-• Crypto-assets (e.g., Bitcoin, Ethereum, alt-coins)
-• Foreign-exchange (e.g., FX / forex currency pairs)
-• The macro economy and U.S. financial system (e.g., Federal Reserve policy, interest-rate outlook, inflation prints, jobs data, earnings season, market-moving news).
+A finfluencer is a creator whose content includes providing:
+1) Macroeconomic analysis on the financial markets (e.g., interest-rate outlook, inflation prints, jobs data, earnings season)
+2) Business-related news and current events that have an impact on the US and global economy (e.g., Federal Reserve policy, rate cutes, market-moving news)
+3) Opinions, predictions, or recommendations about different financial assets:
+    • Individual equities/stocks (e.g., stock market, S&P 500, tickers, options, day-trading setups, etc.)
+    • Crypto-assets (e.g., Bitcoin, Ethereum, alt-coins)
+    • Foreign-exchange (e.g., FX / forex currency pairs)
 
 HALLMARK SIGNALS OF A FINFLUENCER
-• Typically say or imply “buy/sell/hold” or “don’t miss this trade,” share price targets, or promote trading platforms, newsletters, paid courses, copy-trade services, affiliate links, etc.
+• Typically say or imply “buy/sell/hold” or “don’t miss this trade,” share price targets, or promote certain stocks, crypto-assets, FX currencies.
 • Frequent use of market-specific terms: “stock picks,” “entry level,” “S&P 500,” “BTC,” “NFP report,” “ticker-symbol ____,” “options flow,” “FX pair,” “rate-cut,” “Federal Reserve,” etc.  
 • Explicit or implicit recommendations/predictions: “I’m buying,” “price target $150,” “this coin will 10×,” “short before earnings,” “don’t miss this swing.”  
-• Promotional or affiliate language: coupon codes for brokerages, screenshots of profits, “link in bio to copy my trades,” paid Discord, Patreon, master-class.  
-• Urgency or emotional triggers: “last chance,” “100 % ROI,” “financial freedom,” “passive income NOW.”  
-• Visual cues of wealth purportedly earned from markets (luxury cars, profit dashboards, bold green/red P&L screenshots).
+• News organizations or journalists covering business news and current events that have an impact on US or global financial system.
 
 DEFINITION OF A NON-FINFLUENCER
 A non-finfluencer is any profile that:
-• Discusses topics completely unrelated to finance and the economy
+• Only focuses on stock market education and teaching trading mechanics for different financial assets (e.g., “how to place a limit order,” “what is leverage”, trading strategies, candlestick patterns, technical analysis, chart patterns, risk management, stop-loss techniques) **but do not issue any actionable calls, price views, or stock recommendations**.
 • Focuses on personal-finance hygiene (budgeting, saving, couponing, credit-score repair, basic money habits) without market picks
-• Teaches mechanics of trading (“how to place a limit order,” “what is leverage”) but stops short of issuing actionable calls or price views.
+• Discusses topics completely unrelated to finance and the economy
 
 HALLMARK SIGNS OF A NON-FINFLUENCER
 • Content limited to household budgeting, debt payoff tips, generic ‘save money’ hacks, student-loan talk, couponing, side-hustles.  
 • Purely academic or definitional explainers without advice (“what is a candlestick,” “history of Bitcoin,” “how the Fed works”).  
 • “Not financial advice” disclaimers with no actual recommendation content.  
 • Focus on trading psychology, motivation, or platform tutorials **only**, with no picks or directional calls.
+• Promotional or affiliate language: coupon codes for brokerages, screenshots of profits, paid Discord, Patreon, master-class, free trading courses, workshops.  
+• Urgency or emotional triggers: “last chance,” “100 % ROI,” “financial freedom,” “passive income NOW.”  
+• Motivational posts or visual cues of wealth purportedly earned from markets (luxury cars, profit dashboards, bold green/red P&L screenshots).
 
 Below are three {platform} profiles and their recent posts that exemplify a financial influencer:
 {finfluencer_examples}
@@ -106,7 +109,7 @@ You will analyze a {platform} profile with the following details:
 {profile_prompt_template}
 
 Instructions
-Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+Analyze the provided information and answer the following questions based strictly on the available data and definitions provided to you. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
 tiktok_finfluencer_examples = """Example Profile 1:
 - Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/a089791b375beffd40eaf995a4541032~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3963c468&x-expires=1748991600&x-signature=4ZYa6NLuLm7QPpnYYhJOnEEeeUo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
@@ -1965,23 +1968,50 @@ To ensure consistency, use the following guidelines to determine speculation lev
 
 5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
 6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
-For categorical questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: How well does the user engage with their audience?**
-**explanation: [Detailed reasoning for selection]**
-**symbol: A1)**
-**category: Very Well**
-**speculation: 90**
 
-For numerical questions (0-100 scale), format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: Indicate on a scale of 0 to 100, how knowledgable is the user about finance (0 means not at all knowledgeable and 100 means very knowledgeable)?**
-**explanation: [Detailed reasoning for selection]**
-**value: 20**
-**speculation: 90**
+Format your output as follows (this is just an example; do not focus on the specific explanation, symbol, category, speculation, or value provided):
+**question: Is this a finfluencer?**  
+**explanation: [Detailed explanation for selected response]**  
+**symbol: [Symbol selected]**  
+**category: [Category selected]**  
+**speculation: [Speculation score selected]**
 
-For open-ended questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: Are there any stocks you expect to **underperform** or decline in the next 3-6 months?**
-**response: [Detailed response]**
-**speculation: 90**
+**question: Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)?**  
+**explanation: [Detailed explanation for selected response]**  
+**value: [Value selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)?**  
+**explanation: [Detailed explanation for selected response]**  
+**value: [Value selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Which of these areas of finance are the primary focus of the influencer’s posts?**  
+**explanation: [Detailed explanation for selected response]**  
+**symbol: [Symbol selected]**  
+**category: [Category selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's individual stock predictions (0 means very low quality and 100 means very high quality)?**  
+**explanation: [Detailed explanation for selected response]**  
+**value: [Value selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's evaluation of market sentiment (0 means very low quality and 100 means very high quality)?**  
+**explanation: [Detailed explanation for selected response]**  
+**value: [Value selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's broader evaluation of the economy (0 means very low quality and 100 means very high quality)?**  
+**explanation: [Detailed explanation for selected response]**  
+**value: [Value selected]**  
+**speculation: [Speculation score selected]**
+
+**question: Who is the finfluencer’s target audience?**  
+**explanation: [Detailed explanation for selected response]**  
+**symbol: [Symbol selected]**  
+**category: [Category selected]**  
+**speculation: [Speculation score selected]**
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
 
@@ -2173,27 +2203,59 @@ To ensure consistency, use the following guidelines to determine speculation lev
 
 5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
 6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
-For categorical questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: How well does the user engage with their audience?**
-**explanation: [Detailed reasoning for selection]**
-**symbol: A1)**
-**category: Very Well**
-**speculation: 90**
 
-For numerical questions (0-100 scale), format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: Indicate on a scale of 0 to 100, how knowledgable is the user about finance – 0 means not at all knowledgeable and 100 means very knowledgeable?**
-**explanation: [Detailed reasoning for selection]**
-**value: 20**
-**speculation: 90**
+Format your output as follows (this is just an example; do not focus on the specific explanation, symbol, category, speculation, or value provided):
+**question: Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
 
-For open-ended questions, format your output as follows (this is just an example; do not focus on the specific question, symbol, or category):
-**question: Are there any stocks you expect to **underperform** or decline in the next 3-6 months?**
+**question: How would you describe the current market sentiment among investors? Is sentiment very bearish, bearish, neutral, bullish, or very bullish?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: Regarding the future direction of the stock market, are you very bearish, bearish, neutral, bullish, or very bullish?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]e**
+**speculation: [Speculation score selected]**
+
+**question: In the next 1–3 months, do you expect U.S. bond prices (or interest rates) to rise, remain unchanged, or fall?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?**
 **response: [Detailed response]**
-**speculation: 90**
+**speculation: [Speculation score selected]**
+
+**question: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?**
+**response: [Detailed response]**
+**speculation: [Speculation score selected]**
+
+**question: Did you mention any stocks or stock tickers in the Russell 4000 list?**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]e**
+**speculation: [Speculation score selected]**
+
+**question: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?**
+**response: [Detailed response]**
+**speculation: [Speculation score selected]**
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
-Question 1: Do you agree or disagree with the following statement: “The U.S. economy is likely to enter a recession in the next 12 months?
+Question 1: Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months?
 A1) Strongly Disagree
 A2) Disagree
 A3) Neither Agree/Disagree
@@ -2233,27 +2295,33 @@ F1) Yes
 F2) No
 
 Question 9: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
+"""
 
-Question 10: We have compiled a comprehensive list of Russell 4000 stocks extracted from your past transcripts. Each entry includes the stock name, stock ticker, and mention date. Your task is to review each entry in this list (provided below) and provide a separate, complete response for every stock. Do not omit any stock from your final answer even if they are duplicates. For each stock, fill out the following fields:
-- mentioned by influencer: Confirm that you discussed or referenced this stock in your video on the given mention date by indicating Yes; otherwise indicate No.
-- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock - 0 means a very strong sell recommendation and 100 means a very strong buy recommendation. For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. 
-- explanation: Provide a brief explanation for your recommendation.
-- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your investment recommendation - 0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence.
-- virality: Indicate on a scale of 0 to 100, a measure of virality for your investment recommendation - 0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality.
-Below is the full list of Russell 4000 stocks extracted from your past transcripts:
-{stock_mentions}
+stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
 
-For each listed stock, you must respond in the structure shown below (one block per listed stock):
-**stock name: [stock name 1]**
-**stock ticker: [stock ticker 1]**
-**mention date: 2025-01-16 16:00:41+00:00**
-**mentioned by influencer: Yes**
-**recommendation: 40**
-**explanation: [Detailed reasoning for recommendation]**
-**confidence: 60**
-**virality: 85**
+Based on the information provided to you, answer the following questions:
+- mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
+- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
+- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response.
+- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
 
-If no stocks are extracted from your past transcripts, respond with “NA”."""
+Follow these instructions strictly when providing your response:
+1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
+2) Format your output as follows (this is just an example; do not focus on the specific response, explanation, recommendation, or value provided):
+**mentioned_by_finfluencer: [Yes/No]**
+**recommendation: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**explanation: [Detailed explanation for your selected response]**
+**confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+
+YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+
+The stock mentioned in your post is as follows:
+Stock Name: {stock_name}
+Stock Ticker: {stock_ticker}
+Post Date: {mention_date}
+Post: {post}"""
 
 
 # Election Polling
