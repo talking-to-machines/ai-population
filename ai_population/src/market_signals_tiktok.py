@@ -28,6 +28,7 @@ from ai_population.config.market_signals_config import (
     ONBOARDING_INTERVIEW_REGEX_PATTERNS,
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
+    PREDICTION_THRESHOLD_TIKTOK,
 )
 from ai_population.config.base_config import (
     WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS,
@@ -824,6 +825,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=ONBOARDING_RESULTS_FILE_TIKTOK,
         verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
+        prediction_threshold=PREDICTION_THRESHOLD_TIKTOK,
     )
 
     # Step 6: Perform profile search of identified financial influencers (profile metadata and posts) during search period

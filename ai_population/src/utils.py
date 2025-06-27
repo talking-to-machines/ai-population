@@ -1423,19 +1423,22 @@ def update_verified_profile_pool(
     execution_date: str,
     input_file_path: str,
     verified_profile_pool: str,
+    prediction_threshold: float,
 ) -> None:
     """
-    Updates the verified profile pool by adding new financial influencers
-    identified from the interviewed profiles.
+    Updates the verified profile pool by adding new financial influencers identified from the onboarding interview data.
+
+    This function reads the interviewed profiles and the existing verified profile pool from CSV files, filters out profiles that meet or exceed the specified finfluencer likelihood threshold and have stock recommendations, and appends these new profiles to the verified profile pool. The updated pool is then saved back to the CSV file.
 
     Args:
-        project_name (str): The name of the project, used to locate the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file_path (str): The relative path to the CSV file containing interviewed profiles.
-        verified_profile_pool (str): The relative path to the CSV file containing the verified profile pool.
+        project_name (str): Name of the project directory containing the data.
+        execution_date (str): Date of execution, used to locate the input file and as the inclusion date for new profiles.
+        input_file_path (str): Relative path to the CSV file containing interviewed profiles.
+        verified_profile_pool (str): Filename of the verified profile pool CSV.
+        prediction_threshold (float): Minimum likelihood score to consider a profile as a financial influencer.
 
     Returns:
-        None: Updates the verified profile pool file in place.
+        None
     """
     interviewed_profiles = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
@@ -1445,16 +1448,19 @@ def update_verified_profile_pool(
     )
 
     # Filter out financial influencers identified during onboarding interview
+    finfluencer_likelihood_col = "Indicate on a scale of 0 to 100, how likely this creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)? - value"
+    interviewed_profiles[finfluencer_likelihood_col] = interviewed_profiles[
+        finfluencer_likelihood_col
+    ].astype(float)
     finfluencer_profiles = interviewed_profiles[
-        interviewed_profiles["Is this a finfluencer? - category"].str.contains(
-            "Yes", na=False
-        )
-    ]
+        interviewed_profiles[finfluencer_likelihood_col] >= prediction_threshold
+    ].reset_index(drop=True)
+
     # Filter out financial influencers that had a stock recommendation
-    finfluencer_profiles = interviewed_profiles[
-        interviewed_profiles["stock_mentions"].notna()
-        & (interviewed_profiles["stock_mentions"] != "")
-    ]
+    finfluencer_profiles = finfluencer_profiles[
+        finfluencer_profiles["stock_mentions"].notna()
+        & (finfluencer_profiles["stock_mentions"] != "")
+    ].reset_index(drop=True)
 
     # Add new financial influencers to the verified profile pool
     if not finfluencer_profiles.empty:

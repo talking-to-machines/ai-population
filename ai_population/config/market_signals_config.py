@@ -17,10 +17,9 @@ PROFILE_SEARCH_START_DATE = "06-23-2025"  # MM-DD-YYYY format
 PROFILE_SEARCH_END_DATE = "06-24-2025"  # MM-DD-YYYY format
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 ONBOARDING_INTERVIEW_REGEX_PATTERNS = [
-    r"^Is this a finfluencer.*\-\s*explanation$",
-    r"^Is this a finfluencer.*\-\s*symbol$",
-    r"^Is this a finfluencer.*\-\s*category$",
-    r"^Is this a finfluencer.*\-\s*speculation$",
+    r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*explanation$",
+    r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*speculation$",
+    r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*value$",
     r"^Indicate on a scale of 0 to 100, how influential this influencer is.*\-\s*explanation$",
     r"^Indicate on a scale of 0 to 100, how influential this influencer is.*\-\s*speculation$",
     r"^Indicate on a scale of 0 to 100, how influential this influencer is.*\-\s*value$",
@@ -161,6 +160,7 @@ SEARCH_TERMS_TIKTOK = [
     "news",
     "ai",
 ]
+PREDICTION_THRESHOLD_TIKTOK = 0.8
 
 
 # X-specific configurations
@@ -216,3 +216,4 @@ SEARCH_TERMS_X = [
     "optiontrading",
     "marketsurge",
 ]
+PREDICTION_THRESHOLD_X = 0.6

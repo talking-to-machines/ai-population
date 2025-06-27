@@ -29,6 +29,7 @@ from ai_population.config.market_signals_config import (
     ONBOARDING_INTERVIEW_REGEX_PATTERNS,
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
+    PREDICTION_THRESHOLD_X,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -788,6 +789,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file_path=ONBOARDING_RESULTS_FILE_X,
         verified_profile_pool=FINFLUENCER_POOL_FILE_X,
+        prediction_threshold=PREDICTION_THRESHOLD_X,
     )
 
     # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
