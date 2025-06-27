@@ -104,14 +104,14 @@ FINFLUENCER_POOL_FILE_TIKTOK = "tiktok_verified_finfluencer_profiles.csv"
 ONBOARDING_RESULTS_FILE_TIKTOK = (
     f"tiktok_onboarding_results_{PIPELINE_EXECUTION_DATE}.csv"
 )
+EXPERT_REFLECTION_FILE_TIKTOK = (
+    f"tiktok_expert_reflection_{PIPELINE_EXECUTION_DATE}.csv"
+)
 FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK = (
     f"tiktok_finfluencer_profile_metadata_{PIPELINE_EXECUTION_DATE}.csv"
 )
 FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK = (
     f"tiktok_finfluencer_profile_search_{PIPELINE_EXECUTION_DATE}.csv"
-)
-FINFLUENCER_EXPERT_REFLECTION_FILE_TIKTOK = (
-    f"tiktok_finfluencer_expert_reflection_{PIPELINE_EXECUTION_DATE}.csv"
 )
 FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK = (
     f"tiktok_finfluencer_stock_mentions_{PIPELINE_EXECUTION_DATE}.csv"
@@ -169,14 +169,12 @@ KEYWORD_SEARCH_FILE_X = f"x_keyword_search_{PIPELINE_EXECUTION_DATE}.csv"
 PROFILE_METADATA_SEARCH_FILE_X = f"x_profile_metadata_{PIPELINE_EXECUTION_DATE}.csv"
 FINFLUENCER_POOL_FILE_X = "x_verified_finfluencer_profiles.csv"
 ONBOARDING_RESULTS_FILE_X = f"x_onboarding_results_{PIPELINE_EXECUTION_DATE}.csv"
+EXPERT_REFLECTION_FILE_X = f"x_expert_reflection_{PIPELINE_EXECUTION_DATE}.csv"
 FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X = (
     f"x_finfluencer_profile_metadata_{PIPELINE_EXECUTION_DATE}.csv"
 )
 FINFLUENCER_PROFILE_SEARCH_FILE_X = (
     f"x_finfluencer_profile_search_{PIPELINE_EXECUTION_DATE}.csv"
-)
-FINFLUENCER_EXPERT_REFLECTION_FILE_X = (
-    f"x_finfluencer_expert_reflection_{PIPELINE_EXECUTION_DATE}.csv"
 )
 FINFLUENCER_STOCK_MENTIONS_FILE_X = (
     f"x_finfluencer_stock_mentions_{PIPELINE_EXECUTION_DATE}.csv"

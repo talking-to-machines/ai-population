@@ -388,8 +388,7 @@ def construct_system_prompt(
         profile_args = {}
 
     if interview_type in [
-        "tiktok_finfluencer_interview",
-        "tiktok_finfluencer_stock_recommendation",
+        "tiktok_finfluencer_onboarding",
     ]:
         additional_args = {
             "expert_reflection_portfoliomanager": row[
@@ -407,8 +406,7 @@ def construct_system_prompt(
         }
         profile_args.update(additional_args)
     elif interview_type in [
-        "x_finfluencer_interview",
-        "x_finfluencer_stock_recommendation",
+        "x_finfluencer_onboarding",
     ]:
         additional_args = {
             "expert_reflection_portfoliomanager": row[
@@ -976,7 +974,7 @@ def extract_video_transcripts(profile_id: str, video_metadata: pd.DataFrame) -> 
             )
         ]
 
-    return "\n\n".join(video_transcripts_list)
+    return "\n".join(video_transcripts_list)
 
 
 def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
@@ -1600,41 +1598,67 @@ def extract_stock_mentions_from_posts(
 
 
 def extract_stock_mentions(
-    project_name: str, execution_date: str, input_file: str, output_file: str
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    post_file: str,
+    output_file: str,
+    interview_type: str,
 ) -> None:
     """
-    Extracts stock ticker mentions from fininfluencer profile data and saves the results to a CSV file.
+    Extracts stock mentions from influencer posts and saves the results to a CSV file.
 
-    This function loads profile data for a given project and execution date, extracts stock mentions from past posts
-    using a reference list of Russell 4000 stock tickers, and writes the updated data with stock mention information
-    to an output CSV file.
+    This function loads influencer profile metadata and post metadata, processes the posts to extract combined post content for each influencer based on the interview type (e.g., TikTok or X), and then identifies mentions of Russell 4000 stocks in the posts. The results, including the extracted stock mentions, are saved to an output CSV file.
 
     Args:
-        project_name (str): Name of the project directory containing the data.
-        execution_date (str): Date string specifying the execution context (e.g., '2024-06-01').
-        input_file (str): Filename of the input CSV containing fininfluencer profile data.
-        output_file (str): Filename for the output CSV to save the results.
+        project_name (str): Name of the project directory.
+        execution_date (str): Date string representing the execution date (used for file paths).
+        profile_metadata_file (str): Filename of the influencer profile metadata CSV.
+        post_file (str): Filename of the post metadata CSV.
+        output_file (str): Filename for the output CSV with extracted stock mentions.
+        interview_type (str): Type of interview or platform (e.g., "tiktok", "x") to determine post processing logic.
 
-    Returns:
-        None
+    Raises:
+        ValueError: If the provided interview_type is not supported.
     """
-    # Load fininfluencer profile data
-    fininfluencer_profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, input_file)
+    # Load influencer profile metadata and post metadata files
+    profile_metadata = pd.read_csv(
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
     )
+    post_metadata = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, post_file)
+    )
+
+    if interview_type.startswith("tiktok"):
+        post_metadata["create_time"] = pd.to_datetime(post_metadata["create_time"])
+        profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
+            extract_video_transcripts, args=(post_metadata,)
+        )
+    elif interview_type.startswith("x"):
+        try:
+            post_metadata["createdAt"] = pd.to_datetime(
+                post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
+            )
+        except ValueError:
+            post_metadata["createdAt"] = pd.to_datetime(post_metadata["createdAt"])
+        profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
+            extract_tweets, args=(post_metadata,)
+        )
+    else:
+        raise ValueError(f"Interview type: {interview_type} not supported.")
 
     # Extract stocks mention in past posts
     russell_4000_stock = pd.read_csv(
         os.path.join(base_dir, "../config", RUSSELL_4000_STOCK_TICKER_FILE)
     )
-    fininfluencer_profile_data["stock_mentions"] = (
-        fininfluencer_profile_data.progress_apply(
-            extract_stock_mentions_from_posts, args=(russell_4000_stock,), axis=1
-        )
+    profile_metadata["stock_mentions"] = profile_metadata.progress_apply(
+        extract_stock_mentions_from_posts, args=(russell_4000_stock,), axis=1
     )
 
     # Save formatted post reflection results
-    fininfluencer_profile_data.to_csv(
+    profile_metadata.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )

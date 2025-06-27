@@ -1,9 +1,6 @@
 import os
 import pandas as pd
-import re
-import string
 import requests
-import ast
 from requests.auth import HTTPBasicAuth
 from tqdm import tqdm
 from datetime import datetime, timezone
@@ -23,13 +20,12 @@ from ai_population.config.market_signals_config import (
     KEYWORD_SEARCH_FILE_X,
     PROFILE_METADATA_SEARCH_FILE_X,
     ONBOARDING_RESULTS_FILE_X,
+    EXPERT_REFLECTION_FILE_X,
     FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
     FINFLUENCER_PROFILE_SEARCH_FILE_X,
-    FINFLUENCER_EXPERT_REFLECTION_FILE_X,
     FINFLUENCER_STOCK_MENTIONS_FILE_X,
     FINFLUENCER_POST_INTERVIEW_FILE_X,
     FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
-    RUSSELL_4000_STOCK_TICKER_FILE,
     ONBOARDING_INTERVIEW_REGEX_PATTERNS,
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
@@ -735,20 +731,57 @@ if __name__ == "__main__":
         verified_profile_pool=FINFLUENCER_POOL_FILE_X,
     )
 
-    # Step 4: Conduct onboarding interview to identify financial influencers and add to influencer pool
+    # Step 4: Generate expert reflections
+    print("Generate expert reflections of potential influencers...")
+    generate_expert_reflections(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        role="portfolio_manager",
+        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
+        post_file=KEYWORD_SEARCH_FILE_X,
+        output_file=EXPERT_REFLECTION_FILE_X,
+    )
+    generate_expert_reflections(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        role="investment_advisor",
+        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
+        post_file=KEYWORD_SEARCH_FILE_X,
+        output_file=EXPERT_REFLECTION_FILE_X,
+    )
+    generate_expert_reflections(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        role="financial_analyst",
+        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
+        post_file=KEYWORD_SEARCH_FILE_X,
+        output_file=EXPERT_REFLECTION_FILE_X,
+    )
+    generate_expert_reflections(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        role="economist",
+        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
+        post_file=KEYWORD_SEARCH_FILE_X,
+        output_file=EXPERT_REFLECTION_FILE_X,
+    )
+
+    # Step 5: Conduct onboarding interview to identify financial influencers and add to influencer pool
     print("Perform onboarding interview to identify financial influencers...")
     perform_x_onboarding_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
+        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
         post_file=KEYWORD_SEARCH_FILE_X,
         output_file=ONBOARDING_RESULTS_FILE_X,
     )
     extract_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=ONBOARDING_RESULTS_FILE_X,
+        profile_metadata_file=ONBOARDING_RESULTS_FILE_X,
+        post_file=KEYWORD_SEARCH_FILE_X,
         output_file=ONBOARDING_RESULTS_FILE_X,
+        interview_type="x_stock_mention",
     )
     update_verified_profile_pool(
         project_name=PROJECT_NAME_X,
@@ -757,8 +790,10 @@ if __name__ == "__main__":
         verified_profile_pool=FINFLUENCER_POOL_FILE_X,
     )
 
-    # Step 5: Perform profile search of identified financial influencers (profile metadata and posts)
-    print("Perform profile search of identified financial influencers...")
+    # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
+    print(
+        "Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
+    )
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -773,52 +808,16 @@ if __name__ == "__main__":
         start_date=PROFILE_SEARCH_START_DATE,
         end_date=PROFILE_SEARCH_END_DATE,
     )
-
-    # Step 6: Generate expert reflections
-    print("Generate expert reflections of financial influencers...")
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="portfolio_manager",
-        profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="investment_advisor",
-        profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="financial_analyst",
-        profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="economist",
-        profile_metadata_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
-    )
-
-    # Step 7: Extract stock mentions from financial influencers' past posts
-    print("Extract stock recommendations...")
     extract_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=FINFLUENCER_EXPERT_REFLECTION_FILE_X,
+        profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
+        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
         output_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+        interview_type="x_stock_mention",
     )
 
-    # Step 8: Conduct interview on financial markets
+    # Step 7: Conduct interview on financial markets
     print("Conduct digital interview on financial markets...")
     perform_x_finfluencer_interview(
         project_name=PROJECT_NAME_X,
@@ -828,7 +827,7 @@ if __name__ == "__main__":
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
     )
 
-    # Step 9: Conduct interview on stock recommendations
+    # Step 8: Conduct interview on stock recommendations
     print("Conduct digital interview on stock recommendations...")
     perform_x_stock_recommendation_interview(
         project_name=PROJECT_NAME_X,

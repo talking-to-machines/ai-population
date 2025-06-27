@@ -69,6 +69,104 @@ x_profile_prompt_template = """- Profile Image: {profile_picture}
 {tweets}"""
 
 
+# Market Signals Expert Reflection Prompts
+base_expert_reflection_system_prompt = """You are an expert {expert_role} (with a PhD) analyzing the {platform} profile of an influencer with the following details:
+{profile_prompt_template}
+"""
+
+base_expert_reflection_user_prompt = """Drawing on your expertise as an expert {expert_role} (with a PhD), list out a set of 5-10 observations about this profile. Each observation should help answer or provide additional insights into the following questions:
+- Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)?
+- Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)?
+- Which of these areas of finance are the primary focus of the influencer’s posts?
+- Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's individual stock predictions (0 means very low quality and 100 means very high quality)?
+- Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's evaluation of market sentiment (0 means very low quality and 100 means very high quality)?
+- Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's broader evaluation of the economy (0 means very low quality and 100 means very high quality)?
+- Who is the influencer’s target audience?
+
+Guidelines
+1. Base every observation only on the supplied profile data (follower counts, engagement metrics, bio, post excerpts, transcripts).  
+2. Cite concrete evidence in each observation as much as possible 
+3. Cover a range of angles based on your area of expertise: reach, credibility markers, content themes, analytical style, time horizon, sector bias, red-flag behaviour, etc.  
+4. Use concise, professional language; one or two sentences per observation.  
+5. Do not score the questions—just provide observations rich enough for someone else to score them."""
+
+tiktok_portfoliomanager_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Portfolio Manager",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
+
+x_portfoliomanager_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Portfolio Manager",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+portfoliomanager_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Portfolio Manager"
+)
+
+tiktok_investmentadvisor_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Investment Advisor",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
+
+x_investmentadvisor_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Investment Advisor",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+investmentadvisor_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Investment Advisor"
+)
+
+tiktok_financialanalyst_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Chartered Financial Analyst",
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
+
+x_financialanalyst_reflection_system_prompt = (
+    base_expert_reflection_system_prompt.format(
+        expert_role="Chartered Financial Analyst",
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+financialanalyst_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Chartered Financial Analyst"
+)
+
+tiktok_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
+    expert_role="Economist",
+    platform="TikTok",
+    profile_prompt_template=tiktok_profile_prompt_template,
+)
+
+x_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
+    expert_role="Economist",
+    platform="X (formerly Twitter)",
+    profile_prompt_template=x_profile_prompt_template,
+)
+
+economist_reflection_user_prompt = base_expert_reflection_user_prompt.format(
+    expert_role="Economist"
+)
+
+
 # Market Signals Onboarding Prompt Templates
 base_finfluencer_onboarding_system_prompt = """You are analyzing a social media profile on {platform} to identify individuals who may be financial influencers (finfluencer).
 
@@ -105,13 +203,19 @@ HALLMARK SIGNS OF A NON-FINFLUENCER
 Below are three {platform} profiles and their recent posts that exemplify a financial influencer:
 {finfluencer_examples}
 
-You will analyze a {platform} profile with the following details:
+Below are three {platform} profiles and their recent posts that exemplify a non-financial influencer:
+{nonfinfluencer_examples}
+
+You are also provided high-level and abstract “expert reflections” from a professional portfolio manager, an investment advisor, a chartered financial analyst, and an economist regarding the profile you are analyzing and its content. These reflections are provided below:
+{expert_reflection_prompt_template}
+
+Here are the details of the {platform} profile you will be analyzing:
 {profile_prompt_template}
 
 Instructions
 Analyze the provided information and answer the following questions based strictly on the available data and definitions provided to you. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
-tiktok_finfluencer_examples = """Example Profile 1:
+tiktok_finfluencer_examples = """Example Finfluencer Profile 1:
 - Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/a089791b375beffd40eaf995a4541032~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3963c468&x-expires=1748991600&x-signature=4ZYa6NLuLm7QPpnYYhJOnEEeeUo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
 - Profile Name: fung.money
 - Profile Nickname: ⚫️ Derrick | Money Professor😎
@@ -179,45 +283,6 @@ Tagged Users:
 Hashtags: stocks, stockmarket, investing, money, financialfreedom, ai, creatorsearchinsights
 Video Transcript: Tomorrow's a very important day for the markets. NVIDIA is reporting they are 6% of the S&P 500. Options makers have priced in a 7% move in either direction. The cost to run AI models has also come down significantly, 80% over the last two years. What does this all mean? How's the stock gonna do? Here are my two cents. First, let's look at the chart. This is the daily on the stock, and you'll see that it is consolidating. Usually when you see this type of triangle, it means the stock will either jump up or down once it reaches its apex. If you look at momentum indicators, you'll see that both MACD and RSI are showing that the stock is currently overbought. However, for this earnings, I think we actually should be looking at the weekly because it does tell a bit of a more medium to longer term trend, and you'll see it's telling a very different story. Since a lot of the news has come out recently on the company doing a lot of work internationally, you'll see it has reversed from bearish to bullish. A lot of it's gonna come down to guidance, and if you put yourself in the shoes of the CEO Jensen, I think there's incentive to provide very strong guidance, positive guidance, even though there are risks on the geopolitical front, and I would wanna do it to keep the momentum going. You know, a lot of top news and headlines have come out on the company doing a lot of work internationally. Doing so would also scare away competitors, strengthen leverage with suppliers, and it would really give big tech companies really an incentive to keep spending. Here's a free playbook on their earnings I just published on Substack, where I also talk about the impacts of lower compute and inference costs on NVIDIA long.
 
-Creation Date: 2025-05-25 22:41:25+00:00
-Video Description: #duet with @Bloomberg Business  How should you invest $100,000 in the markets today? The global economy is moving in different directions—U.S. markets are strong, while Europe faces inflation and China slows down. This creates major risks if your investments aren’t diversified. In this video, I explain why global diversification matters now more than ever and share practical investing tips to protect your money and grow your wealth. Perfect for beginner and intermediate investors looking to build a smarter, safer portfolio. 💸🌍📈 #investing #howtoinvest #personalfinance #wealthbuilding #financialfreedom #stockmarket #stocks #noney #creatorsearchinsights #invest 
-Video Duration: 19.0
-Number of Likes: 389.0
-Number of Shares: 42.0
-View Count: 20900.0
-Number of Saves: 51.0
-Number of Comments: 85.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.027129186602870812
-Tagged Users: 
-Hashtags: duet, investing, howtoinvest, personalfinance, wealthbuilding, financialfreedom, stockmarket, stocks, noney, creatorsearchinsights, invest
-Video Transcript: Somebody said to you, here's $100,000, I'd like to put it in the market. What would you do with $100,000 today? I would put it in one of our model portfolios that is really well diversified across asset classes, geographies, and segments because I think this is an environment where you really have to focus on balancing your risks.
-
-Creation Date: 2025-05-22 18:26:54+00:00
-Video Description: Why are stocks up while bond yields are spiking and warning us of risks ahead? #stocks #stockmarket #investing #money #creatorsearchinsights #financialfreedom 
-Video Duration: 81.0
-Number of Likes: 1518.0
-Number of Shares: 91.0
-View Count: 47800.0
-Number of Saves: 210.0
-Number of Comments: 146.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04110878661087866
-Tagged Users: 
-Hashtags: stocks, stockmarket, investing, money, creatorsearchinsights, financialfreedom
-Video Transcript: Why is the stock market up when the bond market is flashing warning signs? Market prices in the worst case scenario. But remember that equities and the stock market cares more about the future. So you can see here in 2011, when the US was first downgraded, a big spike down, but within six months, the stock market recovered. In 2023, October, Congress faced another shutdown over the debt ceiling. This rattled the markets. You can see this big sell off here. But then this very quickly recovered and the market hit all time highs. After that, 2018, Trump tax cuts, big sell off in the market, bond yields spiked. It was called a volmageddon even, but you can see here within months, the market also recovered. And lastly, 2021, the American Rescue Plan, Biden pushed this out in March. Markets sold off, bond yields spiked, but then the markets continued to soar after that. This time, things are different. Take a look at the debt to GDP ratio today versus all those other years. How do you profit from this and how can the US get out of this AI and crypto? So first, how do you reduce debt to GDP? You can increase GDP through improving productivity by leveraging AI. Second, how do you get out of the current debt situation? Well, you could hold crypto in your reserves, make money through the appreciation. There's a reason why Bitcoin is at all time highs today. If you can do that, then you can stomach those large interest rate payments. But do you think I'm crazy to think this or does this make sense? We'd love to hear your thoughts in the comments.
-
-Creation Date: 2025-05-20 22:00:45+00:00
-Video Description: 💰Tips to maximize profits for all investor types in 2025  #stocks #stockmarket #investing #money #financialfreedom #creatorsearchinsights 
-Video Duration: 98.0
-Number of Likes: 3025.0
-Number of Shares: 155.0
-View Count: 114900.0
-Number of Saves: 526.0
-Number of Comments: 213.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.034107919930374236
-Tagged Users: 
-Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights
-Video Transcript: We went from the fastest stock market decline to the fastest recovery ever. What do we do next? Here are some thoughts. What you're gonna do is gonna depend on your risk tolerance. Are you a high or a low? Also, your time in market, short or long? If you're in the top left quadrant, it means you're a risk taker and you're relatively new to the market. I'm also going to assume that you're far away from retirement. The strategy here would be to buy the dip. Every time you see red, sprinkle money into the market. If you're in the top right quadrant, meaning you're a high risk taker and you've been in the market for quite some time, you really don't have to do much. I think that is the best thing to do right now because the market has bounced back. If you really wanna do something because you're that high risk taker, you may wanna have more exposure to tech and growth, in particular, AI stocks, quantum computing, stocks of the future. If you're in the bottom left quadrant, you're new to the markets, but your risk tolerance is low. There are a few strategies you can deploy. Because your time horizon is still very long, I would still consider buying the dip. You could consider adding stop losses. You can consider buying put options. You can consider shorting stocks if you really want to. You can consider selling call options. These are some of the strategies you would wanna look into, but because your time horizon is long, I would still consider buying the dip. Lastly, if you're on the bottom right, meaning your tolerance for risk is low, but you've been in the market for quite some time, normally the answer is bonds. Shift your money into bonds. But bond prices are coming down because yields are going up. So my recommendation would be to de-risk. Sell some of your stocks and some of your higher risk assets and just park your money into a high yield savings account. Are there any strategies I'm missing? Please leave a comment. I'm also doing a live tomorrow morning. Link is in my bio.
-
 Creation Date: 2025-05-19 01:06:14+00:00
 Video Description: ‼️05/18: How big will markets sell off because of the US debt downgrade? Doing a live tomorrow morning, link in bio 🙏🏻 #stock #stockmarket #money #investing #financialfreedom #creatorsearchinsights 
 Video Duration: 59.0
@@ -256,32 +321,6 @@ Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of
 Tagged Users: 
 Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights
 Video Transcript: Is the recession canceled? That is the question of the day. You'll see that a ton of Wall Street analysts have cut the odds of one happening and even increasing price targets for the stock market. On Calshi, 38% chance of one happening, down from 70. Here's why this is happening so fast, and it has to do with the stock market and consumer confidence. That's where it starts. A higher stock market leads to more consumer confidence and business confidence. On the consumer side, with lower inflation now expected and a higher stock market, consumers will likely spend more and no longer delay the purchase of big ticket items, like potentially a house. And so with more consumer spending and lower inflation, businesses will also benefit. They will expect lower input prices because of lower potential inflation, which will increase their margins in which they can use that money to hire more, which will lead to more profits. And more profits leads to higher earnings per share and stock prices are derived by earnings per share. And with higher stock market, consumers will then also feel better and it is a bit of a vicious cycle. On top of all of this is AI. I feel like AI is going to play a very big role in decreasing inflation because AI will reduce the cost of producing goods and services. AI should make companies, people, governments more productive. And I do think the stock market is starting to price that in. Certain stocks, ETFs and assets will outperform others in a very big way during periods like these. I'll be speaking to that tomorrow morning on a TikTok live. The link is in my bio. But back on the trading floor days, we call this risk on mode and it definitely does feel like that right now.
-
-Creation Date: 2025-05-13 18:47:55+00:00
-Video Description: PLEASE watch before you make your next investment 🙏🏻💰 #stocks #stockmarket #investing #money #financialfreedom #creatorsearchinsights 
-Video Duration: 167.0
-Number of Likes: 1639.0
-Number of Shares: 67.0
-View Count: 33500.0
-Number of Saves: 140.0
-Number of Comments: 141.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0593134328358209
-Tagged Users: 
-Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights
-Video Transcript: Want to share some real talk on investing and on the markets. I feel like there are a lot of people who may have made a lot of money during the recent market rally, feeling really good. And there's also a bunch of people who are FOMOing because they missed out. There is a lot of noise, especially here on TikTok and want to share my two cents and the most unbiased view possible. Number one is please do your own research. Even if the video doesn't have that laid out, build that into your head that no matter what, if anyone tells you how to invest your money, step number one should be to do your own research immediately before you act on it, if you act on it. Number two is context matters. If you see a video about a stock, about someone's view on the market, about an ETF, first ask yourself, are they incentivized to be talking about this right now? Are they being sponsored? Are they, is there a conflict of interest? And the quickest way to figure that out is go on their profile and click through a few videos. Context matters also means that if someone is super bullish right now, it doesn't mean that they've always been super bullish. Maybe they were bearish before. Do some research on the actual person speaking to you, especially if you are going to put real money at risk to follow their recommendations. Number three, there are comments on, oh, you shouldn't listen to people on TikTok about investing, that's the wrong thing to do. I disagree. There are some really smart people on TikTok who are here to provide knowledge and value, and they are putting themselves out there to do that. I think the advice should really be, make sure to get as many perspectives as possible. Don't listen to only one person, but there are some very smart people here providing value. However, it ties all back to do your own research. Make sure that if you are going to listen to someone about investing, and if you are putting real money at risk, who are they? Are they experienced, or are they just here to try to get your attention and are they incentivized to do things that maybe aren't aligned with your own portfolio, money, or self-interest? If anyone here, whether you're a consumer of content or a content creator, has any additional thoughts on this that would help everyone, please do so, because I think, leave a comment, because I think this is a very important time given what's happening in the stock market right now.
-
-Creation Date: 2025-05-12 21:05:07+00:00
-Video Description: Replying to @Bank Sophon  Are we back in a Bull market?  #stocks #stockmarket #investing #money #financialfreedom #creatorsearchinsights 
-Video Duration: 154.0
-Number of Likes: 3202.0
-Number of Shares: 155.0
-View Count: 95200.0
-Number of Saves: 296.0
-Number of Comments: 281.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0413235294117647
-Tagged Users: bank_sophon
-Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights
-Video Transcript: So the market is up big today and I want to post a video because I've been getting a lot of comments like these and if you haven't been following all of my videos and just randomly saw one, I can see how what I've been saying, especially more recently, can be a bit misleading. I did want to clarify. So one, if you watched the first video that is pinned on my profile, I have been encouraging people to sprinkle money into the market as the market dipped. So as early as April 3rd, I've been saying, and especially if you've been enjoying my TikTok lives, sprinkle money into the market. Dollar cost average. Don't wait for the very bottom. It is very hard to time. And I have been saying that since April 3rd, check out the first video of my profile. And then on April 6th, I mentioned that based on how much the market has fallen in the short period of time, we normally looking back history would see a 10% double digit pop and that is exactly what happened. And then since April 6th, if you watch my videos, it's been kind of mixed. There are certain days when I say that what is happening is bearish. And then there are certain days I am saying that the market could keep pumping. And this is because things have been changing on a daily basis. And some of the smartest Wall Street analysts have had a hard time forecasting what is happening here. So unless you've been able to read the mind of the president or have an inside scoop, it is essentially been a toss up. What I've been saying, though, over the last week, and if you go on CNBC, there are a lot of analysts who agree is that terrorists have not been in market yet. So this big pump right now is largely driven by retail money. It's largely driven by greed. And if you look at what happened in 2018, when terrorists finally came into effect, and when the impacts of it started to become clear, that is when the market ultimately sold off. Did I see today coming? No. And I don't think most people did. Unless again, you had some sort of inside scoop. Do I think it's too early to call it a win? You know, some people like, oh, the market is just going to keep pumping. You were wrong. Look, I don't care about being right or wrong. I care about protecting profits. And there's still a lot of unknowns. So as someone who's been in the market for 17 years, three downturns, I think it's still way too early to call this a win. Like, oh, we're back to bull market. You know, everything is over. Way too early, especially when some of the smartest investors, including Warren Buffett, are sitting in mainly cash still.
 
 Creation Date: 2025-05-12 17:17:24+00:00
 Video Description: 💰05/12: How to profit from the US / China news - a major rotation is happening fast.  #stocks #stockmarket #investing #money #financialfreedom #creatorsearchinsights #greenscreen 
@@ -348,19 +387,6 @@ Tagged Users:
 Hashtags: stocks, stockmarket, investing, money, financialfreedom, economy, crash, creatorsearchinsights
 Video Transcript: prices are tanking, isn't that a good thing? No, it's not. It usually signals a recession when that happens, and that's not even the scariest part. So how does this all happen? So firstly, oil prices are tanking because OPEC decided to increase supply. And when that happens, and there's not a lot of demand, prices fall. Prices have to fall because you're not at the equilibrium point. You know, econ 101, supply and demand. And why is there not a lot of demand for oil? Well, there could be many reasons. Slowdown in economic activity, slowdown in shipping, manufacturing, just general slowdown in economic activity. And so during recessions and global slowdowns, oil does fall, and that's why it has spooked the market. And when I said this is not the scariest part, what do I mean? If this continues, this will create another problem for the Fed to fight. We've got inflation, we've got stagflation, and then there's now a potential risk of deflation. Deflation happens when consumers delay, consumers and businesses, delay purchases of goods and services because they expect prices to be lower. And because they expect oil prices to be lower and therefore things get cheaper. That usually is not the case. But as a result, businesses may have to lower their prices and it becomes a bit self-fulfilling. Consumer demand softens, businesses have to lower prices, and therefore corporate profits fall. And another problem for the Fed to fight. And that is why when the Fed spoke today, Jerome Powell has been very careful with his words. Because consumers have already started panic buying ahead of tariffs, pulling up their spending. Spend, spend, spend, spend, spend. If the Fed came out and said the economy is slowing, consumers may delay their spending because they may expect prices to decrease. And if that happens, that'll make things even worse. And that'll drive inflation to come down even faster, making the situation that we're currently in even tougher to get out of. I'm really trying not to be doom and gloom. I'm just trying to relay the bigger picture of what is happening here, why I think it's going to be very important to be patient, why we've only seen the tip of the iceberg, and why this could be a really good time to park money in safe haven assets like Bitcoin, gold, and even international markets. You know, the U.S. is not the only stock market you can invest in. I'll be putting up some more content on other stock ideas from other countries, Europe, China, etc. But please be patient and be careful out there.
 
-Creation Date: 2025-05-06 16:53:34+00:00
-Video Description: Most Investors & Traders Only Know Half the Game (Here’s the Other Half) 05/06: Doing a free Live @ 5pm EST on Shorting Stocks. Link in bio ✌🏻 #stocks #stockmarket #investing #money #financialfreedom #creatorsearchinsights 
-Video Duration: 48.0
-Number of Likes: 1355.0
-Number of Shares: 102.0
-View Count: 36900.0
-Number of Saves: 238.0
-Number of Comments: 136.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04962059620596206
-Tagged Users: 
-Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights
-Video Transcript: You could be leaving a lot of money on the table if you're only buying stocks. You know you can short stocks as well, essentially betting on stocks or the market going down. Especially in this market, there's a lot of money that you could be making. I came out, for example, out of 2020 flat when the market was at the bottom because I was short. It is not easy. It is risky. But if you want to learn how to do it, I'm doing a TikTok live for free this afternoon at 5pm. The market's losing momentum. This could be a really good time to short. Not knowing how to short stocks is like playing chess only on offense. Or it's like driving a car without knowing how to reverse. It's a very important part of one's toolkit, especially if you want to be a good investor or trader. I'll be going through what stocks to short, how to short, the risks involved, and how to make a lot of money. I think now's the time. I'll see you at 5pm.
-
 Creation Date: 2025-05-04 23:48:14+00:00
 Video Description: Replying to @arellehug  ‼️05/04: The stock market may sell off this week based on this real-time consumer spending data.  What should we do? Join me Live at 8:30am EST (link in bio) ✌🏻 Not Financial Advice! #stocks #stockmarket #investing #money #financialfreedom ##creatorsearchinsights#greenscreen 
 Video Duration: 98.0
@@ -373,19 +399,6 @@ Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of
 Tagged Users: arellehug
 Hashtags: stocks, stockmarket, investing, money, financialfreedom, creatorsearchinsights, greenscreen
 Video Transcript: The stock market's about to hit a wall based on real-time consumer spending data. It's the same data that Wall Street's top hedge funds use, the same data we use to predict the first market drop. It's showing that consumer spending fell across all major categories. This will start to get priced in this week. A lot of funds will start selling. Here's what it is showing. Visa is widely viewed on Wall Street as a good barometer of how the economy is doing. You'll see here that since beginning of the year, spending on Visa cards has gone up, but it has hit a bit of a plateau as of recently and looks like it's spiking back down. To verify what I was seeing, I want to look at MasterCard as well to make sure it wasn't just a Visa thing. Same thing. It has plateaued and on its way down. I had my data science team dig in and it is very interesting what we're seeing. So up here is overall spend across debit cards, credit cards. So it's Visa, MasterCard, Amex, and Discover. You'll notice the spike up in spend in March. It is now public knowledge that this is consumers pulling up their spending. So in advance of tariffs, a lot of spending happening. It is very important to note that furniture, fixtures, and appliances has been pulling everything up. So yes, in the month of March, as you can see here, consumer spending across all the major categories saw a pretty big lift. But look at April. It is reversed in a pretty big way. The only category that is seeing a lift is still furniture, fixtures, and appliances. These are expensive, durable goods that consumers are buying because they are concerned that it'll spike up even more in price. It looks like the selling has already started based on stock market features. I'll be doing a TikTok live in the morning Eastern to go through all of this, what it means, what I'm going to be buying, what I'm going to be selling. It's going to be a very big week in the markets. If you've been waiting to buy into this market, this is going to be your chance.
-
-Creation Date: 2025-05-03 01:06:13+00:00
-Video Description: Many Canadians want to move to the US now. But why?  #us #canada #canada_life🇨🇦 #canada🇨🇦 #america #usatiktok🇺🇸 #creatorsearchinsights 
-Video Duration: 48.0
-Number of Likes: 916.0
-Number of Shares: 68.0
-View Count: 34200.0
-Number of Saves: 43.0
-Number of Comments: 205.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0360233918128655
-Tagged Users: 
-Hashtags: us, canada, canada_life🇨🇦, canada🇨🇦, america, usatiktok🇺🇸, creatorsearchinsights
-Video Transcript: Canadians are looking to relocate to the U.S. after the election. I was like, that is such a non-Canadian thing to do. But then I clicked on this and 46% of people said they would do it out of 34.3 thousand, which is like, what, 10% of the country? Just kidding guys, I'm from Canada. Why do so many people want to leave? You got beautiful mountains, free health care, legalized weed, you got Drake, you got ketchup chips. Here's the hilarious part, one of the most searched for things right now on TikTok is moving to Canada. And so American friends, why do you want to move to Canada? Like, look, the most searched for thing is snow. It is cold in Canada. And, okay, maybe for the tempura nuggets or something, but like, why do you guys want to move to Canada? Like, are we just going to swap?
 
 Creation Date: 2025-05-01 23:15:31+00:00
 Video Description: 05/01: There’s a massive rotation out of Gold into Bitcoin secretly happening right now. Here’s why‼️ #investing #money #gold #bitcoin #cryptocurrency #crypto #financialfreedom #creatorsearchinsights #greenscreen 
@@ -452,21 +465,8 @@ Tagged Users: mollychen181
 Hashtags: stocks, money, investing, financialfreedom, market, marketnews
 Video Transcript: Which stocks should we buy in a recession? Here are eight stocks I'm personally rotating into in my million dollar portfolio in case the economy slows. As I mentioned in the prior video in this playlist, half my portfolio are going to be low risk stocks focused on protecting capital. And the latter half of the portfolio are going to be more growth oriented stocks that should still do well in a slowdown type of environment. The low risk side of the barbell portfolio, the first name is Costco. Consumers will be buying in more bulk as the economy potentially slows. Second company is Marathon Petroleum. If you have a car, you're going to need gas. Spending data we have access to is showing pretty good growth on the name as well. Maybe more consumers are doing staycations right now and driving instead of flying. Number three is Walmart. It's a name that typically does well during slowdowns and a name that a lot of folks, including large institutions, rotate into. Number four is Coca-Cola. You know, it's a name everyone knows, strong balance sheet, and it's a consumer staple. On the high risk side, these are all growth stocks with AI exposure. I think corporations are going to continue to invest in AI heavily, even in a slowdown type of environment. Four stocks here are Nvidia, Broadcom, who had very strong earnings today. Marvel Technologies, a name that's recently been beaten up, so it could be a good entry point right now. The last one is Tesla. I know it's a bit controversial, but in a slowdown type of environment, consumers may trade down to EV because it is cheaper. I'm starting to build up my positions in this portfolio, so follow along if you want tips and tricks on how to properly enter and exit into stocks.
 
-Creation Date: 2025-03-06 22:30:35+00:00
-Video Description: Replying to @mollychen181  Here’s a portfolio constructed the way Wall Street pros do which can both protect AND grow your capital during these volatile times. #investing #money #stocks #financialfreedom #AI #market #creatorsearchinsights 
-Video Duration: 40.0
-Number of Likes: 93600.0
-Number of Shares: 12300.0
-View Count: 1400000.0
-Number of Saves: 49542.0
-Number of Comments: 636.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.11148428571428572
-Tagged Users: mollychen181
-Hashtags: investing, money, stocks, financialfreedom, ai, market, creatorsearchinsights
-Video Transcript: Which stocks should we buy in a recession? I'm going to show you guys how to put together a portfolio, the way the pros do it, to both protect and grow your capital during these volatile times. This is called a barbell portfolio strategy, where you're buying stocks that are both very low risk and stocks that are higher risk. So you're excluding everything that is medium risk. The low risk end of the barbell strategy is going to include consumer staples, utilities, and healthcare. The high risk part of the portfolio is going to focus on AI, a category that I believe should continue to do well even during tough economic times. If you're more conservative, here's what your portfolio could look like down here below. And if you want to take on a bit more risk, here is what your portfolio could look like instead. I think this portfolio has a really good shot of being in the market, and I'll be sharing the individual stock names tomorrow.
 
-
-Example Profile 2:
+Example Finfluencer Profile 2:
 - Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7312923100926967854~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=7183c5a6&x-expires=1748991600&x-signature=hsmS0YMPdA4TGnFAt%2BogtcALHus%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=maliva
 - Profile Name: humphreytalks
 - Profile Nickname: Humphrey Yang
@@ -493,32 +493,6 @@ Templates and YT↙️
 - Comment Engagement Rate: 0.0001317567567567
 - Like Engagement Rate: 0.0098848251192368
 - Video Transcripts (Sorted from Newest to Oldest):
-Creation Date: 2025-05-18 00:24:57+00:00
-Video Description: Two friends buy Tesla at the same time. But one sells it a month earlier 🤯 #tesla
-Video Duration: 33.0
-Number of Likes: 4622.0
-Number of Shares: 131.0
-View Count: 198500.0
-Number of Saves: 263.0
-Number of Comments: 145.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.026
-Tagged Users: 
-Hashtags: tesla
-Video Transcript: I'm gonna buy 10 shares of Tesla today. They're gonna kill it this year. Really? Then I'll do the same too. Let's hold it for at least a year. Deal. 12 months later. Oh, hey, old friends. Did you keep your Tesla shares? They're up a lot. Oh, I actually sold them last month. I made $3,000, but I paid $1,000 in taxes. So 2K total profit. Yikes, paper hands. So you paid a 33% tax rate on your profit? Is that bad? Yeah, your tax rate becomes much lower if you hold them for longer than a year, only 15%. I had no idea. I wish I didn't sell it in the 11th month. That's all right. Now you know, and that's why you should follow this account.
-
-Creation Date: 2025-05-14 18:27:43+00:00
-Video Description: 3 Financial Milestones for those Making $100K / Year! 
-Video Duration: 77.0
-Number of Likes: 1708.0
-Number of Shares: 89.0
-View Count: 69500.0
-Number of Saves: 350.0
-Number of Comments: 71.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0319136690647482
-Tagged Users: 
-Hashtags: 
-Video Transcript: Here are three financial milestones that tell me you're on the right track, and this is if you're making $100,000 or more per year. Number one is to avoid lifestyle inflation. So every time you get a raise, you're gonna start having more disposable income, and when most people get paid more, they will spend it. I'm all for doing that to a certain extent, but just because you can afford something now, like a nicer car or a bigger house, doesn't mean that you need to do so. Living under your means is one of the best ways to not only accumulate wealth, but also have peace of mind when it comes to money. Milestone number two is to know your financial independence number. You can retire early if you make a good income and have a good savings rate, and you should know what that number needed to do that is. Here's a great resource from networthify.com where you can plug in your income and your savings rate, and then it'll tell you how quickly you can retire. So if you have a portfolio of $250,000, you make $100,000 a year, and you're saving 20% of your income, you could actually retire in 19.5 years. And milestone number three is to increase your overall gains on investments. When you start making more money, you can start to take some risks with a small percentage of your portfolio. So for me, that would be about 5% of my portfolio. I personally have benefited from higher conviction stocks like Nvidia, Meta, and even Robinhood. And for some of my friends, it might be their real estate investments. Don't risk more than you can afford to lose, but it's a good way to build wealth long-term. I hope this helps. Let me know what you think in the comments.
-
 Creation Date: 2025-05-12 18:02:53+00:00
 Video Description: The US and China have agreed to a trade deal when it comes to tariffs. Here's what it means for you.
 Video Duration: 66.0
@@ -531,58 +505,6 @@ Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of
 Tagged Users: 
 Hashtags: 
 Video Transcript: The US and China have agreed to a trade deal when it comes to tariffs, and here's what it means for you. So first, the deal means that reciprocal tariffs between both the countries go from 125% to 10%, that's really good news, but the US will still keep a 20% extra duty on fentanyl in place, meaning that the total tariffs on China stand at around 30%. The deal will be for 90 days as they continue to negotiate for a longer term plan, but it still should mean a few things. First is that goods imported from China to the US won't incur these crazy tariff rates, which hopefully means that these costs aren't going to be passed down to you. Second is that the risk of recession in 2025 has decreased to 39% according to Polymarket, but the long-term future is still uncertain. Number three is that quarter one GDP came in negative, which is usually a sign of a contracting economy, but that was largely due to the fact that there were so many imports coming in. Many companies were importing goods like crazy to front-run tariffs, and imports actually subtract from GDP, so we'll actually see if that changes for Q2. And number four, stocks should recover barring any catastrophic events and should continue to do fine for at least the next 90 days. Let me know if you have any questions in the comments.
-
-Creation Date: 2025-05-12 00:35:08+00:00
-Video Description: I wonder how much money this video will make 🤔
-Video Duration: 45.0
-Number of Likes: 7839.0
-Number of Shares: 570.0
-View Count: 119500.0
-Number of Saves: 394.0
-Number of Comments: 187.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.07523012552301256
-Tagged Users: 
-Hashtags: 
-Video Transcript: I made $600 buying and selling my gold bar from Costco and the New York Post actually calls this eye popping, but the money that I made from the videos, that's actually crazy, let me show you. On YouTube, I had 15 million views when I sold my gold bar and that got me about $1,900 and that's about 20 cents per thousand views, but TikTok was even crazier. On TikTok, it got 6.6 million views. Because that video was over a minute long, I was able to get it monetized and so that's 3.3 million qualified views. I don't know why half of the views are qualified, but still, that was $4,350. So in total, your favorite finance creator, me, hopefully, I made $6,250 on just selling the gold bar and making the videos, not too bad. What does that tell you? Make videos, they're pretty great.
-
-Creation Date: 2025-05-10 18:27:25+00:00
-Video Description: 3 Financial Milestones If You’re Making around $75,000 Per Year! Lmk your thoughts below 
-Video Duration: 81.0
-Number of Likes: 4542.0
-Number of Shares: 130.0
-View Count: 156500.0
-Number of Saves: 772.0
-Number of Comments: 91.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03536741214057508
-Tagged Users: 
-Hashtags: 
-Video Transcript: Here are three financial milestones that tell me you're on the right track, and this is for those earning around $75,000 per year. I made a previous video on these milestones to hit for those making around 40K per year, so make sure you watch that video and have those covered before you move on to this video. Milestone number one is to track and budget your money. That means you should know approximately how much you're spending on every single category in your finances. Once you figure that out, we wanna cut relentlessly around the things that do not fulfill us or drive us forward and start spending or saving money on the things that do. Milestone number two is to track your net worth, and just like dieting or going to the gym, if you start tracking what you're actually eating or lifting every day and what your weight is, you'll have this natural awareness that will help you out longer term, and the same will go for your money and finance goals. Here's a table of median net worth in America by age. Now, these numbers are, I think, in my opinion, a little low so you should try to aim for double these numbers. If you'd like a free net worth tracker, I will leave one in the caption or in my profile. And milestone number three is to figure out your target savings rate in order to retire. If you're starting at the age of 30 with $0 saved, in order to retire, you need 4.6% of your income saved every single year to hit a $750,000 balance by retirement. At age 40, that goes up to a savings rate of 10.67%, saving $8,000 per year, and then at age 50, that's a whopping 27.4%, saving $20,600 per year. Let me know if you have any questions in the comments.
-
-Creation Date: 2025-05-09 13:53:39+00:00
-Video Description: Casino Secrets: Psychological Tactics they use to get you to gamble more and gamble longer. 
-Video Duration: 41.0
-Number of Likes: 1610.0
-Number of Shares: 106.0
-View Count: 40500.0
-Number of Saves: 59.0
-Number of Comments: 79.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04577777777777778
-Tagged Users: 
-Hashtags: 
-Video Transcript: Hey guys, I'm in Vegas, and this is Casino Secrets. The first thing is that there are no windows or clocks in a casino so that you lose track of time. Swap machines actually make the most amount of money for casinos, and in Nevada, they're legally required to pay out a minimum of 85% of their bets as winnings. That means if you put $100 into one of these machines, over time you can expect to win about $85 in the long run. The carpets are ugly and disorienting, and that's done on purpose so that you look up at the games. Lastly, there are no hard right turns in a casino. Everything just kind of flows. Casino designers don't want you making hard right turns because that activates the decision making part of your brain, which they definitely don't want. What casino secrets do you know? Let me know in the comments.
-
-Creation Date: 2025-05-08 15:10:15+00:00
-Video Description: 3 Financial Milestones When You’re Making Around $40,000 Per Year 
-Video Duration: 75.0
-Number of Likes: 1143.0
-Number of Shares: 50.0
-View Count: 26800.0
-Number of Saves: 198.0
-Number of Comments: 52.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05384328358208955
-Tagged Users: 
-Hashtags: 
-Video Transcript: Here are three financial milestones that tell me you're on the right track if you're making around $40,000 per year. Number one is to have no consumer debt like credit card or buy now pay later debt. Since your take-home pay comes out to around $2,700 per month, after you account for the cost of rent and other bills, money could be pretty tight. By having this debt, you are compounding your problems and an extra $100 per month in interest payments could be the difference between having some savings for retirement versus not. All right, milestone number two is to fill up your emergency fund as well as maybe contribute to a Roth IRA. So aim for three months of an emergency fund first. So if your expenses are $2,700 per month, you multiply that by three and you need minimum $8,100 in your savings account. If you reach that point, you can start putting some of your paycheck into a Roth IRA and right now the contribution limit in a Roth IRA is $7,000 per year for individuals under the age of 50 and 8,000 per year for over 50. And milestone number three is that we should start looking for ways to make a little extra money so you don't have to go out and entirely get a new career or switch jobs. But if you can make some money on the side or build out a high income skill by investing in yourself, it could be worth the risk. At 40K per year, your time is worth about 20 bucks an hour. So if you're able to find a side hustle that pays at least that, that's going to be a pretty good thing. All right, let me know what you guys think in the comments and I'll answer any questions.
 
 Creation Date: 2025-05-06 18:15:58+00:00
 Video Description: My Coca Cola Dividend! Do you guys think it’s worth it? 
@@ -597,149 +519,6 @@ Tagged Users:
 Hashtags: 
 Video Transcript: So the other day I was checking my investment account and I received $12.60 from Coca-Cola as a dividend. That's a percentage of profits that Coke passes back to me every quarter just for owning their shares. Now, I realized that there are a few reasons Coke does this. They're a dividend king, which means that they've been paying dividends for at least 50 years. And in Coke's case, they're going on 62. Paying a dividend is also a conscious decision that shows to the market that they are a stable company because they have enough profits to pass back to their holders. And it is said that Coca-Cola is one of the best defensive companies to own during recessions and bear markets because people are going to drink Coca-Cola no matter the economic environment. But the story doesn't end there because Coca-Cola is owned by a lot of big investors for the passive income in dividends it provides. Warren Buffett's Berkshire Hathaway, for example, now owns roughly 9% of Coca-Cola, which pays them approximately $815 million every single year in dividends. But if you or I wanted to make just $100 a month from Coke in dividends, well, you would need about 588 shares or about $42,402 worth of Coca-Cola stock. So those dividends do come at a hefty price.
 
-Creation Date: 2025-05-05 17:30:59+00:00
-Video Description: These 4 moves built me 80% of my wealth: 💰 #1: PAY YOURSELF FIRST. When my paycheck hits, money immediately goes to investments before I can spend it. Setting aside even $200-300 per paycheck consistently is how wealth actually happens. ⏳ #2: START INVESTING EARLY. As Charlie Munger wisely said, “The big money isn’t in buying or selling, but in waiting.” Compounding needs TIME - the longer your money works, the harder it works for you. 📊 #3: TRACK YOUR NET WORTH MONTHLY. Just like weighing yourself during a fitness journey, I write down all account balances minus debts every month. This mindfulness keeps me focused on progress and growth. 💼 #4: INCREASE YOUR INCOME. While you can build wealth on any salary, earning more while keeping expenses low is the ultimate wealth accelerator. Which of these are you already doing? Drop a 💬 below!
-Video Duration: 79.0
-Number of Likes: 2920.0
-Number of Shares: 127.0
-View Count: 56700.0
-Number of Saves: 385.0
-Number of Comments: 110.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.062469135802469135
-Tagged Users: 
-Hashtags: 1, 2, 3, 4
-Video Transcript: After 12 years of trying different financial moves, here are the four that built me 80% of my wealth. Number one was paying myself first. So this means that every time I got paid, I would first set aside some money for my future self that would go towards investing or savings. So let's say I had a paycheck of $2,000. I would set aside 300 or 200 bucks of that and just make sure that it got invested because it's really in the consistent investing and savings that you are going to build wealth. Number two is just investing as early as you can. I think Charlie Munger said that the big money is not in the buying or the selling, but rather in the waiting. And that's absolutely true because of compounding. You need your time to compound and the longer time that you have, the better that it compounds. So over 12 years, I can do a lot. Number three was simply tracking my net worth at the end of every month. So I would just write down all my balances of my bank accounts and investment accounts and then subtract any debt that I had. And I think keeping track of your net worth like this is a really good thing. Just like if you're trying to lose weight at the gym, keeping track of your weight means that you're probably gonna be focused on what your progress is looking like and you're gonna be more mindful of everything that's going on with your weight, but in the money analogy, with your money. And number four is simply trying to make more money. While you can become a millionaire on a low salary, it's gonna really accelerate your wealth if you can make more income and keep your expenses low. Let me know what you guys think in the comments.
-
-Creation Date: 2025-05-01 21:32:58+00:00
-Video Description: 4 Money Habits Keeping You Poor
-Video Duration: 68.0
-Number of Likes: 1339.0
-Number of Shares: 69.0
-View Count: 27400.0
-Number of Saves: 86.0
-Number of Comments: 28.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.055547445255474455
-Tagged Users: 
-Hashtags: 
-Video Transcript: Here are four money habits keeping you poor. And if you wanna be rich, you wanna make sure to avoid these. Number one is paying for status. So in modern society, everyone wants to show how much status they have by driving a fancy car or buying designer clothes. But the problem is that most people can't afford it. The average car payment to these days in America is now $742 per month. Number two is being cheap. So I know that this sounds counterintuitive, but sometimes being cheap with certain items will cost you more money in the long run. I'd rather buy one high quality item once instead of buying cheap items again and again. Number three, trying to keep up with your friends. Your financial journey is unique to you, so don't feel pressured to match your friend's spending. When I was making around 50K per year, my friend would always invite me to these lavish Michelin star dinners, and that was just unsustainable. If they are a true friend, they will understand if you say to them that you're not willing to splurge on the same things that they might wanna spend their money on. Before we get into number four, if you wanna get better with your finances, I suggest hitting that follow button so that you can get more videos like this. Number four is paying the minimum on a credit card, because if you do this, you are going to cost yourself a lot more in the long run due to a credit card's high interest rate.
-
-Creation Date: 2025-04-26 17:51:43+00:00
-Video Description: The 1031 Exchange: Why It’s So Powerful 
-Video Duration: 37.0
-Number of Likes: 3497.0
-Number of Shares: 282.0
-View Count: 109600.0
-Number of Saves: 578.0
-Number of Comments: 72.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04041058394160584
-Tagged Users: 
-Hashtags: 
-Video Transcript: I want to sell this investment property. It's gone up a million dollars in value since I've bought it. Yeah, but then you would owe capital gains taxes of around 200k. Isn't there like a tax loophole I could take advantage of? You could do a 1031 exchange. That's where you swap your property for a new one and postpone paying taxes on that gain. Okay, so it says here that if I can identify a property within 45 days, close on it within 180 days, I can do this and postpone taxes. Yeah, and the best part is you can postpone taxes indefinitely all the way until you die. What happens when I die then? The original value of the property resets to the market value for your heirs, and they'll owe no capital gains taxes on it. Damn, that's one way to avoid taxes.
-
-Creation Date: 2025-04-25 16:38:44+00:00
-Video Description: Will Investing $100 every month make you a millionare?
-Video Duration: 70.0
-Number of Likes: 4495.0
-Number of Shares: 454.0
-View Count: 163600.0
-Number of Saves: 1283.0
-Number of Comments: 74.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03854523227383863
-Tagged Users: 
-Hashtags: 
-Video Transcript: What should I invest my $100 a month in to be a millionaire by 65? I am 27, I'll be 28 in September this year. At age 27, assuming you start with $0, investing $100 per month until 65, you actually need a 13% return in order to become a millionaire. That return isn't easily achievable though because the stock market, for example, averages eight to 10% per year. So investing $100 per month at 8% return only gets you $285,000 by the time you turn 65. Here's how much you need to invest per month at an 8% return and the ending balances by 65. If you have around 38 years left until retirement, $500 per month is needed to become a millionaire. In terms of what to invest in, an S&P 500 ETF like VOO has actually averaged around eight to 10% returns since 1957. And look at how much of your ending balance is compared to what you actually put in. For example, investing $500 per month by the time you're 65, you contributed $228,000 total, but your profits are about 1.2 million. So start early, invest consistently, and a bonus is to invest within a Roth IRA where all your capital gains are tax-free. If you like videos on growing your money, follow for more.
-
-Creation Date: 2025-04-24 16:01:21+00:00
-Video Description: Why cars lose value when you drive them off the lot… explained! 
-Video Duration: 60.0
-Number of Likes: 795.0
-Number of Shares: 77.0
-View Count: 24900.0
-Number of Saves: 77.0
-Number of Comments: 19.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03887550200803213
-Tagged Users: 
-Hashtags: 
-Video Transcript: If you wanna buy this new Audi Q4, it'll cost you $62,625. But once you drive it off the lot, it'll be worth a lot less. After just one minute, it'll be worth 57,326. And after one year, it'll be worth even less. Why is that? Cars are depreciating assets, which means that they lose their value over time. But that still doesn't answer why they lose close to 10% of their value after one singular minute. That has to do with the car's markup. The dealer is buying the car for 57,326, and then they're selling it to you for 62,675. That markup includes overhead costs, interest and marketing expenses, and it also gives the dealership a little bit of profit and wiggle room for negotiation. Once you drive it, though, the markup is basically erased. And if you were to try to sell it back to the dealer, they would maybe be willing to buy it back at the wholesale price, but not likely. To get the most value when buying a car, you wanna buy a car in the depreciation curve's sweet spot. That usually is a car that's three to four years old, where most of the depreciation has been chipped away already, but the car still operates like it's new.
-
-Creation Date: 2025-04-23 13:53:27+00:00
-Video Description: You can now pay your student loans with Bilt Points! Simply redeem Bilt points directly toward your eligible student loans across major loan servicers, like Nelnet, Mohela, Sallie Mae, and more. #biltpartner.
-Video Duration: 43.0
-Number of Likes: 2284.0
-Number of Shares: 195.0
-View Count: 2200000.0
-Number of Saves: 337.0
-Number of Comments: 10.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0012845454545454544
-Tagged Users: 
-Hashtags: biltpartner
-Video Transcript: I found out that if you pay rent, you can earn points that can be applied to your student loans. There's a $1.77 trillion student debt crisis in America, so the ability to help reduce that debt with points you earn from your rent feels like a no-brainer. So the way this works is that you first sign up for BILT, that's the rewards program that lets you earn points on paying rent, among other benefits. Every time you pay your rent through BILT, you earn BILT points, which can be used for travel, fitness classes, ride shares, et cetera. And the biggest update is that you can now redeem BILT points directly toward your eligible student loans across major loan servicers like Nelnet, Mohella, Sallie Mae, and more. There's zero cost to join, and just by paying rent as you normally would, you get valuable and flexible points that can be put toward other major expenses. Another reason to check out BILT if you haven't already.
-
-Creation Date: 2025-04-22 23:10:01+00:00
-Video Description: How to Profit During a Recession (or just in general) with Dollar Cost Averaging. 
-Video Duration: 92.0
-Number of Likes: 2964.0
-Number of Shares: 357.0
-View Count: 71700.0
-Number of Saves: 556.0
-Number of Comments: 84.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05524407252440725
-Tagged Users: 
-Hashtags: 
-Video Transcript: If you wanna profit during a recession, try dollar cost averaging and here's why it's so powerful. So here are two different stock charts. Most of us would prefer this one because it starts at $20 per share and then it kind of gradually rises up into the right. The second chart on the other hand, it starts at $20 per share and then the next month it trades at 30, then 40, but then it just has a dramatic dip and crater and then it recovers at the end, yes, but this stock chart is really ugly. So let's say we want a dollar cost average $240 per month into the stock market. In this particular chart, that means you'll get 12 shares in the first month because 240 divided by 20 is 12 shares. Then in the second month, you'll get eight, third month you'll get eight, so on and so forth. And as you can see, the bottom X-axis here is how many shares you will get. Here's where it gets interesting. If you're investing $240 per month without emotions, AKA dollar cost averaging, this chart actually works better for you because during this dip right here, you're picking up 24 shares, 24 shares, 24 shares during this dip when it's trading at $10 per share. In both of these situations, you would have invested $2,400, but look at what happens at the end, 62 shares at $60. That's what it's trading for. Your total investment is now worth $3,720. In the second scenario, you actually picked up way more shares, 142 shares. And since they're trading at $30 now, your total investment is now worth $4,260, even though this chart is way uglier. So the point is really simple. You wanna take emotions out of investing. And if you're investing for the longterm, this will help you profit way more because you aren't gonna be second-guessing dips and buying tops when you get emotional. And I hope this helps.
-
-Creation Date: 2025-04-19 18:44:42+00:00
-Video Description: The American Express Gold Card: Worth It?
-Video Duration: 61.0
-Number of Likes: 8262.0
-Number of Shares: 716.0
-View Count: 162800.0
-Number of Saves: 1622.0
-Number of Comments: 163.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06611179361179362
-Tagged Users: 
-Hashtags: 
-Video Transcript: This is the best credit card for buying groceries or eating out at restaurants, especially if you're making around $70,000 or more per year. The American Express Gold Card has a $325 annual fee, but it's still probably my favorite overall credit card because of its crazy perks. First, you get four credit card points for every dollar you spend on food, which is the equivalent of about 4% cash back in value. And you also get three X points whenever you book a flight with it. Second, you can make up the cost of the annual fee by using their $120 dining credit, their $120 Uber Cash credit, their $100 Rezzy credit, and the $84 Dunkin' Donuts credit. I also get a $100 credit at a hotel where I book two nights or more through the American Express Hotel Collection website. You can use that credit on room service, for example, and you also get to check in as early as 12 p.m. and check out as late as 4 p.m. Third, you can usually get an intro offer of 60,000 bonus points when you spend $6,000 in the first six months, which is the equivalent of about 10% cash back. It's been the card I use the most in the past few years, and I personally am able to get more value out of the card than it costs me.
-
-Creation Date: 2025-04-16 15:40:40+00:00
-Video Description: Do not do these 3 things if you’re expecting a tax refund this year. 
-Video Duration: 69.0
-Number of Likes: 1479.0
-Number of Shares: 49.0
-View Count: 38800.0
-Number of Saves: 63.0
-Number of Comments: 92.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.043376288659793816
-Tagged Users: 
-Hashtags: 
-Video Transcript: If you're expecting a tax refund this year, please do not do these three things with it. The average tax refund in the US is now $3,116, and many Americans like you or me will look at this sum and spend it on very, very dumb things. So number one, do not use your tax refund on a new car. Interest rates are incredibly high, averaging 6.35% for new cars and 11.62% for used cars. While spending your tax refund on a down payment for a car may sound tempting, you will be stuck with a car payment for the next five to six years on a depreciating asset, and with the average car payment being $737 on a new car in 2025, it's definitely a wealth killer you need to avoid. Number two, please do not open a savings account at your normal bank. Many people will open a savings account for their tax refund, but because that money is very accessible at your current bank, you will be tempted to spend it any chance you get. Instead, open a savings account at a different bank to increase the friction of accessing that money. Now, the next thing to avoid is a very common purchase, and if you follow me, you know to avoid this thing, and that simply is buying new or luxury clothing because that's a type of purchase that does not hold its value.
-
-Creation Date: 2025-04-13 15:01:31+00:00
-Video Description: You could get in trouble with a deposit over $10K. Here’s why. 
-Video Duration: 55.0
-Number of Likes: 78800.0
-Number of Shares: 2089.0
-View Count: 2000000.0
-Number of Saves: 7036.0
-Number of Comments: 1394.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0446595
-Tagged Users: 
-Hashtags: 
-Video Transcript: Did you know that you can get in trouble if you deposit too much money? That's because any deposit over $10,000 gets flagged by banks, and they will have to report it to the federal government. So people knowing this try to irrationally get around it. They'll make say three separate $8,000 deposits, which is under the 10K limit, but that's actually an illegal practice. It's called structuring, and it's a pattern that money launderers engage in to try to clean their dirty money. If a bank suspects you of this, they are legally required to file a suspicious activity report, which in turn means that you could face consequences. Like the freezing of your accounts, getting subpoenaed, or just getting contacted by law enforcement. Nobody wants that. So what do you do then if you have 25K in cash that you want to deposit? Well, first, you'd probably follow me on social media, but the second is that you simply just deposit the money. The bank will fill out a currency transaction report, and you must be prepared to explain the source of funding. But as long as you did nothing wrong, nothing will happen to you.
-
-Creation Date: 2025-04-09 18:07:06+00:00
-Video Description: How Bail Actually Works… it’s often misunderstood. 
-Video Duration: 53.0
-Number of Likes: 30000.0
-Number of Shares: 173.0
-View Count: 537200.0
-Number of Saves: 1087.0
-Number of Comments: 165.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05849776619508563
-Tagged Users: 
-Hashtags: 
-Video Transcript: If you ever get sent to jail, the judge might set your bail at $100,000, but 99% of people don't get how bail works. It's not like if you just post the 100K bail, you're suddenly excused of the crime. Posting bail simply affords you the freedom to leave jail on the condition that you return on your court date. Now, what happens when you actually show up to court? That's the most misunderstood part. You see, bail is usually set at an amount that is high enough to ensure that you return to court, but not so crazy that it's impossible for your finances. Still, many people won't have enough money for bail, so they'll resort to getting a bail bond. That's where a bail bond business will loan you 90% of the bail amount while you put up 10% of the bail amount, plus some collateral. Then, when you finally show up for your court date, you actually get your full bail amount back. If you used a bail bond business, you repay them what you borrowed, but then they also get to keep 10% of the bail as a service charge. Moral of the story, don't go to jail.
-
 Creation Date: 2025-04-07 15:43:18+00:00
 Video Description: The S&P is officially in correction territory and flirting with bear market territory after the Liberation Day Reciprocal Tariffs were announced last Wednesday. Here’s what I would be doing. 
 Video Duration: 65.0
@@ -753,73 +532,8 @@ Tagged Users:
 Hashtags: 
 Video Transcript: The stock market is now officially down over 15% in the past three trading days due to the reciprocal tariffs. There's a lot of uncertainty and volatility right now, so what should you be doing in times like these? I have three action items. Number one, don't get emotional. If you're a passive investor with a 401k, IRA, index funds, and you're investing for the longterm, this is not the time to be panic selling. I personally know a lot of people that sold during the COVID crash, and they basically regretted it because the market recovered within two or three months, and they missed out on a ton of gains. If you're investing for the longterm, there's a very probable chance that the market is going to be way higher later on, so you just wanna stay the course. Number two, if you do wanna buy into the market, make sure to average into it. So perhaps you choose certain levels, like if the S&P 500 hits 5,000, 4,800, 4,600, or 4,400, you can average in that way. Or the simplest way to average in and without the regret of buying too high or too low is just to average in every certain number of days or weeks. And number three, it can be really tough looking at your portfolio every day, so you just really wanna focus on your main source of income and don't lose sight of that.
 
-Creation Date: 2025-04-02 20:23:38+00:00
-Video Description: Last-minute tax filers, check out @taxact! I wish I'd known about this DIY solution sooner. Perfect for those racing against the deadline but still want accuracy and maximum refunds (which they guarantee!). If you're scrambling to file, go see TaxAct.com for more details! #TaxSeason #LastMinuteTaxes #ad 
-Video Duration: 64.0
-Number of Likes: 3137.0
-Number of Shares: 112.0
-View Count: 2600000.0
-Number of Saves: 246.0
-Number of Comments: 61.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0013676923076923076
-Tagged Users: 
-Hashtags: taxseason, lastminutetaxes, ad
-Video Transcript: I have a friend who made $75,000 streaming video games last year, and she calls me and she had no idea how to file her taxes since it's her first year of making that much money. Because it was last minute, an accountant quoted her $800 just to help her file her taxes. So instead, I think a really good tax prep software that people are still sleeping on is TaxAct, especially if you're doing taxes under a time crunch, TaxAct makes it super easy to file. TaxAct was founded in 1998 and has solutions for every tax situation. So whether you're a student, a property owner with rental income, or a self-employed contractor, they have you covered. TaxAct accuracy is guaranteed and they also guarantee your maximum refund. You won't find a bigger refund with any other tax filing software. Not only that, if you ever do get stuck, they have 100% US-based credentialed tax experts and they're ready to help by phone or over chat. So that means you are talking to actual CPAs, EAs, or tax attorneys, and that's definitely a huge advantage. I told my friend about all this and she was relieved that she could get her taxes over with and that filing taxes doesn't have to be hard. If you're interested, check out TaxAct today.
 
-Creation Date: 2025-03-28 15:48:04+00:00
-Video Description: How fast can you spend $100 Billion dollars?
-Video Duration: 55.0
-Number of Likes: 83100.0
-Number of Shares: 2852.0
-View Count: 2900000.0
-Number of Saves: 5420.0
-Number of Comments: 791.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03178034482758621
-Tagged Users: 
-Hashtags: 
-Video Transcript: How fast can you spend $100,000,000,000? Let's start off with 10,000 gold bars. Let's buy 10,000 single family homes. Okay, maybe let's not get too crazy. Let's get 2 million Big Macs. Let's get 3 million flip flops. I want 1 million lobster dinners. I want to buy the entire NBA, so let's buy 30 teams. Then I'll need 50,000 pairs of Air Jordans for all the players in the league, even though I kind of wish they were Curry Brand shoes. I want 10 cruise ships. I want five skyscrapers. I'll buy the Mona Lisa, because why not? I want 25 Boeing 747s. Let's make 25 movies here. Let's buy up 50 mansions. Let's get ourselves 20 Formula 1 cars. Let's buy ourselves 200 Super Bowl ads. I kind of want 2,500 Ferraris. I'll buy 3,000 Ford F-150s. I'll get 10,000 Rolexes. Let me get 50,000 diamond rings at $10,000 a ring. Let's buy a million smartphones. And lastly, let's buy 75,000 kittens, because I like kittens. That's a lot of money, but Elon Musk's net worth is 3.5 times that.
-
-Creation Date: 2025-03-27 16:23:57+00:00
-Video Description: How much Coca Cola stock you would need to make $100/month in dividends. Was this more or less than you thought?
-Video Duration: 31.0
-Number of Likes: 41000.0
-Number of Shares: 1602.0
-View Count: 1600000.0
-Number of Saves: 9890.0
-Number of Comments: 811.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.033314375
-Tagged Users: 
-Hashtags: 
-Video Transcript: This is how much money you need to make $100 a month in dividends with Coca-Cola stock. Coca-Cola right now pays a 2.89% dividend yield. Now this is on a yearly basis. So we need to multiply our $100 a month by 12 to get $1,200 per year. Then you would divide 1200 by 0.0289. That's the dividend yield. And when you do that, you realize you need $41,522 worth of Coca-Cola stock in order to make $100 a month. And that's about 593 shares. If you enjoy stock market and investing content, follow me for more.
-
-Creation Date: 2025-03-25 23:01:55+00:00
-Video Description: Selling my Costco Gold Bar… here’s how it went 👀 
-Video Duration: 103.0
-Number of Likes: 208000.0
-Number of Shares: 9499.0
-View Count: 7100000.0
-Number of Saves: 10214.0
-Number of Comments: 1640.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03230323943661972
-Tagged Users: 
-Hashtags: 
-Video Transcript: Hey, what's up? I was wondering if I could sell my gold bar today. Yeah, let's do it. Last year, I bought this one ounce gold bar for 23.59 from Costco. And today I'm gonna go sell it and I'm gonna take you with me. So this is Witter Coin. And when it comes to selling one of these, you can go to any local coin shop and you should be able to get spot price for it. Let's see what we get. So right now we're paying 29.55. So spot price was like 30.20 and you guys do a little bit off spot, right? Yeah, we work on about, you can see our spread. It's the $130 spread between what we're buying them for and what we're selling them for. Okay, but still like two or 3% off. Yeah. That's not bad, cool. Yeah, I'm down, let's do cash. What do you need from me? I just need an ID from you. Okay, there you go. I'm right here. Yeah, how many people are selling like gold bars to you right now? I would say for every six people we have selling to us, we have one buyer. Oh, interesting. Oh, that's actually really interesting. Okay, six to one. On an average day, how many people are coming to sell like, sell one of these? Like- For the one ounce bars? Yeah. I would say we probably buy, I don't know, between five and 10 a day. Five and 10 a day? Yeah. Are you kidding me? Dude, that's a lot. Five and 10? Oh yeah, we buy a lot of gold. Nice, thank you. That was awesome. Yeah, awesome. I appreciate you. Give me a handshake. That was fun. All right, check out Witter Coin, guys. This place is cool. Thank you. All right, so that was surprisingly easy, $29.55. That means I made a profit of $596 over the past 11 months or so. And now I got cash. Follow for more videos.
-
-Creation Date: 2025-03-22 17:05:17+00:00
-Video Description: Why Lottery Jackpots are hitting over $1B: explained! 
-Video Duration: 74.0
-Number of Likes: 6613.0
-Number of Shares: 111.0
-View Count: 175000.0
-Number of Saves: 206.0
-Number of Comments: 201.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.040748571428571426
-Tagged Users: 
-Hashtags: 
-Video Transcript: Lottery jackpots have gotten out of control and there's a mathematical explanation as to why they've gone so large in the past five-ish years. Out of the top 10 Powerball and Mega Millions jackpots, nine out of 10 of them came in the last five years and it's all due to a change that the lottery operators made. Because larger jackpots attract more people to play and more players means more revenue for the operators and the states, they realized that if they changed the number matrix that it would result in big jackpots. For the Powerball, previously you had to choose between one and 59 for the white balls and then there were 35 Powerballs to choose from. This made the odds one in 175 million to win. But then they changed it. You now had to choose five numbers between one and 69 for the white balls and they decreased the number of Powerballs to choose from to 26. That's fewer Powerballs, yes, but this effectively made the odds way worse. It's one in 292 million now will win. Obviously, people like to rationalize that if they buy more tickets, it increases their odds of winning, but let me show you how grim the odds are even if you buy 10 tickets or $20 worth. If you buy one ticket, your chances of losing are 0.99999999660. And if you buy 10 tickets, well, you can see right here, it doesn't really change that much in terms of the decimal places. With that being said, are you still gonna play and just disregard everything in this video? Let me know in the comments.
-
-
-Example Profile 3:
+Example Finfluencer Profile 3:
 - Profile Image: https://p16-sign-useast2a.tiktokcdn.com/tos-useast2a-avt-0068-euttp/b549b3b86b42a254db09fefbd0a5c34a~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3d8d310a&x-expires=1748991600&x-signature=w3W%2B055mL4a2FbIcLSkoZQuhyxw%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
 - Profile Name: financialtimes
 - Profile Nickname: FinancialTimes
@@ -842,19 +556,6 @@ Example Profile 3:
 - Comment Engagement Rate: 0.0020500087427872
 - Like Engagement Rate: 0.0099116978492743
 - Video Transcripts (Sorted from Newest to Oldest):
-Creation Date: 2025-05-30 13:26:49+00:00
-Video Description: Prime Minister Keir Starmer and Reform party leader Nigel Farage clashed on economic issues this week. Farage said his party was the champion of the working class, while Starmer warned Farage’s proposed spending rises amounted to 'fantasy promises'. Host George Parker is joined by the FT’s Stephen Bush, Chris Giles and Anna Gross to discuss Reform’s fiscal plans. Tap the link above to listen to the full podcast.
-Video Duration: 95.0
-Number of Likes: 214.0
-Number of Shares: 6.0
-View Count: 11200.0
-Number of Saves: 22.0
-Number of Comments: 34.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.024642857142857143
-Tagged Users: 
-Hashtags: 
-Video Transcript: Chris, rydych chi wedi ysgrifennu yn gyntaf y bydd y farchnadau ffyrdd yn ddiddorol ynghylch y DU, ond hefyd yn y blynyddoedd, ynghylch y niferoedd o ffyrdd sy'n dod allan yno. Os edrychwch ar eich ball crystal, wrth i ni ddechrau i'r ymgyrch 2029, sut ydych chi'n meddwl y bydd y farchnadau yn dechrau ymdrech i'r posibiliaeth o lywodraeth Nigel Farage? Y broblem gyda'r farchnad ffyrdd yw eu bod yn edrych ar yr hyn rydych chi'n ei ddweud i bobl gwahanol, ac os nad ydyn nhw'n meddwl eich bod chi'n cael unrhyw ddiddorol, rydych chi'n broblem. Wrth gwrs, bydd Llywodraeth yn gweithio ar hyn o bryd, felly os ddechreuodd y farchnad ffyrdd i ymdrech i'r posibiliaeth o lywodraeth Farage, mae'n anodd iawn i'w gweld o'r farchnad ffyrdd sydd ddim yn meddwl yn y Llywodraeth ar hyn o bryd, felly byddai'n rhaid i chi wneud pethau, fel roedden ni'n edrych ym mis Septembre, Octobr, sut roedd Trump yn ei wneud yn y farchnadau a beth sydd wedi digwydd i'r farchnad ffyrdd y Deyrnas Unedig pan ddechreuodd ei farchnadau, a byddwch chi'n cael yr holl bethau hynny, ond mae'r rheini'n argymhelliadau anodd i'w gweithredu. Os oeddech chi'n gwblhau bod y farchnadau ddim yn hoffi'r sefyllfa ar hyn o bryd, dydw i ddim yn meddwl y gall Llywodraeth fod yno a dweud, oh, edrychwch, pan fydd Ffrage yn cael ei boblogi'n ychydig, mae'r farchnad ffyrdd yn mynd yn ychydig anhygoel. Mae hynny'n anodd iawn, rydych chi'n gwybod, rydych chi'n rhaid iddyn nhw fynd ymlaen yn iawn, ac rydych chi'n rhaid iddyn nhw fynd ymlaen, rydych chi'n gwybod, ar eich cyfrifiadau, nid yn ceisio i gael y farchnad ffyrdd ei wneud eich swydd i chi, ond rwy'n credu y byddai'r farchnad ffyrdd yn ymddangos iawn, nid y byddai'r farchnadau yn gwahanol gwahanol.
-
 Creation Date: 2025-05-30 07:42:20+00:00
 Video Description: Margo has amassed a very healthy retirement fund, in part by buying shares in Berkshire Hathaway. But as the investment company reduces its exposure to some US stocks, Margo wonders if it’s time for her to follow his lead and look to invest in other parts of the world. FT’s consumer editor Claer Barrett examines if Margo’s seven-figure portfolio could be particularly vulnerable to a market correction. Tap the link to read more. #BerkshireHathaway #Buffett #WarrenBuffett #Investment #stocks 
 Video Duration: 105.0
@@ -867,19 +568,6 @@ Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of
 Tagged Users: 
 Hashtags: berkshirehathaway, buffett, warrenbuffett, investment, stocks
 Video Transcript: Margot, you're fantastically set up for retirement. You've built up a seven-figure portfolio, and one of your biggest holdings, around a quarter of that, is Berkshire Hathaway. Now, tell us why you picked that and a bit about what this stock is. So, it's a firm that's run by an investor called Warren Buffett. Yep, I think we've heard of him. What I like about the investment philosophy is just the idea of looking for businesses that have inherent value. I think that Warren Buffett and his investment partners have done very well in finding those businesses. But I sense a but is coming. I had been concerned for some time about having such a big exposure to the Berkshire Hathaway position. That investment model seems to have found its ceiling. Now, Buffett fans will know that a record level of Berkshire's portfolio is held in cash or bonds, nearly a quarter of its overall value at the last count, as Warren Buffett trims his equity holdings. Plus, he hasn't made any big acquisitions recently, and he's 94 years old. I mean, how does that make you feel as an investor who's held Berkshire Hathaway for many, many years? Yeah, I mean, breaking those two questions down separately, I think maybe the first one's possibly the more important one, i.e. the fact that there's a huge cash pile. That's because he's, my impression is, he and the people he's trained around him are very disciplined in their investment decisions. And they're not going to invest just because they've got a huge cash pile. They're going to invest if they find the right opportunities. And so maybe this tells us it's another information point that says... That US stocks are overvalued? For example, and the fact that he can't find solid domestic businesses to invest in and so on.
-
-Creation Date: 2025-05-29 21:16:42+00:00
-Video Description: Last month, Robert Armstrong coined the acronym 'Taco' — which stands for 'Trump always chickens out' — as a way to describe the US president's tariff approach and the way markets react to it. After a reporter asked the US president about it at a White House press conference on Wednesday, Trump criticized the term and said he's not 'chickening out' on trade. Tap the link to listen to more from the Unhedged podcast. #tacotrade #taco #unhedged #america #politics 
-Video Duration: 90.0
-Number of Likes: 3697.0
-Number of Shares: 133.0
-View Count: 77000.0
-Number of Saves: 250.0
-Number of Comments: 123.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05458441558441558
-Tagged Users: 
-Hashtags: tacotrade, taco, unhedged, america, politics
-Video Transcript: One version of the taco trade thesis is just, Trump says crazy thing, market go down, two days later, Trump takes it back, market go up. And this has been 100% true, by the way. And I mean, it may not work now, maybe this idea that the boy who cried wolf situation becomes now, market will respond less. But the market doesn't seem to be in on the gag, at least up until this point, which is weird and which is the reason that we kind of coined the term in the first place. That's sort of the point I was making around, will the taco trade eat itself, right? So we've had- Yes. Is it over now? Is the taco trade over now? Let's say it is. Yeah. I sort of hope so, but I don't know. I think if the stock market didn't learn the first four times, like on the fifth time, is the market really going to act differently? Yeah. I don't expect so. We've had lots of emails from readers and listeners about the taco trade. Some of them are saying, lol. Some of them are saying, wow, congrats. And some of them are saying, if Donald Trump lashes out here and does something radical just to annoy the nasty haters and losers, it's all Rob Armstrong's fault. There is a horrible, an extremely unlikely, but horrible timeline in which I've just caused a worldwide recession by making a dumb joke.
 
 Creation Date: 2025-05-29 13:18:48+00:00
 Video Description: From food delivery to fast fashion, the option to buy now, pay later is everywhere. But did you know this type of lending is unregulated in the UK? FT's retail banking and fintech reporter Akila Quinio discusses how lenders such as Klarna and Clearpay will soon have to abide by similar rules as a mainstream bank. Tap the link to read more. #Klarna #Clearpay #Buynowpaylater #Bank #Retail #Spending 
@@ -946,45 +634,6 @@ Tagged Users:
 Hashtags: 
 Video Transcript: So it is possible that there will be a mega deal that may even address some of the structural issues that were problems under your time. Do you think that's the most likely scenario? What do you think is going to happen? I think the Chinese have shown, even relative to other countries, that they very much do not want to be seen as caving in to President Trump. I think they were one of the only countries that did any retaliation to the tariffs that were announced in April. They, as I said before, have been very focused on making sure they are ready for a fight like this, if need be. President Xi is very adamant that China is itself a great power and they are not going to be bullied. So I think that may make it hard to reach something that looks like a grand bargain, if just because it's not clear China wants to be seen as crafting a great bargain. I do think a baseline tariff is going to always be there. I think the Trump administration, unlike the first Trump administration, is very focused on the revenue they get from tariffs. And that's one reason you're seeing that baseline of 10 percent against everyone. I think there will probably be some attempt to climb down and there will be basically some window dressing. At the same time, over time, there might be progress on the Chinese side, just because, as I said before, there are things that really are in China's interest. And so I think China will take steps in those directions. I do think some sort of purchase agreement where the president can argue he has cut a deal, I think, is quite likely.
 
-Creation Date: 2025-05-23 18:47:47+00:00
-Video Description: UK Prime Minister Keir Starmer has handed over the Chagos Islands to Mauritius, and it didn't come cheap. The panel discusses Starmer's negotiations on the world stage and how they are playing out for him, and his opponents, at home. Tap the link to read more. #starmer #uk #chagos #chagosislands 
-Video Duration: 118.0
-Number of Likes: 105.0
-Number of Shares: 4.0
-View Count: 4221.0
-Number of Saves: 9.0
-Number of Comments: 39.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03719497749348496
-Tagged Users: 
-Hashtags: starmer, uk, chagos, chagosislands
-Video Transcript: Yes, Keir Starmer finally signed the deal on Thursday to hand over sovereignty over the Chagos Islands to Mauritius after years of diplomacy. But also, Keir Starmer pointed out at the press conference at Northwood, the command base where he announced this deal, that it had the blessing, of course, of the Five Eyes partners and the security partnership. So Britain, the States, Canada, New Zealand and Australia all endorsed it. And then he made the point quite contentiously that the countries that opposed it were notably China, Russia and Iran. And he said it was surprising that Cammy Badenock should find herself in the same column as those countries. What did you make of that comment, Miranda? I think he couldn't resist a dig at her on that comment. He's quite enjoying drawing attention to the fact that opposing the Starmer government is putting her in weird positions for a Tory party. I've got her comments here in response to what Keir Starmer said. She said it speaks volumes about this shameful prime minister that he attacks me instead of owning up to another wrongheaded, wasteful and dangerous deal. Peter, do you think she's finding herself on the wrong side of some quite big arguments here? Keir Starmer's lots of things. He's stodgy. He's boring. He's a terrible performer. Shameful? You know, I don't know. I just feel like, you know, Keir Starmer's not that kind of prime minister. And it all feels kind of very hyperbolic and over-egged and slightly desperate. I guess maybe in that particular, you know, rah-rah, you know, wave the union flag, bring back the glories of the Falklands and, you know, that very stereotypical view of what a Conservative voter, you know, believes in, she thinks maybe she's touching those buttons. It feels rather off-key to me. I just wonder whether it's sort of a bit like me listening to Absolute Radio 90s, whether it's just going back to the familiar old tunes, which maybe don't sound quite so good anymore. I don't know. I don't know. I don't know. 
-
-Creation Date: 2025-05-23 09:11:59+00:00
-Video Description: Jane has always been careful to squirrel money away. She is now sitting on a six-figure cash sum, and doesn’t know what to do next. Tap the link above to discover Claer Barrett's Money Clinic podcast. In this episode, find out how a first-time investor could build a diversified portfolio and why knowing your reasons for investing is so important. #financialtimes #personalfinance #investing #podcast 
-Video Duration: 115.0
-Number of Likes: 122.0
-Number of Shares: nan
-View Count: 4510.0
-Number of Saves: 13.0
-Number of Comments: 28.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03614190687361419
-Tagged Users: 
-Hashtags: financialtimes, personalfinance, investing, podcast
-Video Transcript: So Jane, you're about to celebrate a big birthday, and that's been making you think about the future. I'm nearly 50, and I have about $125,000 in savings, cash savings. And I'm kind of wondering whether or not it's too late to start investing. Well, you've done really well to save up that much money. I've always been conscious about saving money each month. I've always just felt safer having the money in savings accounts rather than investing it and knowing that there could be risks. Well, sure. I'm just really risk averse, Claire. I'm not going to lie. Well, sure, and Trump's tariffs means that these are volatile times for investors. But over the long term, inflation eroding the spending power of your cash is another risk. I could probably make a lot more money if I weathered the storm with investing than in my savings accounts. And I feel as if if I'm going to try and work to at least I'm 60, if not more, I need to try and make the most of these next 10 years or 15 years before I possibly think about retiring to maximise the cash that I've got. Well, you're right to be cautious about jumping in and investing a large lump sum in one go. I mean, that's going from one extreme to another, but reallocating some of that cash bit by bit into investments is something that you could consider. But Jane, can I ask, do you pay into a workplace pension? Yeah, not an awful lot. So I have just recently increased my contributions each month into that pension scheme. Well, that's great. I mean, pensions are a very tax efficient way of investing money. And that's an investment decision that you've made after learning more about your options. So I hope it gives you the confidence that it's never too late.
-
-Creation Date: 2025-05-22 17:04:00+00:00
-Video Description: Astronomers have discovered what could be signs of life on a faraway planet, suggesting a non-zero probability of a world where extraterrestrials come to us. The most important question, naturally, is how to position your stock portfolio accordingly. Lex's John Foley reveals that new markets could be opening up — even if they are 124 light years away. Tap the link to read more. #aliens #stocks #finance #alien #planet #space 
-Video Duration: 102.0
-Number of Likes: 363.0
-Number of Shares: 42.0
-View Count: 7987.0
-Number of Saves: 57.0
-Number of Comments: 32.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06185050707399524
-Tagged Users: 
-Hashtags: aliens, stocks, finance, alien, planet, space
-Video Transcript: Astronomers have discovered what could be signs of life on planet K218b. The obvious question, how do you position your investment portfolio for the day that the aliens come calling? Okay, step one, safe havens. Forget gold, it's already too expensive. Treasury bonds, obviously put those in your portfolio, but really think pandemic era safe haven assets, toilet paper, makers of toilet paper, Procter & Gamble, Kimberly-Clark, Philly Boots. Number two, assume that the aliens are not going to love humans, because who would, and buy defence stocks. RTX, Lockheed Martin, also defence tech company Palantir. Management of Palantir already speaks like aliens, no one knows what the company does, but you should buy shares in it immediately if you think the aliens are going to visit. Number three, consumer goods. Planet K218b potentially has enough space to sustain 56 billion life forms. That's an awful lot of mouths in need of toothbrushes, armpits in need of deodorant, and shoulders in need of fancy handbags. So you're going to want to buy companies like Colgate, LVMH, Unilever, companies that haven't seen a market this big open up since China entered the world economy in 2001. Now in seriousness, if the aliens really do arrive, it's going to have all kinds of impact on investments that previously people thought reflected fringe bets on technologies that may never come to pass. Things like quantum computing, Tesla's humanoid robots. If aliens can find us from across the universe, then anything is possible, and some of these fringe trades will start to become mainstream. We used to talk about the black swan trade after the financial crisis, meaning things that were very unlikely to happen, but sometimes do. It's time instead to start thinking about the little green swan.
-
 Creation Date: 2025-05-22 09:08:40+00:00
 Video Description: The EU is in Donald Trump’s crosshairs. So how should it respond? Paschal Donohoe, Ireland’s finance minister and president of the Eurogroup of finance ministers, joins FT chief foreign affairs commentator Gideon Rachman to discuss how well placed Europe is to respond to the tariff war and whether the euro can challenge the dollar. Tap the link above to listen to the podcast. #FT #FinancialTimes
 Video Duration: 87.0
@@ -1037,58 +686,6 @@ Tagged Users:
 Hashtags: banks, london, bankoflondon, america, finance
 Video Transcript: I see why the Bank of England has a trade economist on its Monetary Policy Committee. Could the Trump administration learn anything from a trade economist based in the UK, perhaps based on some recent experiences over the last decade or so? I think we should always learn from big episodes for the reason that they don't happen very frequently and I think the UK's experience with Brexit and how that panned out over the years is really instructive in that regard because we don't have many other examples of when developed countries put on trade barriers with their key trading partners. And I think what we learned from that episode was, you know, one, the effects can be felt fairly quickly. So the sterling depreciation that happened, it happened within a matter of minutes of when the Sunderland vote came out and sterling lost its value by 10% from subsequent years. That, of course, translated into higher import prices for the UK, both for businesses as well as for consumers. As a result of that, we had a three-year period in the UK from about 2017 to 2019 when real wages almost did not grow at all. So I think the key lesson here is that, you know, it's very attractive before it's happened to think that you would be able to reorient, remake yourself, change your position in the world economy. When the time comes, the performance need not be quite as sanguine. Well, I am sure President Donald Trump is taking detailed notes.
 
-Creation Date: 2025-05-20 08:57:20+00:00
-Video Description: Within the space of one week, US President Donald Trump endorsed tax increases for America’s top earners and promised to cut drug prices by up to 70%. It’s a platform that echoes former presidential candidate Bernie Sanders and others on the political left. So why are we hearing it from Trump, and why now? FT’s Washington bureau chief James Politi and global business columnist Rana Foroohar are on the show to discuss. Tap the link above to read more. #FT #FinancialTimes #Trump
-Video Duration: 67.0
-Number of Likes: 76.0
-Number of Shares: 2.0
-View Count: 2869.0
-Number of Saves: 3.0
-Number of Comments: 21.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.03555245730219589
-Tagged Users: 
-Hashtags: ft, financialtimes, trump
-Video Transcript: So Rana, let's start with you. What's with this appeal to the left? I mean, as best as you can tell, why are we seeing it now? Well, I think the fact that his poll numbers have been so low, the fact that we've just come through the aftermath of Liberation Day, people are completely freaked out about markets, although they're up, they don't know that they're gonna stay there. There've been some concerns about inflation, just the fact that you have this sort of new normal of 10% tariffs, even if they're being lowered as they were just in this recent US-China deal from triple digits, 10% is huge. That is huge. That's a sea change that's gonna ripple through the economy for months, years, even decades, because tariffs tend to be quite difficult to get off once they're on. So a lot of people are feeling insecure. And so one thing I will say about Donald Trump that I admire is his animal-like instinct to understand where fear is, where anxiety is, and that is where he gravitates.
-
-Creation Date: 2025-05-19 14:39:28+00:00
-Video Description: Think of the last time you paid for something in cash. How long has it been? Notes and coins now account for just 12% of all payments, according to banking trade body UK Finance. So if Brits are spending less cash, how come they're hoarding more bank notes than ever before? Tap the link to read more from @Claer Barrett.  #cash #finance #cashless #coins #money 
-Video Duration: 0.0
-Number of Likes: 541.0
-Number of Shares: 18.0
-View Count: 12500.0
-Number of Saves: 43.0
-Number of Comments: 50.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05216
-Tagged Users: claerb
-Hashtags: cash, finance, cashless, coins, money
-Video Transcript: We're spending less cash, but we're hoarding more banknotes than ever before. Data from the Bank of England shows the value of banknotes in circulation has never been higher, even though less cash is being spent as card, contactless and mobile payments continue to soar in popularity. With the tax burden at a 70 year high, is this evidence of Britain's hidden cash economy? As more businesses refuse to accept cash, are households hoarding cash that they cannot spend? Or are people deliberately stashing cash away as a store of value? The Bank of England reckons 60% of households do this, noting the comfort of holding cash in troubled times. But as bank branches and cash points vanish, it's harder to get your hands on your money. And as recent power cuts and cyber attacks on retailers have shown, we still need cash as a backup. So what kind of cash payments are going under the radar? Well, babysitters, cleaners, gardeners, tutors, all commonly paid in cash. The same goes for haircuts, nails, beauty treatments, getting the car washed. And if you're having any kind of work done in your home, you might expect a discount for paying in cash. Then there's illegal substances, where I'm guessing the anonymity of cash is something that both parties value. One and a half million people in Britain say they use cash on a day-to-day basis. They tend to be older, poorer and living in rural areas. But even if you're among the 22 million who use cash once a month or less, here's a penny for your thoughts. Would you still want cash to vanish completely?
-
-Creation Date: 2025-05-19 09:39:11+00:00
-Video Description: The global market for anime is expected to double from $31.2bn in 2023 to about $60bn by 2030. But as the popularity of anime has grown, Japan has become increasingly concerned that the financial value is disappearing overseas. Japanese studios receive less than 10% of anime-related revenue from abroad. Japan's government now wants trade representatives to take anime as seriously as cars and semiconductors. Meanwhile, global private equity firms are hungry to buy Japanese entertainment companies and the valuable IP they possess. Who will end up ultimately reaping the rewards from anime? Tap the link above for the full story. #financialtimes #anime #japan 
-Video Duration: 85.0
-Number of Likes: 72.0
-Number of Shares: 5.0
-View Count: 1910.0
-Number of Saves: 8.0
-Number of Comments: 17.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05340314136125655
-Tagged Users: 
-Hashtags: financialtimes, anime, japan
-Video Transcript: Japanese anime has shifted over the years from something niche to a global phenomenon, one of Japan's most potent vectors of soft power. Naruto, Dragon Ball Z, Pokemon, Akira and a galaxy of others have become touchstones of culture for 800 million fans worldwide, including sports stars, musicians and even politicians. International studios and investors have seen the appeal of its extensive back catalogue of characters and plotlines, and at least two superhero franchises have foundered. The global mark for anime is now expected to almost double from $31.2 billion in 2023 to around $60 billion by 2030. But as the popularity of anime grows, Japan is increasingly concerned the financial value is disappearing overseas. Japanese studios receive less than 10% of anime-related revenue from abroad, as distributors, streaming platforms and merchandising companies all take a slice of the pie. Illegal downloads, piracy, has also been a massive problem. Companies now want to make more money from products, events and games, but it won't be easy. The government hopes it can throw smart money at the push, while asking trade representatives to take anime as seriously as cars and semiconductors. But some analysts think these initiatives fail to target the sector's real structural issues such as labour shortage and bad working conditions, all of which opens the door to artificial intelligence, which could, in the end, be either a threat or a cure.
-
-Creation Date: 2025-05-16 13:29:19+00:00
-Video Description: It’s been another turbulent week for Labour after Keir Starmer announced a crackdown on legal migration. The prime minister gave what has since become a controversial speech suggesting the UK is at risk of becoming an 'island of strangers'.  Host Lucy Fisher is joined by the FT’s Robert Shrimsley and Jim Pickard to dissect the policies, as well as the reaction to Starmer’s speech, and where Labour’s position leaves the Tories on immigration. Tap the link above for more. #ft #financialtimes #ukpolitics #starmer 
-Video Duration: 104.0
-Number of Likes: 236.0
-Number of Shares: 6.0
-View Count: 6118.0
-Number of Saves: 29.0
-Number of Comments: 49.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05230467473030402
-Tagged Users: 
-Hashtags: ft, financialtimes, ukpolitics, starmer
-Video Transcript: I was, I must say, surprised, without wanting to sound too power-clutching, at the way Keir Starmer presented this. And in particular, the very controversial phrase, this country risks becoming an island of strangers without further curbs on migration, which many people have pointed out has echoes of Enoch Powell's notorious 1968 Rivers of Blood address in which he talked about people becoming strangers in their own country as a result of migration. And to my mind, the much more successful packaging of this would have been to say, look, we are one of the most successful experiments in multiculturalism and immigration in the world. We have people living side by side, this rich melting pot, but the pace, the scale has been too fast, it's been too large, and it's been done by successive governments without the consent of the public. And I just was surprised that he went on this very negative framing of immigration. And unsurprisingly, Reformer Cocker Hoop, Sarah Pochin, the newest Reform MP, saying, oh, he's more Reform than Reform now. I found myself conflicted by the language he used, but I think it's slightly a mistake to view this totally in terms of an election strategy against reform, of course that's in the mix. But fundamentally, what this is is a response to something the public has been saying for a very long time, which is we've been telling you something and you're not doing anything about it. Now, the danger is he ramps up the rhetoric and fails to deliver. But if these measures actually work, I think you can go back to the people on the left who are queasy about this and say, well, look, who would you rather be doing this, me or Nigel Farage? Personally, I'd not have chosen a clause from an Enoch Powell speech, but I sort of see what they're trying to do.
-
 Creation Date: 2025-05-16 08:14:05+00:00
 Video Description: Donald Trump’s trade policies have put global markets through the mill in recent weeks. But his policies didn’t come from nowhere. Aspects of US protectionism preceded Trump’s second term – and countries across the world have been pushing for greater self-sufficiency for some time. Is this drive for greater self-sufficiency misguided? Is true self-sufficiency even possible? The FT’s senior business writer Andrew Hill sits down with Ben Chu to discuss. Tap the link above to listen to the full podcast. #FT #financialtimes #trump
 Video Duration: 89.0
@@ -1101,19 +698,6 @@ Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of
 Tagged Users: 
 Hashtags: ft, financialtimes, trump
 Video Transcript: So the US and the UK have just struck a deal to get past the initial tariffs that were imposed or threatened by Donald Trump. What are the risks of the approach that both the US and the UK are taking with this deal? Well, if you think about it on a global scale, we have a system of global rules embodied in the World Trade Organisation going back decades that countries will not discriminate against other countries in terms of the tariffs they impose. So they can have a high tariff or a low tariff, but that has to be the same for everyone who is importing into them or to whom they're exporting, unless there is a comprehensive free trade deal between two countries, in which case they can have lower tariffs. The issue with the UK-US trade deal, not going into the specifics of individual sectors, is that this is not a classic free agreement where they've done a comprehensive deal. But as part of it, the UK has agreed to lower some of its tariffs on imports from America unilaterally. It's not doing the same globally, so other countries will not have those privileges in terms of exporting those products into the UK that the US has. And the danger is, as many analysts have identified, that this is capitulating or conceding the global system in a way which is quite potentially damaging.
-
-Creation Date: 2025-05-15 15:13:24+00:00
-Video Description: After a short but intense clash, a ceasefire is holding between India and Pakistan, but tensions remain high. Gideo Rachman talks to Professor Sushant Singh, lecturer in south Asian Studies at Yale University, about the conflict and what’s at stake if tensions escalate again. Tap the link to listen to the full episode. #india #pakistan #ceasefire #podcast 
-Video Duration: 58.0
-Number of Likes: 71.0
-Number of Shares: 2.0
-View Count: 2262.0
-Number of Saves: 2.0
-Number of Comments: 28.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04553492484526967
-Tagged Users: 
-Hashtags: india, pakistan, ceasefire, podcast
-Video Transcript: Explain where you think this leaves India-Pakistan relations now. Yeah, so all in all, you know, this very nationalist kind of a political environment, the social media pressure, the employment of newer defence technologies, a higher confrontational base means that the next time on the escalation ladder, Indians would be actually, India and Pakistan would be starting at a much higher run. So that to me means that, you know, the nuclear run that remains much closer to arriving in that sense. So the crisis will be much faster, much bigger, and much sharper. That is what my big worry from this crisis is. So the resolution of the crisis essentially has not reset in any way. It has only frozen the crisis at this level, and the next crisis would actually start from this run, not at something, you know, which had been resolved and gone down and normal diplomatic ties had been established. That's a big worry, big concern, and a big risk for South Asia, because these are both nuclear weapon states.
 
 Creation Date: 2025-05-15 09:35:07+00:00
 Video Description: Lower-than-expected inflation and the start of negotiations with China seemed to help stocks on Monday. But the dollar remained uncharacteristically weak. Rob Armstrong, the FT's US financial commentator and FT financial reporter Aiden Reiter, ask if America is feeling good, or just relieved to be alive. Tap the link above to listen to the podcast. #FT #FinancialTimes
@@ -1139,22 +723,9 @@ Number of Comments: 18.0
 Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04467996674979219
 Tagged Users: 
 Hashtags: rareearth, metal, metals, china, export, trade
-Video Transcript: It's been a messy few weeks in metals markets, and the latest ructions are playing out in the space for rare earth metals. China announced an export ban on rare earth metals and the magnets that they go into. And this is potentially a really big deal because although rare earth metals are not actually rare, you can find them all over the world and they can be mined in countries all over the place. What is rare is the processing capabilities that are all concentrated primarily in China. What China does is it turns the metals into something that magnet manufacturers can use. And those magnets go into things like wind turbines, electric vehicles, the defense industry, the technology industries. It's really important that countries around the world have secure supply chains of rare earths. And this is exactly the problem at the moment that basically no one does apart from China. How this plays out is a little unclear. They have said that they'll be giving out licenses, so it may not be a total blanket ban. But what is clear is the vulnerability of rare earth supply chains. And this is an issue for countries and companies all over the world. It's not just the US, which is in an escalating trade war with China. It's also countries like Japan and Korea, which import large volumes of rare earths and manufacture magnets. And if countries and companies don't wanna be dependent on one main supplier, China, then they need to build out mines and processing facilities elsewhere. But that can take years. So there's a lot to watch still. For more UN videos visit www.un.org
+Video Transcript: It's been a messy few weeks in metals markets, and the latest ructions are playing out in the space for rare earth metals. China announced an export ban on rare earth metals and the magnets that they go into. And this is potentially a really big deal because although rare earth metals are not actually rare, you can find them all over the world and they can be mined in countries all over the place. What is rare is the processing capabilities that are all concentrated primarily in China. What China does is it turns the metals into something that magnet manufacturers can use. And those magnets go into things like wind turbines, electric vehicles, the defense industry, the technology industries. It's really important that countries around the world have secure supply chains of rare earths. And this is exactly the problem at the moment that basically no one does apart from China. How this plays out is a little unclear. They have said that they'll be giving out licenses, so it may not be a total blanket ban. But what is clear is the vulnerability of rare earth supply chains. And this is an issue for countries and companies all over the world. It's not just the US, which is in an escalating trade war with China. It's also countries like Japan and Korea, which import large volumes of rare earths and manufacture magnets. And if countries and companies don't wanna be dependent on one main supplier, China, then they need to build out mines and processing facilities elsewhere. But that can take years. So there's a lot to watch still. For more UN videos visit www.un.org"""
 
-Creation Date: 2025-05-14 09:06:42+00:00
-Video Description: You may struggle to stay online during your commute. But would you be prepared to pay more for your train ticket if there were a working WiFi or mobile phone signal? The FT's chief features writer Henry Mance explains why a solution is not straightforward. Tap the link above to read more. #FT #FinancialTimes
-Video Duration: 80.0
-Number of Likes: 896.0
-Number of Shares: 17.0
-View Count: 25200.0
-Number of Saves: 33.0
-Number of Comments: 64.0
-Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04007936507936508
-Tagged Users: 
-Hashtags: ft, financialtimes
-Video Transcript: I travel a lot by train, and I've noticed one thing, that on-board Wi-Fi almost never works. On services like Eurostar, you can't even get a phone signal half the time. Why is that? Well, one reason is that trains carry lots of bored people who want lots of bandwidth, for example, to stream videos. Another thing is that trains travel really fast, up to 200 miles an hour for a high-speed train. So it makes it more difficult for the train or for your device to stay connected as it jumps from one mobile phone antenna to another. And crucially, mobile phone operators, when they built all their towers, they focused on the areas where people live, like towns and cities, whereas trains, they're going through rural areas. The good news, at least, is that train and telecoms operators think they know the solution, which is basically to build more mobile phone antennas along the train tracks and in tunnels. That's what they're doing, for example, on the London Underground, where you can now get, on some lines, 4G. The problem is, it costs a bit of money. So would you be prepared to pay more for your train ticket if there were working Wi-Fi or mobile phone signal? Oh, and one more thing. Just imagine a carriage full of people listening to Zoom calls and, indeed, streaming music without headphones. Maybe if the Wi-Fi does start working, we'll wish that it didn't."""
-
-x_finfluencer_examples = """Example Profile 1:
+x_finfluencer_examples = """Example Finfluencer Profile 1:
 - Profile Image: https://pbs.twimg.com/profile_images/1729294932181921792/lI2kq2Ey_normal.jpg
 - Profile Name: Joe Weisenthal
 - Profile ID: TheStalwart
@@ -1171,30 +742,6 @@ x_finfluencer_examples = """Example Profile 1:
 - Number of Favorites: 290679
 - Number of Media Content: 32563
 - Tweets (Sorted from Newest to Oldest):
-Creation Date: 2025-06-13 19:14:00+00:00 
-Tweet Text: Here's a chart of a company that wants to be the Microstrategy of ethereum https://t.co/1MRHQep7Dk https://t.co/4Et0Mrt42p
-Number of Likes: 8
-Number of Views: 306
-Number of Retweets: 0
-Number of Replies: 1
-Number of Quotes: 0
-Number of Bookmarks: 0
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 19:05:42+00:00 
-Tweet Text: Markets caps for $HOOD ($64b) and $COIN ($61b) very close to each other.
-Number of Likes: 18
-Number of Views: 7694
-Number of Retweets: 3
-Number of Replies: 12
-Number of Quotes: 0
-Number of Bookmarks: 4
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
 Creation Date: 2025-06-13 18:56:32+00:00 
 Tweet Text: Container volume at the Port of Los Angeles as 9% lower in May than it was in May 2024 https://t.co/2OwPt9VBQj
 Number of Likes: 50
@@ -1205,30 +752,6 @@ Number of Quotes: 0
 Number of Bookmarks: 7
 Language: en
 Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 18:50:46+00:00 
-Tweet Text: RT @business: Iran‚Äôs Supreme Leader Ayatollah Ali Khamenei vowed to ‚Äúact forcefully‚Äù and avenge an Israeli military strike on his country t‚Ä¶
-Number of Likes: 69
-Number of Views: 28422
-Number of Retweets: 25
-Number of Replies: 8
-Number of Quotes: 3
-Number of Bookmarks: 3
-Language: en
-Tagged Users: Bloomberg
-Hashtags: nan
-
-Creation Date: 2025-06-13 18:38:15+00:00 
-Tweet Text: RT @partiallypro: @TheStalwart Not even close to the overnight lows, pretty crazy still how resilient the market is
-Number of Likes: 20
-Number of Views: 12507
-Number of Retweets: 2
-Number of Replies: 5
-Number of Quotes: 0
-Number of Bookmarks: 0
-Language: en
-Tagged Users: Josh Fields, Joe Weisenthal
 Hashtags: nan
 
 Creation Date: 2025-06-13 18:34:39+00:00 
@@ -1255,31 +778,6 @@ Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-06-13 17:39:07+00:00 
-Tweet Text: RT @IDF: This post is an illustration of the region. This map fails to precisely depict borders. We apologize for any offense caused by thi‚Ä¶
-Number of Likes: 8118
-Number of Views: 760984
-Number of Retweets: 917
-Number of Replies: 1279
-Number of Quotes: 569
-Number of Bookmarks: 269
-Language: en
-Tagged Users: Israel Defense Forces
-Hashtags: nan
-
-Creation Date: 2025-06-13 16:43:09+00:00 
-Tweet Text: RT @apralky: Greenspan theorized that productivity enhancing technologies can fuel economic productivity 
-even before they are implemented,‚Ä¶
-Number of Likes: 0
-Number of Views: 0
-Number of Retweets: 9
-Number of Replies: 0
-Number of Quotes: 0
-Number of Bookmarks: 0
-Language: en
-Tagged Users: yung macro Âπ¥ËΩªÁöÑÂÆèËßÇ
-Hashtags: nan
-
 Creation Date: 2025-06-13 16:34:16+00:00 
 Tweet Text: US-Vietnam trade agreement getting closer. https://t.co/b3nYk8fa7a https://t.co/WXpCfgh3kt
 Number of Likes: 66
@@ -1292,56 +790,6 @@ Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-06-13 16:30:59+00:00 
-Tweet Text: RT @GwartyGwart: @TheStalwart Weird. Doesn‚Äôt feel like you‚Äôre making fun of us here. Not sure I trust it
-Number of Likes: 26
-Number of Views: 13597
-Number of Retweets: 1
-Number of Replies: 3
-Number of Quotes: 0
-Number of Bookmarks: 4
-Language: en
-Tagged Users: Joe Weisenthal, Gwart
-Hashtags: nan
-
-Creation Date: 2025-06-13 16:29:05+00:00 
-Tweet Text: Stablecoins can offer lower fees for merchants. But also they mean fewer rewards/cash back for users. But there are some efforts to incentivize crypto payments for normal transactions, like this company offering restaurant reservations/special menus for users https://t.co/RlSXRhKteb
-Number of Likes: 83
-Number of Views: 20472
-Number of Retweets: 1
-Number of Replies: 25
-Number of Quotes: 1
-Number of Bookmarks: 17
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 16:11:08+00:00 
-Tweet Text: RT @bradlander: üö® BREAKING NEWS üö® 
-
-Our campaign‚Äôs momentum is UNSTOPPABLE. Today @ZohranKMamdani and I are officially cross-endorsing each‚Ä¶
-Number of Likes: 10369
-Number of Views: 366670
-Number of Retweets: 893
-Number of Replies: 164
-Number of Quotes: 156
-Number of Bookmarks: 157
-Language: en
-Tagged Users: Brad Lander, Zohran Kwame Mamdani
-Hashtags: nan
-
-Creation Date: 2025-06-13 16:08:27+00:00 
-Tweet Text: RT @M_C_Klein: Great chart from Toby Nangle: https://t.co/k7h7hkMXJq
-Number of Likes: 109
-Number of Views: 20413
-Number of Retweets: 28
-Number of Replies: 5
-Number of Quotes: 5
-Number of Bookmarks: 25
-Language: en
-Tagged Users: Matthew C. Klein
-Hashtags: nan
-
 Creation Date: 2025-06-13 16:01:11+00:00 
 Tweet Text: WSJ reports that both Amazon and Walmart have looked into issuing stablecoins. Shares of $V down nearly 5% today. https://t.co/rNBYNphId7 https://t.co/hQoheWlkKJ
 Number of Likes: 167
@@ -1350,30 +798,6 @@ Number of Retweets: 25
 Number of Replies: 27
 Number of Quotes: 12
 Number of Bookmarks: 39
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 15:32:33+00:00 
-Tweet Text: Interesting comment from one of the most famous/successful prediction market traders.
-Number of Likes: 186
-Number of Views: 34981
-Number of Retweets: 21
-Number of Replies: 23
-Number of Quotes: 0
-Number of Bookmarks: 31
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 14:58:41+00:00 
-Tweet Text: Trump says Iranian officials are calling him to talk, though many of the people who they were previously talking to are now dead https://t.co/rYoiC165h2
-Number of Likes: 174
-Number of Views: 42758
-Number of Retweets: 29
-Number of Replies: 26
-Number of Quotes: 5
-Number of Bookmarks: 14
 Language: en
 Tagged Users: nan
 Hashtags: nan
@@ -1390,20 +814,6 @@ Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-06-13 14:33:37+00:00 
-Tweet Text: RT @cpgrabow: Transcript: https://t.co/hjgczoE5nN
-
-Or listen here: https://t.co/xuH6zQGtim
-Number of Likes: 5
-Number of Views: 22227
-Number of Retweets: 2
-Number of Replies: 0
-Number of Quotes: 0
-Number of Bookmarks: 4
-Language: en
-Tagged Users: Colin Grabow
-Hashtags: nan
-
 Creation Date: 2025-06-13 14:33:35+00:00 
 Tweet Text: RT @cpgrabow: .@TheStalwart: "No one thinks [the Jones Act is] invigorating at all to the US shipbuilding industry, which is almost nonexis‚Ä¶
 Number of Likes: 95
@@ -1417,7 +827,7 @@ Tagged Users: Colin Grabow, Joe Weisenthal
 Hashtags: nan
 
 
-Example Profile 2:
+Example Finfluencer Profile 2:
 - Profile Image: https://pbs.twimg.com/profile_images/1466544057895641089/FcrS-FrV_normal.jpg
 - Profile Name: Liz Ann Sonders
 - Profile ID: LizAnnSonders
@@ -1435,7 +845,7 @@ Example Profile 2:
 - Number of Media Content: 25582
 - Tweets (Sorted from Newest to Oldest):
 Creation Date: 2025-06-13 14:09:05+00:00 
-Tweet Text: When asked about how their current household finances compare to 5 years ago, consumers haven‚Äôt felt this pessimistic since February 2013 per ‚Å¶@UMich‚Å© https://t.co/0YXWdp5HwN
+Tweet Text: When asked about how their current household finances compare to 5 years ago, consumers haven't felt this pessimistic since February 2013 per @UMich https://t.co/0YXWdp5HwN
 Number of Likes: 244
 Number of Views: 25681
 Number of Retweets: 61
@@ -1447,7 +857,7 @@ Tagged Users: University of Michigan
 Hashtags: nan
 
 Creation Date: 2025-06-13 14:06:27+00:00 
-Tweet Text: June ‚Å¶@UMich‚Å© 1y inflation expectations (blue) down to 5.1% vs. 6.6% prior ‚Ä¶ 5-10y inflation expectations (orange) down to 4.1% vs. 4.2% prior https://t.co/Pp4cDMsNsK
+Tweet Text: June @UMich 1y inflation expectations (blue) down to 5.1% vs. 6.6% prior ‚ 5-10y inflation expectations (orange) down to 4.1% vs. 4.2% prior https://t.co/Pp4cDMsNsK
 Number of Likes: 72
 Number of Views: 15170
 Number of Retweets: 23
@@ -1459,7 +869,7 @@ Tagged Users: University of Michigan
 Hashtags: nan
 
 Creation Date: 2025-06-13 14:02:55+00:00 
-Tweet Text: June ‚Å¶@UMich‚Å© Consumer Sentiment Index up to 60.5 vs. 53.6 est. &amp; 52.2 prior ‚Ä¶ expectations up to 58.4; current conditions up to 63.7 https://t.co/4vZcTfa0Sf
+Tweet Text: June @UMich Consumer Sentiment Index up to 60.5 vs. 53.6 est. &amp; 52.2 prior expectations up to 58.4; current conditions up to 63.7 https://t.co/4vZcTfa0Sf
 Number of Likes: 113
 Number of Views: 17760
 Number of Retweets: 37
@@ -1468,54 +878,6 @@ Number of Quotes: 3
 Number of Bookmarks: 4
 Language: en
 Tagged Users: University of Michigan
-Hashtags: nan
-
-Creation Date: 2025-06-13 12:18:29+00:00 
-Tweet Text: Our latest #OnInvesting pod episode has dropped, on which ‚Å¶@KathyJones‚Å© and I riff on markets, and I get in the economic muddiness with ‚Å¶@CameronDawson‚Å©  https://t.co/IemJZT59bo
-Number of Likes: 40
-Number of Views: 15449
-Number of Retweets: 3
-Number of Replies: 20
-Number of Quotes: 0
-Number of Bookmarks: 7
-Language: en
-Tagged Users: Kathy Jones, Cameron Dawson
-Hashtags: OnInvesting
-
-Creation Date: 2025-06-13 11:34:00+00:00 
-Tweet Text: Performance: sectors/indexes yesterday and MTD/YTD https://t.co/4FZrfvEDZz
-Number of Likes: 31
-Number of Views: 14952
-Number of Retweets: 6
-Number of Replies: 1
-Number of Quotes: 2
-Number of Bookmarks: 1
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 11:33:33+00:00 
-Tweet Text: Performance: index tables and Mag7 chart/table updated thru yesterday‚Äôs close https://t.co/b7lVuglbIX
-Number of Likes: 51
-Number of Views: 14569
-Number of Retweets: 10
-Number of Replies: 0
-Number of Quotes: 1
-Number of Bookmarks: 4
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-13 11:33:03+00:00 
-Tweet Text: MA breadth charts updated thru yesterday‚Äôs close https://t.co/KMam1he1kX
-Number of Likes: 26
-Number of Views: 13697
-Number of Retweets: 5
-Number of Replies: 0
-Number of Quotes: 1
-Number of Bookmarks: 1
-Language: en
-Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:24:49+00:00 
@@ -1544,7 +906,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:23:25+00:00 
-Tweet Text: U.S. household net worth fell by 0.93% in 1Q2025 ‚Ä¶ largest decline since 3Q2022, but not comparable to that quarter in terms of magnitude https://t.co/p0WZRr7VAd
+Tweet Text: U.S. household net worth fell by 0.93% in 1Q2025 ‚ largest decline since 3Q2022, but not comparable to that quarter in terms of magnitude https://t.co/p0WZRr7VAd
 Number of Likes: 72
 Number of Views: 13053
 Number of Retweets: 21
@@ -1556,7 +918,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:22:24+00:00 
-Tweet Text: Big gap between median home list price and median sale price ‚Ä¶ former up to $426k and latter at $397 per ‚Å¶@Redfin‚Å© https://t.co/votBgSNYUM
+Tweet Text: Big gap between median home list price and median sale price ‚ former up to $426k and latter at $397 per @Redfin https://t.co/votBgSNYUM
 Number of Likes: 161
 Number of Views: 20367
 Number of Retweets: 45
@@ -1568,8 +930,8 @@ Tagged Users: Redfin
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:21:45+00:00 
-Tweet Text: AAII members‚Äô equity allocations ticked up in May, albeit slightly (to 64.3%)
-‚Å¶@AAIISentiment‚Å© https://t.co/R0ZPT8Wptn
+Tweet Text: AAII members equity allocations ticked up in May, albeit slightly (to 64.3%)
+@AAIISentiment https://t.co/R0ZPT8Wptn
 Number of Likes: 23
 Number of Views: 12744
 Number of Retweets: 5
@@ -1581,7 +943,7 @@ Tagged Users: AAII SentimentSurvey
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:21:17+00:00 
-Tweet Text: Inflation-adjusted average hourly earnings grew by 1.5% year/year in May ‚Ä¶ slower than prior month but still relatively strong https://t.co/TxAfrOtJlq
+Tweet Text: Inflation-adjusted average hourly earnings grew by 1.5% year/year in May slower than prior month but still relatively strong https://t.co/TxAfrOtJlq
 Number of Likes: 61
 Number of Views: 12819
 Number of Retweets: 12
@@ -1593,7 +955,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:20:56+00:00 
-Tweet Text: Portfolio management component of PPI fell for a second consecutive month in May ‚Ä¶ down by 1% m/m https://t.co/c9zKXsdDjM
+Tweet Text: Portfolio management component of PPI fell for a second consecutive month in May down by 1% m/m https://t.co/c9zKXsdDjM
 Number of Likes: 39
 Number of Views: 12745
 Number of Retweets: 3
@@ -1605,7 +967,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:20:35+00:00 
-Tweet Text: Finished consumer goods component in PPI continued to deflate in May ‚Ä¶ down by 6.5% annualized over past three months https://t.co/EQwUO1iA3v
+Tweet Text: Finished consumer goods component in PPI continued to deflate in May down by 6.5% annualized over past three months https://t.co/EQwUO1iA3v
 Number of Likes: 55
 Number of Views: 12019
 Number of Retweets: 11
@@ -1617,7 +979,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-13 11:20:00+00:00 
-Tweet Text: Bull-Bear ‚Å¶@AAIISentiment‚Å© spread ticked up last week, rising to +3.1% as optimism creeps back in https://t.co/R2rc4rPPzy
+Tweet Text: Bull-Bear @AAIISentiment spread ticked up last week, rising to +3.1% as optimism creeps back in https://t.co/R2rc4rPPzy
 Number of Likes: 29
 Number of Views: 16671
 Number of Retweets: 5
@@ -1641,7 +1003,7 @@ Tagged Users: nan
 Hashtags: nan
 
 Creation Date: 2025-06-12 17:56:53+00:00 
-Tweet Text: U.S. household net worth fell by $1.595 trillion in 1Q2025 ‚Ä¶ first decline sine 3Q2023, driven by weakness in equity market https://t.co/i5gGn68V6u
+Tweet Text: U.S. household net worth fell by $1.595 trillion in 1Q2025 first decline sine 3Q2023, driven by weakness in equity market https://t.co/i5gGn68V6u
 Number of Likes: 187
 Number of Views: 16524
 Number of Retweets: 40
@@ -1650,18 +1012,6 @@ Number of Quotes: 2
 Number of Bookmarks: 12
 Language: en
 Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-06-12 17:02:50+00:00 
-Tweet Text: RT @KevRGordon: Going to join @ScottWapnerCNBC on @CNBCClosingBell at 3pm ET
-Number of Likes: 10
-Number of Views: 12476
-Number of Retweets: 2
-Number of Replies: 3
-Number of Quotes: 0
-Number of Bookmarks: 0
-Language: en
-Tagged Users: Kevin Gordon, Scott Wapner, CNBC's Closing Bell
 Hashtags: nan
 
 Creation Date: 2025-06-12 17:02:00+00:00 
@@ -1677,7 +1027,7 @@ Tagged Users: Kevin Gordon
 Hashtags: nan
 
 
-Example Profile 3:
+Example Finfluencer Profile 3:
 - Profile Image: https://pbs.twimg.com/profile_images/378800000557074315/275249c4889ec856ed268feef4abb00e_normal.jpeg
 - Profile Name: Aswath Damodaran
 - Profile ID: AswathDamodaran
@@ -1778,18 +1128,6 @@ Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-03-31 16:27:28+00:00 
-Tweet Text: I believe that understanding and estimating the price of risk in market is central to investing. I wrote my first update on equity risk premiums after the 2008 crisis, and have had annual updates since. The 2024 update is accessible here: https://t.co/qM9gq4YMF0
-Number of Likes: 536
-Number of Views: 62547
-Number of Retweets: 77
-Number of Replies: 11
-Number of Quotes: 4
-Number of Bookmarks: 279
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
 Creation Date: 2025-03-31 00:30:28+00:00 
 Tweet Text: Buffeted by talk of tariffs and trade wars on one hand, and by fears of inflation and recession on the other, the S&amp;P 500 buckled in March 2024, down 6.3%; the ERP rose to 4.61% and the expected return to 8.85%.  Spreadsheet: https://t.co/lfZfvQg0tw https://t.co/DtwhmPMQZ7
 Number of Likes: 348
@@ -1798,18 +1136,6 @@ Number of Retweets: 65
 Number of Replies: 13
 Number of Quotes: 3
 Number of Bookmarks: 105
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-03-15 17:45:57+00:00 
-Tweet Text: Its been an unsettling few weeks in markets and politics, and I attempt to find serenity by looking at how a globalization backlash and bringing the disruption playbook to government got us to where we are today.  https://t.co/sF3DKGpjVt
-Number of Likes: 499
-Number of Views: 93396
-Number of Retweets: 80
-Number of Replies: 10
-Number of Quotes: 12
-Number of Bookmarks: 280
 Language: en
 Tagged Users: nan
 Hashtags: nan
@@ -1824,121 +1150,986 @@ Number of Quotes: 5
 Number of Bookmarks: 83
 Language: en
 Tagged Users: nan
-Hashtags: nan
+Hashtags: nan"""
 
-Creation Date: 2025-02-24 02:06:36+00:00 
-Tweet Text: In my eighth data update, I look at the use of debt at businesses in 2024 to fund operations, with fictional, real and frictional reasons all causing differences in debt usage across sectors and regions. https://t.co/3r3IIA3GHr
-Number of Likes: 293
-Number of Views: 56109
-Number of Retweets: 56
-Number of Replies: 8
-Number of Quotes: 0
-Number of Bookmarks: 156
-Language: en
-Tagged Users: nan
-Hashtags: nan
+tiktok_nonfinfluencer_examples = """Example Non-Finfluencer Profile 1
+- Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/8caec48ffb58b275f25c86279977bec3~tplv-tiktokx-cropcenter:720:720.jpeg?dr=10399&refresh_token=561d621b&x-expires=1748991600&x-signature=ogwe9zqfJr1TZaxMYxVGAf2V7ZQ%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=f20df69d&idc=no1a
+- Profile Name: cbsmornings
+- Profile Nickname: CBS Mornings
+- Profile Biography: Impactful journalism + exquisite storytelling. 
+Watch 7-9 a.m. on CBS 🌞
+- Profile Signature: Impactful journalism + exquisite storytelling. 
+Watch 7-9 a.m. on CBS 🌞
+- Profile Biography Link: https://nevertoolate.cbsnews.com/
+- Profile URL: https://www.tiktok.com/@cbsmornings
+- Profile Language: en
+- Profile Creation Date: 2019-08-26T13:40:05.000Z
+- Verified Status: True
+- Number of Followers: 3100000.0 Followers
+- Following: 34.0 Users
+- Total Number of Likes: 246300000.0
+- Total Number of Videos: 3794.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: US
+- TikTok Seller: False
+- Average Engagement Rate: 0.0109051612903225
+- Comment Engagement Rate: 0.0002340276497695
+- Like Engagement Rate: 0.0106711336405529
+- Video Transcripts (Sorted from Newest to Oldest):
+Creation Date: 2025-05-31 19:20:01+00:00
+Video Description: Rottnest Island off the coast of Australia has become a beloved tourist destination for its adorable resident - Quokkas. The small marsupials are an endangered species, but efforts to conserve them are going well, in part, to how photogenic they are. #quokka #australia #animalsoftiktok #selfie 
+Video Duration: 108.0
+Number of Likes: 1888.0
+Number of Shares: 176.0
+View Count: 44000.0
+Number of Saves: 80.0
+Number of Comments: 23.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04925
+Tagged Users: 
+Hashtags: quokka, australia, animalsoftiktok, selfie
+Video Transcript: Around 10,000 of these furry creatures live on the tiny island. They're cousins of the kangaroo, but stand only around 20 inches tall. And because they seem to be smiling, quokkas have become a sensation, known as the world's happiest animals. Quokka selfies have gone viral, including snaps by celebrities like Roger Federer, Margot Robbie, and Logan Paul. This way. Smile. And as we found, you don't need to be a wildlife photographer to get up close and personal with a quokka. Thank you. Scientists say quokkas are naturally curious and have adapted to being around tourists. On the Australian mainland, quokkas are threatened by wildfires and feral cats. But on the island, they're almost ridiculously relaxed, even falling asleep outside this cafe on the island's main shopping street. Now, the truth is the quokkas are not actually smiling. That's just a quirk of nature. But they have no natural predators on the island, and that's why they're so fearless and so friendly with humans. Their front teeth are sort of permanently... ..almost permanently exposed, and their lips are just shaped like that. So it looks like they're smiling. Arvid Hogstrom is in charge of conservation on the island. They're just a very chilled animal to start off with. Are they happy? The quokkas on Rottnest are pretty stress-free. They live a pretty easygoing life. The quokkas do lead a privileged existence. It's forbidden to feed or touch them, and they even have right-of-way on the roads. They're a conservation success story, with demand for selfies fuelling the tourism that helps fund their protection.
 
-Creation Date: 2025-02-13 03:13:43+00:00 
-Tweet Text: In my seventh data update, I look at what should be the end game for every business, by examining business profitability in 2024, with differences across sectors, regions and industries in focus. https://t.co/2RSFz9FpDA
-Number of Likes: 330
-Number of Views: 57343
-Number of Retweets: 48
-Number of Replies: 6
-Number of Quotes: 4
-Number of Bookmarks: 263
-Language: en
-Tagged Users: nan
-Hashtags: nan
+Creation Date: 2025-05-31 19:10:14+00:00
+Video Description: Are dogs better than people? @The Dogist’s Elias Friedman explains the lessons in confidence we all can learn from our four-legged friends. #dogs #pets #dogsoftiktok 
+Video Duration: 50.0
+Number of Likes: 291.0
+Number of Shares: 8.0
+View Count: 7666.0
+Number of Saves: 12.0
+Number of Comments: 11.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.042003652491521
+Tagged Users: thedogist
+Hashtags: dogs, pets, dogsoftiktok
+Video Transcript: dogs better than people? Dogs are better with people, I would say. Dogs possess a lot of the things that we wish we could, like confidence in meeting people, not being self-conscious, not judging people instantly. Just the way a dog walks into a dog park and just smells another dog's butt, you know, we don't really do that. We judge from afar. Which is good for social reasons, but yeah. Yeah, yeah. Dogs do a lot of things that we wish we could do. Just be content with who they are. And hang out while we're sitting here talking and talking, and they're like, ah, whatever. Yeah, they're just going with the flow. They're hilarious. They make us laugh. That's always been the thing for me. I love a good sense of humor, and I feel like dogs have a good sense of humor.
 
-Creation Date: 2025-02-08 17:33:42+00:00 
-Tweet Text: In my sixth data update for 2025, I move from macro topics (interest rates, risk premiums) to micro and look at why hurdle rates matter, what goes into them and how to estimate them, using my estimates of costs of capital across global firms to illustrate. https://t.co/eJHYMR0KEg
-Number of Likes: 412
-Number of Views: 59341
-Number of Retweets: 56
-Number of Replies: 6
-Number of Quotes: 2
-Number of Bookmarks: 212
-Language: en
-Tagged Users: nan
-Hashtags: nan
+Creation Date: 2025-05-31 18:14:06+00:00
+Video Description: Across college campuses, more and more students are using artificial intelligence tools to complete their assignments. Some schools are now using AI detection software to increase academic integrity. However, the programs are not always accurate. #ai #artificalintelligence #chatgpt #college #exams #education #student 
+Video Duration: 88.0
+Number of Likes: 66300.0
+Number of Shares: 3494.0
+View Count: 1100000.0
+Number of Saves: 4802.0
+Number of Comments: 984.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06870909090909091
+Tagged Users: 
+Hashtags: ai, artificalintelligence, chatgpt, college, exams, education, student
+Video Transcript: get an email three days later saying, Hey, you've been flagged for plagiarism, specifically chachi Bt. And for that you need to contest this, or you take a zero and you fail the class. An AI detection tool incorrectly flagged his work with his scholarship on the line. Rivera reached out to his professor who after a closer look, confirmed he did not cheat. This is known as a false positive. I would have had a very hellish fall semester. We spoke to nearly a dozen students across the country who have been wrongly accused of AI cheating. Dr. So he'll phase he is an associate professor at the University of Maryland. He's published over 100 peer reviewed papers on AI research and AI text detection tools. What false positive rate are you seeing these AI detectors find many of the companies that we have looked into claim their false positive rate is quote unquote, as low as one person. We shouldn't accept detectors with 1% false positive rate because false accusation of AI plagiarism can be quite damaging to the student. These products can return a range of results. I actually wrote a piece of text myself. So I'll just copy the text here. We'll analyze the text. Oops. Oh my gosh. 59% This will be a false positive, I will be accused of AI plagiarism.
 
-Creation Date: 2025-02-06 22:18:55+00:00 
-Tweet Text: In my version of the iconic Disney ride, "It's a small world",  I take a ride through global equity markets in 2024, starting with returns during the year, then looking at currencies, topping of with risk measures and ending with pricing. https://t.co/fjLuyKxKP9
-Number of Likes: 159
-Number of Views: 32610
-Number of Retweets: 21
+Creation Date: 2025-05-31 15:41:32+00:00
+Video Description: Two crypto investors have been indicted in the kidnapping and torture of an Italian tourist in a luxury New York City apartment. Prosecutors allege the two men tormented the victim with electric wires, forced him to smoke from a crack pipe and even dangled him over the staircase — all in an attempt to gain his bitcoin password.  #bitcoin #crypto #truecrime #crime #newyorkcity #paris 
+Video Duration: 124.0
+Number of Likes: 3369.0
+Number of Shares: 377.0
+View Count: 114200.0
+Number of Saves: 183.0
+Number of Comments: 157.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.035779334500875656
+Tagged Users: 
+Hashtags: bitcoin, crypto, truecrime, crime, newyorkcity, paris
+Video Transcript: William DiPlessi appeared in a Manhattan courtroom Friday with bags under his eyes, indicted in a Bitcoin kidnapping scheme, along with John Waltz. Prosecutors allege the two men, both cryptocurrency investors in their 30s, lured an Italian millionaire to their ritzy SoHo townhouse, where they held him captive and tortured him over 17 days. The suspects were arrested after the 28-year-old man managed to escape and flag down a traffic cop on the street. Inside the apartment, police say they found body armor, ammunition and a photo of a gun held to the man's head. To be tortured for 17 days in terms of a chainsaw cutting your leg, in terms of putting your feet in water and electrocuting them, in terms of making the person ingest narcotics, horrible crime. Prosecutors say the suspects took the alleged victim's electronics and threatened to kill his family unless he gave up the password to his Bitcoin wallet worth millions. As the NYPD parsed through evidence in SoHo this week, French police have arrested more than 20 people for a number of kidnapping plots targeting crypto tycoons, which includes the attempted abduction of an investor's daughter by masked men on a busy Paris street earlier this month. I don't go to certain crypto meetings anymore where I had the habit to go before. I try to park as close as possible to the destination when I have to go somewhere. The string of attacks, both abroad and now domestic, have some Bitcoin bigwigs worried for their safety. Bitcoin's worth over $100,000 and people are still posting screenshots of their holdings, travel plans of where they're going to be. So it's really an attacker's dream because they don't really need to do much, too much research out there to target these people that now have quite a lot of value in their crypto holdings. And so, unfortunately, these attacks are, again, becoming more gruesome, more brazen and are increasing in likelihood and severity.
+
+Creation Date: 2025-05-31 12:58:00+00:00
+Video Description: Rough weather and tough terrain are posing a challenge for investigators searching for Grant Hardin, a former police chief and convicted killer who escaped from prison.  Ian Lee has the latest on intense manhunt for the man known as the  "Devil in the Ozarks." #news #ozarks #arkansas #manhunt #news #crime #crimetok 
+Video Duration: 96.0
+Number of Likes: 25900.0
+Number of Shares: 1315.0
+View Count: 576500.0
+Number of Saves: 1338.0
+Number of Comments: 767.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.050858629661751954
+Tagged Users: 
+Hashtags: news, ozarks, arkansas, manhunt, news, crime, crimetok
+Video Transcript: Investigators are nowhere closer to finding escaped convicted killer and rapist Grant Hardin. Rough weather and tough terrain hamper their search. Whether it's trees, whether it's branches, whether it's abandoned sheds, there's just so many places to hide. From the air, a canopy of leaves provides some cover from drones and helicopters, which is making an already difficult search more challenging for law enforcement. How confident are you that he is still in northern Arkansas? We still feel fairly confident. I mean, the search continues primarily in the north central Arkansas region, mainly for the fact that we have had nothing verifiable to put him outside of this area. Currently, investigators are looking into whether Hardin's job in the prison kitchen helped him get the materials to make his fake law enforcement uniform that he used in his escape. Dogs initially picked up his scent, tracking it west of the prison, but they quickly lost it after a downpour of rain. How is he able to survive in these woods? I mean, people in northern Arkansas, they're resourceful. We have to assume that he has some sort of survival knowledge. While the search for Hardin moves on, it's not stopping campers from moving in. Is there any concern about him being in these woods, potentially? I mean, naturally there has to be some concern, right? Camper Luke Henson and his family say they're taking precautions. Most people have guns, so those are options. Hopefully it doesn't come to that point, but if it does come to that point, we have some defense mechanism.
+
+Creation Date: 2025-05-30 16:58:42+00:00
+Video Description: Eddie Murphy’s son Eric and Martin Lawrence’s daughter Jasmin eloped earlier this month, Murphy revealed to Jennifer Hudson on Thursday. Murphy joked that Lawrence, now his in-law, won’t “have to pay for the big wedding.” #eddiemurphy #martinlawrence 
+Video Duration: 23.0
+Number of Likes: 3427.0
+Number of Shares: 116.0
+View Count: 85100.0
+Number of Saves: 166.0
+Number of Comments: 28.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04391304347826087
+Tagged Users: 
+Hashtags: eddiemurphy, martinlawrence
+Video Transcript: And two of comedy's biggest names can now call themselves in-laws. Eddie Murphy's son, Eric, and Martin Lawrence's daughter, Jasmine, eloped earlier this month. Murphy told Jennifer Hudson yesterday that he was disappointed it wasn't a big bash for one specific reason. The couple had a small ceremony, just the two of them and the preacher. Murphy says he thinks they'll still have a big party, so Lawrence may not be off the hook yet.
+
+Creation Date: 2025-05-30 16:05:24+00:00
+Video Description: Haribo is recalling packs of sweets in the Netherlands after some were found to contain traces of cannabis. Local Dutch media reported that a family became "quite ill" after eating the candy and reported the incident to police. #candy #haribo #netherlands 
+Video Duration: 28.0
+Number of Likes: 578900.0
+Number of Shares: 179900.0
+View Count: 8400000.0
+Number of Saves: 42129.0
+Number of Comments: 10300.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.09657488095238095
+Tagged Users: 
+Hashtags: candy, haribo, netherlands
+Video Transcript: Candy company Haribo has issued a warning that some of its Happy Cola candy, sold in the Netherlands, reportedly tested positive for cannabis. Local media reports that several people, including at least one family, became quote, quite ill. Oh no! It's like couch luck to me after eating the candy, prompting a police investigation. It is not clear if cannabis was in this drug, or in this candy, how that drug made its way into the treats.
+
+Creation Date: 2025-05-30 15:32:17+00:00
+Video Description: Your March Madness bracket could look a little different next year. NCAA president Charlie Baker is floating the idea of adding up to eight additional teams to the men’s tournament next year. #ncaa #marchmadness #basketball 
+Video Duration: 33.0
+Number of Likes: 560.0
+Number of Shares: 29.0
+View Count: 28600.0
+Number of Saves: 17.0
+Number of Comments: 24.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.022027972027972027
+Tagged Users: 
+Hashtags: ncaa, marchmadness, basketball
+Video Transcript: Your March Madness bracket might look a little different next year. This is big. Yesterday, the NCAA president, Charlie Baker, said he sees value in expanding the college basketball tournament by a handful of teams and that he wants to reach a decision in the next few months. So, Baker floated the idea of expanding from 68 teams to 72 teams or even 76. He said the current formula has flaws and that it would be beneficial to give more opportunities to teams. The flaws are there's money on the table that we can put our crawls around. Let's just make it February and March Madness.
+
+Creation Date: 2025-05-30 14:50:17+00:00
+Video Description: Video shows thieves crawling on the ground of a Los Angeles coffee shop before spray painting the security camera. They then cut a hole in the wall to access a safe in the jewelry store next door. There, the thieves stole $2 million in cash and jewelry. No arrests have been made. #losangeles #jewelry 
+Video Duration: 34.0
+Number of Likes: 292.0
+Number of Shares: 24.0
+View Count: 17400.0
+Number of Saves: 19.0
+Number of Comments: 9.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.019770114942528734
+Tagged Users: 
+Hashtags: losangeles, jewelry
+Video Transcript: Thieves hit a jewelry store near Los Angeles, and they found a sneaky way to avoid the motion detectors. That's someone on the floor, army-crawling along a coffee shop next door, then spray-painting the camera. The robbery began when they broke through the roof to get into that store. They then cut a hole in the wall right into the jewelry store's safe. Wow. Inside that safe, and they made off with this, $2 million. Whoa. In cash and jewelry. Yeah, those are empty boxes. No arrests have been made in this case.
+
+Creation Date: 2025-05-30 14:44:47+00:00
+Video Description: Broadway legend Audra McDonald, who became the most Tony Award-nominated performer of all time this year, tells Gayle King about the physical toll of performing eight “Gypsy” shows a week: “It’s finding those quiet moments where I can to just sort of let her go.” Tune in Tuesday for more from their conversation. #broadway #audramcdonald 
+Video Duration: 42.0
+Number of Likes: 3067.0
+Number of Shares: 26.0
+View Count: 43800.0
+Number of Saves: 162.0
+Number of Comments: 22.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.07481735159817351
+Tagged Users: 
+Hashtags: broadway, audramcdonald
+Video Transcript: I've heard you described as an emotional athlete. Christine Baranski said she's a Navy SEAL. To do that night after night after night, what is the physical toll, if any, it takes on you night after night? The physical toll is huge, I will say that. And I don't know what I'm doing to get through that part, I have to say, in terms of how I take care of myself. I'm a mom, I still have an eight-year-old at home. I'm a wife, I wanna be present in my home life. So it's finding those quiet moments where I can to just sort of let her go. One of the things I do is try and leave Rose at the theater. That's one of the things that's really important to me, to leave her there, not take her home with me.
+
+
+Example Non-Finfluencer Profile 2
+- Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7311513410821160966~tplv-tiktokx-cropcenter:720:720.jpeg?dr=10399&refresh_token=ffbb73fa&x-expires=1748991600&x-signature=fFLCTPguMBby8PgH7Gc%2B2XYa%2Bt4%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=no1a
+- Profile Name: grahamstephan
+- Profile Nickname: Graham Stephan
+- Profile Biography: 4.9 Million Subscribers on YouTube
+Host of The Iced Coffee Hour Podcast ☕️
+- Profile Signature: 4.9 Million Subscribers on YouTube
+Host of The Iced Coffee Hour Podcast ☕️
+- Profile Biography Link: http://www.youtube.com/c/GrahamStephan
+- Profile URL: https://www.tiktok.com/@grahamstephan
+- Profile Language: en
+- Profile Creation Date: 2019-01-07T13:46:20.000Z
+- Verified Status: True
+- Number of Followers: 950100.0 Followers
+- Following: 52.0 Users
+- Total Number of Likes: 40900000.0
+- Total Number of Videos: 1039.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: US
+- TikTok Seller: False
+- Average Engagement Rate: 0.1696383206199901
+- Comment Engagement Rate: 0.0010310826007234
+- Like Engagement Rate: 0.1686072380192666
+- Video Transcripts (Sorted from Newest to Oldest):
+Creation Date: 2025-06-01 23:33:58+00:00
+Video Description: No Tax on Tips! #taxtips #tippingculture #servertok 
+Video Duration: 46.0
+Number of Likes: 183.0
+Number of Shares: nan
+View Count: 4638.0
+Number of Saves: 1.0
+Number of Comments: 16.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.043122035360069
+Tagged Users: 
+Hashtags: taxtips, tippingculture, servertok
+Video Transcript: a brand new tax plan, and that would be no tax on tips. In order to actually qualify, you must work in an industry where tipping is customary, like a server, bartender, hairstylist, or taxi driver. Two, tips must be paid voluntarily and not negotiated or included automatically as a service charge. Three, you have to have an income below $150,000 a year. Four, the maximum you could claim is $25,000. So anything beyond this is not tax free. I'm going to be completely honest. I think it's somewhat worthless because, let's be real, most people getting cash tips are not reporting them anyway. In fact, some people might not even want to report cash tips, even if it is tax free, because it might disqualify them from receiving other government subsidies that only people with lower income qualify for.
+
+Creation Date: 2025-06-01 06:49:00+00:00
+Video Description: Trump Is Paying $1,000 To Become a Parent! #irs #taxtips #taxrefund 
+Video Duration: 46.0
+Number of Likes: 378.0
+Number of Shares: 20.0
+View Count: 6942.0
+Number of Saves: 25.0
+Number of Comments: 18.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06352636127917027
+Tagged Users: 
+Hashtags: irs, taxtips, taxrefund
+Video Transcript: If you have a child, you could receive $8,000 within a Trump account. Eligible children born 2025 through 2028 in the United States will receive a one-time tax credit of $1,000 funded by the IRS into an account that could then be invested. The goal here is that with compound interest, $1,000 will grow to an amount that could then be used towards qualifying expenses like higher education, business startup costs, or a first-time home purchase. Of course, non-qualifying expenses, like Coachella, would be subject to a 10% penalty plus ordinary income taxes. And if you don't use any of the money by the age of 31, the account will automatically be cashed out. In terms of how much this could grow to, $1,000 invested at birth at an average return of 9%, that would equate to more than $13,000.
+
+Creation Date: 2025-05-30 19:10:10+00:00
+Video Description: I Bought a Tesla Without Test Driving It First #teslamodel3 #teslatok #carreview 
+Video Duration: 56.0
+Number of Likes: 919.0
+Number of Shares: 2.0
+View Count: 20000.0
+Number of Saves: 27.0
+Number of Comments: 33.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.04905
+Tagged Users: 
+Hashtags: teslamodel3, teslatok, carreview
+Video Transcript: I just bought the $35,000 Tesla Model 3 without ever having seen it and without ever having driven one before. The standard Model 3 begins at the price of $35,000. If you increase your budget just $2,000, you'll get an extra 20 miles of range, a slightly higher top speed, power adjusted seats, premium interior, and upgraded audio. If you get any other color besides black, it'll cost you up to $2,500 more if you want red. So we're going with black today. Next they give you the option to upgrade to 19-inch wheels for an extra $1,500. That's not going to happen. Now we have the choice of interior color, either black or white, but white is an extra $1,000 and I would be worried about getting that dirty, so black it is. They also offer full self-driving for an extra $5,000. This includes summoning your car, but for $5,000, I think I could just do that myself. This is the 2019 Tesla Model 3.
+
+Creation Date: 2025-05-30 00:51:51+00:00
+Video Description: Touring a $25 MILLION Mansion #mansiontour #luxuryhomes #luxuryrealestate 
+Video Duration: 50.0
+Number of Likes: 442.0
+Number of Shares: 4.0
+View Count: 9463.0
+Number of Saves: 16.0
+Number of Comments: 26.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.05156926978759379
+Tagged Users: 
+Hashtags: mansiontour, luxuryhomes, luxuryrealestate
+Video Transcript: a $25 million mansion. We're gonna go there right now and check out just how crazy this place really is. So how many bedrooms, how many bathrooms? Even though it's a very large home, we have three bedrooms, we have 12 bathrooms. And we have a same projection system you'd find in a high-end commercial theater. How much does this cost to build? We're about a half million dollars all in on this theater. Wow. We also have a super toilet. What is a super toilet? Lid automatically opens when you walk nearby. This is the future. It is a heated toilet, so it's never cold. Oh, good, good. I was worried for a second it wasn't gonna be heated. This is the car elevator. I don't think many people have seen an elevator for a car. The owner can pull into this car elevator and elevate up to the second floor and walk right into his master bedroom. Everyone needs one of those.
+
+Creation Date: 2025-05-27 22:13:03+00:00
+Video Description: Should You Pay Off Debt Or Invest First? #investing #financialadvicefriday #businesstips 
+Video Duration: 26.0
+Number of Likes: 674.0
+Number of Shares: 4.0
+View Count: 14700.0
+Number of Saves: 28.0
+Number of Comments: 17.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.049183673469387755
+Tagged Users: 
+Hashtags: investing, financialadvicefriday, businesstips
+Video Transcript: We recently gave someone £5,000 to start their business, and they used it to pay off their debt, and now they have no money to start their business, so... That's a conundrum. I've always liked seeing if you could make any amount of money without taking on any debt, and if that works, then you could replicate the process. Hopefully they'd be able to go and get a loan for their business at a lower interest rate than the debt they paid off. I probably would have paid half the debt off, the high-interest one, and then used the rest to grow your business so you can make income to pay off the rest of the debt.
+
+Creation Date: 2025-05-26 18:01:00+00:00
+Video Description: This Disney Actor Lost ALL Her Money #childactor #disneykids #actorslife 
+Video Duration: 59.0
+Number of Likes: 963.0
+Number of Shares: 3.0
+View Count: 37700.0
+Number of Saves: 48.0
+Number of Comments: 18.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.02737400530503979
+Tagged Users: 
+Hashtags: childactor, disneykids, actorslife
+Video Transcript: Christy Romano, she was on even Stevens, and she's also the voice on Kim Possible. And this is her video of how I lost all my money. I started making money with Disney when I was 16, and there's a law called the Coogan Law that protects my from their parents spending all their money. I was never told how much money I was making. I decided to part ways with my family because I didn't like the way that my money was being managed. The Coogan Law basically just says that if a child is working, the parents must set aside 15% of their money that can't be touched whatsoever until they turn 18 years old. And this is basically enacted so that the parents don't just receive all the money the kid makes, spend it, and then the child turns 18 and has no more money left. Because believe it or not, that was a common practice where parents would just siphon off the money from the child, the child would support the entire family, and then they have nothing left. At least 15% goes into the child's name, but 15% in hindsight is really not that much.
+
+Creation Date: 2025-05-25 18:17:00+00:00
+Video Description: Why I LOVE DEBT #businesstips #roi #financialadvice 
+Video Duration: 34.0
+Number of Likes: 636.0
+Number of Shares: 5.0
+View Count: 11100.0
+Number of Saves: 50.0
+Number of Comments: 16.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.0636936936936937
+Tagged Users: 
+Hashtags: businesstips, roi, financialadvice
+Video Transcript: lot of people talk about debt as a good thing. How do you know if it's good or bad debt? I have a lot of good debt and I view any good debt as something that makes you more money than you spend. Let's say you have a business and you're able to borrow money at 10% but that borrowed money makes you a 50% ROI because you could run ads with it. Then it's fantastic debt or a low interest mortgage. Let's just say it's 3% but inflation is 3%. That's good debt. If you have a car and you're paying 6% but that car is used for business that makes you 10%. I think that's good. So if it makes you more money than you spend, it's not the end of the world to keep it.
+
+Creation Date: 2025-05-24 13:30:18+00:00
+Video Description: A 401(k) Employer Match Is LITERALLY FREE MONEY #401k #retirementplanning #retirementsavings 
+Video Duration: 22.0
+Number of Likes: 2572.0
+Number of Shares: 37.0
+View Count: 112000.0
+Number of Saves: 197.0
+Number of Comments: 52.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.025517857142857144
+Tagged Users: 
+Hashtags: 401k, retirementplanning, retirementsavings
+Video Transcript: If you work in a place that offers a 401k contribution, it's free money. Some employers will offer what's called a 401k match, which is basically they say, hey, if you contribute a dollar we're gonna match your contribution. It's a guaranteed 100% return immediately. It doesn't exist anywhere else other than a employer match on a 401k. So if you had that offer, I would be contributing up to the maximum. It's literally free money.
+
+Creation Date: 2025-05-22 19:26:00+00:00
+Video Description: Truck Drivers Make $100,000 a Year! #cdl #cdllife #truckdriver 
+Video Duration: 32.0
+Number of Likes: 1221.0
+Number of Shares: 10.0
+View Count: 21600.0
+Number of Saves: 41.0
+Number of Comments: 34.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06046296296296296
+Tagged Users: 
+Hashtags: cdl, cdllife, truckdriver
+Video Transcript: I'm a female truck driver and I make over six figures a year. Last year was able to make $144,208. My truck lease payment, $49,200. My truck maintenance, $2,665. My fuel cost, $19,336. I was able to profit $71,309. So she owns her own truck. So she's not just like driving someone else and she maintains her own and she's able to keep the profits. Wow.
+
+Creation Date: 2025-05-21 19:37:24+00:00
+Video Description: The Power Of Your First $10,000 #savingmoney #moneysavingtips #savings 
+Video Duration: 47.0
+Number of Likes: 1290.0
+Number of Shares: 23.0
+View Count: 19800.0
+Number of Saves: 90.0
+Number of Comments: 19.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.07181818181818182
+Tagged Users: 
+Hashtags: savingmoney, moneysavingtips, savings
+Video Transcript: This is why your first $10,000 is so significant. With this amount of money, you'll gain enough financial confidence to know that if you could do this, you could level up in practically any area of your life that you put your mind to. Just the idea that I could go and buy a used car outright gave me such a sense of accomplishment. $10,000 is an amount of money where you'd be able to cover almost any immediate financial emergency without going into debt. For example, if your car breaks down, most repairs are probably going to be a few thousand dollars. But if your pet gets sick and you get hit with a vet bill, you've got it covered. If you lose your job, you've got $10,000 sitting there until you find a replacement. This just takes the small stresses out of life. It starts opening up the door to take on a little bit more risk, and it gives you the autonomy to make decisions based on choice and not necessity.
+
+
+Example Non-Finfluencer Profile 3
+- Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/d8b707e8ab71dc4c0adcf27e4c841ade~tplv-tiktokx-cropcenter:720:720.jpeg?dr=10399&refresh_token=67761e5f&x-expires=1748991600&x-signature=O3URbM2AOxQ3qamhgkEAOG87RKE%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=no1a
+- Profile Name: bellapoarch
+- Profile Nickname: Bella Poarch
+- Profile Biography: nan
+- Profile Signature: nan
+- Profile Biography Link: https://bellapoarch.lnk.to/WYALHVideo
+- Profile URL: https://www.tiktok.com/@bellapoarch
+- Profile Language: en
+- Profile Creation Date: 2019-10-29T19:33:46.000Z
+- Verified Status: True
+- Number of Followers: 93900000.0 Followers
+- Following: 649.0 Users
+- Total Number of Likes: 2400000000.0
+- Total Number of Videos: 787.0
+- Total Number of Digg: 0.0
+- Private Account: False
+- Region: US
+- TikTok Seller: False
+- Average Engagement Rate: 0.0047991315989654
+- Comment Engagement Rate: 3.874821238399513e-05
+- Like Engagement Rate: 0.0047603833865814
+- Video Transcripts (Sorted from Newest to Oldest):
+Creation Date: 2025-05-03 00:59:27+00:00
+Video Description: #philippines 🇵🇭
+Video Duration: 62.0
+Number of Likes: 695400.0
+Number of Shares: 6119.0
+View Count: 10900000.0
+Number of Saves: 20583.0
+Number of Comments: 5130.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.06671853211009174
+Tagged Users: 
+Hashtags: philippines
+Video Transcript: I flew to the Philippines and got eye surgery. I'm going to the Philippines and my eye is swollen, so let's go. I don't know why, but every single time I travel, shit always happens. It's been 14 years since I've been back to the Philippines, and there's no way I'm gonna cancel over a sty. After my 14-hour flight, we headed straight to the hospital. Look, a jeepney. Wait, look. It's a jeepney. I had an important shoot in a week, so I decided to get last-minute surgery. The surgery went so smooth, and I'm so grateful for the Filipino nurses and doctors that took care of me. I did a fitting after my surgery. Yes, a fitting, because we gotta look cute. And then headed to the airport after. I could literally feel my eye swelling. When we got to our hotel in Bohol, we were greeted with a surprise. I literally didn't realize how crazy I looked. And now for the fun part. Now let's unbox. I've literally been traveling for 30 hours. I look insane. I took the bandage off, and OMG. No bruise, no swelling. Purr. And now I'm ready for Philippines. Whee!
+
+Creation Date: 2025-04-28 20:19:44+00:00
+Video Description: More omnichord content on IG reels🤍 follow me there !!
+Video Duration: 15.0
+Number of Likes: 160100.0
+Number of Shares: 2153.0
+View Count: 4600000.0
+Number of Saves: 11542.0
+Number of Comments: 2737.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.038376521739130434
+Tagged Users: 
+Hashtags: 
+Video Transcript: Such as you, me, and the wreckage of the world Must be so confusing for a little girl
+
+Creation Date: 2025-04-27 17:50:49+00:00
+Video Description: My cat is a star🐱new reel on IG. link in bio before he unfollows me !!
+Video Duration: 5.0
+Number of Likes: 636000.0
+Number of Shares: 8530.0
+View Count: 8100000.0
+Number of Saves: 23855.0
+Number of Comments: 3895.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.08299753086419753
+Tagged Users: 
+Hashtags: 
+Video Transcript: But now I'm trophied up, I'm sayin' like Boom, bop, boom, boom, boom, bop
+
+Creation Date: 2025-04-08 20:36:22+00:00
+Video Description: Let’s go to the studio with my @Vans Super Lowpro💗 #vanspartner 
+Video Duration: 19.0
+Number of Likes: 552700.0
+Number of Shares: 2750.0
+View Count: 19700000.0
+Number of Saves: 17307.0
+Number of Comments: 3324.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.029242690355329948
+Tagged Users: vans
+Hashtags: vanspartner
+Video Transcript: Get ready with me to have a chill day at the studio Let's go! And we are styling the super low pro A cutie! Red or green? Pick the red! Pick the red! Green Sweet, I don't know Yo, check this out Yo, how did you do that? I'm ready Now let's go write some songs
+
+Creation Date: 2025-03-22 23:49:01+00:00
+Video Description: Will You Always Love Her? OUT NOW❤️‍🩹
+Video Duration: 19.0
+Number of Likes: 106800.0
+Number of Shares: 920.0
+View Count: 4800000.0
+Number of Saves: 5114.0
+Number of Comments: 2024.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.02392875
+Tagged Users: 
+Hashtags: 
+Video Transcript: Will you always love her? Her smile and her hair say that you don't care But your eyes don't lie, you can't help but stare She looks nothing like me, no she's nothing like me
+
+Creation Date: 2025-03-14 01:00:11+00:00
+Video Description: Englishera halata🇵🇭
+Video Duration: 15.0
+Number of Likes: 1600000.0
+Number of Shares: 68600.0
+View Count: 14800000.0
+Number of Saves: 100075.0
+Number of Comments: 11500.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.12028209459459459
+Tagged Users: 
+Hashtags: 
+Video Transcript: Yeah, I heard about that. It's crazy. Also, girl, I'm starving. Honestly, me too. I'm kinda hungry. I know there's like a lot of nearby restaurants. Restaurant, kono. Ay, Jollibee! Oh my God! Where? Over there! Ano ba yan? English Era, halata.
+
+Creation Date: 2025-03-13 00:18:00+00:00
+Video Description: Lmfao
+Video Duration: 9.0
+Number of Likes: 1200000.0
+Number of Shares: 13100.0
+View Count: 12700000.0
+Number of Saves: 40226.0
+Number of Comments: 8042.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.09932031496062992
+Tagged Users: 
+Hashtags: 
+Video Transcript: That's a bad bitch for you Middle finger to my haters Are you bitch jealous? Fuck y'all Been knew why was that bitch I didn't need a man to tell me The fuck?
+
+Creation Date: 2025-03-06 19:22:52+00:00
+Video Description: Listening to this song is self care🎧
+Video Duration: 16.0
+Number of Likes: 74000.0
+Number of Shares: 510.0
+View Count: 3000000.0
+Number of Saves: 3915.0
+Number of Comments: 1981.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.026802
+Tagged Users: 
+Hashtags: 
+Video Transcript: So, do I keep on wasting time? Leaves are changing color Dark blue in the summer Guess I'll always wonder Will you always love her?
+
+Creation Date: 2025-03-05 00:19:51+00:00
+Video Description: GRWM to run errands in my Premium Old Skools @Vans🤍
+Video Duration: 29.0
+Number of Likes: 176800.0
+Number of Shares: 894.0
+View Count: 6100000.0
+Number of Saves: 6806.0
+Number of Comments: 1903.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.030557868852459015
+Tagged Users: vans
+Hashtags: 
+Video Transcript: Get ready with me to run my errands. Good morning. Okay, let's get ready. Did my makeup and hair. Much better. Okay, for the fun part. Let's pick an outfit. First things first, let's pick which Vans. Eenie, meenie, miney, moe. Nice premium old school. Nice. Ooh, yeah. I was thinking it would look cute with this romper. This or this? Blue. Pick the blue. This. And now I'm ready to do my errands. Get it. Let's get it. Let's see our list for today. We got eggs, dish washing soap, cat litter.
+
+Creation Date: 2025-02-20 21:01:37+00:00
+Video Description: Lol 
+Video Duration: 14.0
+Number of Likes: 59400.0
+Number of Shares: 746.0
+View Count: 3400000.0
+Number of Saves: 3719.0
+Number of Comments: 2357.0
+Engagement Metric (Total Number of Likes+Shares+Comments+Saves / Total Number of Views): 0.019477058823529413
+Tagged Users: 
+Hashtags: 
+Video Transcript: And if you really want to get it back, go ahead Staying here together might as well be the end So, do I keep on wasting time?"""
+
+x_nonfinfluencer_examples = """Example Non-Finfluencer Profile 1
+- Profile Image: https://pbs.twimg.com/profile_images/1803039284108083200/i0blVR4I_normal.jpg
+- Profile Name: Aleyda Solis 🕊️
+- Profile ID: aleyda
+- Location: Remote / Spain
+- Profile Description: SEO Consultant, Speaker & Author. @Orainti Founder @Remotersnet Co-Founder @CrawlingMondays Host #SEOFOMO + #MarketingFOMO + https://t.co/yvg9bT4orr Maker @mujeresEnSEO
+- Profile External Link: https://t.co/invAGT4oSH
+- Profile Creation Date: 2007-01-15T14:33:19.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 168428 Followers
+- Following: 932 Users
+- Total Number of Tweets: 131358
+- Number of Favorites: 4966
+- Number of Media Content: 14360
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-19 19:29:27+00:00 
+Tweet Text: 🚨 New Post: I compare top traffic AI Search prompts vs Traditional search queries for the same pages across different pages types: Here are the key differences and the implications when optimizing your content 👇
+https://t.co/WXJporXMo4 https://t.co/filOS0nqxY
+Number of Likes: 43
+Number of Views: 3500
+Number of Retweets: 15
 Number of Replies: 2
-Number of Quotes: 2
-Number of Bookmarks: 73
+Number of Quotes: 0
+Number of Bookmarks: 42
 Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-01-31 19:34:45+00:00 
-Tweet Text: In my valuation writing/teaching, I argue that a good valuation is a bridge between story and numbers, and how stories can change overnight. DeepSeek's entry into the AI business has changed the AI story, but is it a break, a change or a shift? https://t.co/GvQ1IGWuQ4
-Number of Likes: 977
-Number of Views: 119254
-Number of Retweets: 180
-Number of Replies: 17
-Number of Quotes: 17
-Number of Bookmarks: 530
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-01-28 21:42:47+00:00 
-Tweet Text: In my fourth data update, I venture into alien ground, to take a look at what interest rates did in 2024, and to try to dispel (again) the delusion that the Fed sets interest rates. https://t.co/7Mv3tLjnWb
-Number of Likes: 260
-Number of Views: 41992
-Number of Retweets: 44
-Number of Replies: 7
-Number of Quotes: 2
-Number of Bookmarks: 120
-Language: en
-Tagged Users: nan
-Hashtags: nan
-
-Creation Date: 2025-01-26 18:15:52+00:00 
-Tweet Text: In my third data update for 2024, I break down US stocks by grouping, first on sector/industry, then on market cap and finally on price to book. Contrary to practice, I see no evidence of either a small cap or a value premium any more. https://t.co/DJTehoOqJE
-Number of Likes: 556
-Number of Views: 83748
-Number of Retweets: 72
+Creation Date: 2025-06-18 08:36:18+00:00 
+Tweet Text: Useful "ChatGPT search query extractor" bookmarklet to easily obtain search queries from any ChatGPT conversation that grounds its response using a web search with Bing by @ziggyshtrosberg  - Check it out:  https://t.co/97kEx7g4P3 https://t.co/NQIQzaJJ8K
+Number of Likes: 70
+Number of Views: 5407
+Number of Retweets: 13
 Number of Replies: 3
-Number of Quotes: 8
-Number of Bookmarks: 343
+Number of Quotes: 1
+Number of Bookmarks: 83
+Language: en
+Tagged Users: Ziggy Shtrosberg
+Hashtags: nan
+
+Creation Date: 2025-06-17 07:04:46+00:00 
+Tweet Text: 🚨 AI Mode data is now officially in Google Search Console: Google has added an AI Mode section to their Google Search Console documentation, describing how the data is shown 👇
+* Clicking a link to an external page in AI Mode counts as a click.
+* Standard impression rules apply.
+* Position in AI Mode follows the same methodology as a Google Search results page. Generally, carousel and image blocks within AI Mode are calculated using the standard position rules for those elements.
+* If a user asks a follow-up question within AI Mode, they are essentially performing a new query. All impression, position, and click data in the new response are counted as coming from this new user query.
+Check it here: https://t.co/ZLnfSn90go
+/HT @MrDannyGoodwin @glenngabe
+Number of Likes: 98
+Number of Views: 7854
+Number of Retweets: 32
+Number of Replies: 1
+Number of Quotes: 2
+Number of Bookmarks: 60
+Language: en
+Tagged Users: Danny Goodwin, Glenn Gabe
+Hashtags: nan
+
+Creation Date: 2025-06-16 22:07:26+00:00 
+Tweet Text: Learn about the Impact of AI Search on Web Publishers in today's #SEOFOMO TL;DR with special guest Barry Adams 📰, covering:
+* Google AI Mode: First Thoughts & Survival Strategies by Barry Adams
+* How Publishers Can Survive (and Thrive) in the Age of AI Search with @lilyraynyc and @gfiorelli1 
+* Have you ever wondered why Google sometimes shows the chunk used for a synthetic answer in AI Overviews / AI Mode, and sometimes not? by @gfiorelli1 
+* Writing and optimizing content for NLP-Driven SEO by @jbobbink - Freelance SEO Consultant
+* 86% of Top Mentioned Sources Are Not Shared Across ChatGPT, Perplexity, and AI Overviews by @patrickstox 
+* Free Looker Studio template to analyze traffic from AI chats by @IvanPalii 
+Sponsored by @Similarweb  🙌
+Watch the full episode here: https://t.co/IMYn9uoBPO
+Number of Likes: 41
+Number of Views: 3979
+Number of Retweets: 12
+Number of Replies: 2
+Number of Quotes: 0
+Number of Bookmarks: 31
+Language: en
+Tagged Users: Jan-Willem Bobbink, Gianluca Fiorelli, Patrick Stox, Similarweb, Ivan Palii 🇺🇦, Lily Ray 😏
+Hashtags: SEOFOMO
+
+Creation Date: 2025-06-16 18:09:56+00:00 
+Tweet Text: The AI Search Content Optimization Checklist [With Google Sheets to copy/paste] 👇
+I’ve created an AI Search Content Optimization Checklist, going through the most important aspects to take into account to optimize your content for AI search answers along with their importance and how to take action, going through: 
+1. Optimize for Chunk-Level Retrieval
+2. Optimize for Answer Synthesis
+3. Optimize for Citation-Worthiness
+4. Optimize for Topical Breadth and Depth
+5. Optimize for Multi-Modal Support
+6. Optimize for Content Authoritativeness Signals
+7. Optimize for Personalization Resilient Content
+8. Optimize for content crawlability and indexability
+Check it out and access the Google Sheets here:
+https://t.co/e87HMPhDce
+Number of Likes: 262
+Number of Views: 17327
+Number of Retweets: 76
+Number of Replies: 10
+Number of Quotes: 1
+Number of Bookmarks: 412
 Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-01-25 15:28:01+00:00 
-Tweet Text: I start teaching my regular MBA classes on Monday, and you are welcome to follow virtually, albeit for no credit. I will be taking my valuation class on the road to Athens on March 14 &amp; 15. If interested in attending, please reach out to I-Deals Network: https://t.co/TbyTL0Wgl8
-Number of Likes: 1699
-Number of Views: 159163
-Number of Retweets: 169
-Number of Replies: 30
+Creation Date: 2025-06-15 18:18:00+00:00 
+Tweet Text: The Latest in SEO + AI Search? Here are the top news and resources from today's hashtag#SEOFOMO 👇
+* ​Pichai: Google AI Mode Will Be Incorporated Into The Main Search by @rustybrick 
+* ​How Publishers Can Survive (and Thrive) in the Age of AI Search with @lilyraynyc  & @gfiorelli1 
+* ​Free Looker Studio template to analyze traffic from AI chats by @IvanPalii 
+* ​3 examples of product-led SEO by @Kevin_Indig 
+* ​Why user-generated content works well for SEO by @torylynne 
+* ​Old Hat SEO is Finally Dead. The Bar Has Been Risen For The Next Generation. by @NickLeRoy 
+* Optimize for AI Search (GEO, AEO, LLMO) - New Section in #LearningSEO
+* ​Google AI Mode: First Thoughts & Survival Strategies by @rustybrick 
+* ​Chunked, Retrieved, Synthesized - Not Crawled, Indexed, Ranked by @DuaneForrester 
+* ​How Content Structure Matters for AI Search by @chrisgreenseo 
+* Much more! Including SEO Jobs, events, tools... 
+Read it here (and subscribe to avoid missing out):
+https://t.co/JOtkvq42B6
+Number of Likes: 43
+Number of Views: 5362
+Number of Retweets: 15
+Number of Replies: 3
+Number of Quotes: 2
+Number of Bookmarks: 27
+Language: en
+Tagged Users: duane forrester, Gianluca Fiorelli, Nick LeRoy, Tory (Lynne) Gray, Kevin_Indig, Ivan Palii 🇺🇦, Barry Schwartz, Lily Ray 😏, Chris Green
+Hashtags: LearningSEO
+
+Creation Date: 2025-06-13 08:33:20+00:00 
+Tweet Text: Announcing the #SEOFOMO x @semrush Barcelona Free Meetup 👇
+🗓️ September 4, 2025 - From 6pm to 9pm
+📍 Aticco Bogatell (Coworking Poblenou), Barcelona
+🍹 Food, Drinks, Quizzes, Giveaways & lots of Fun Networking
+🤖 Panels about SEO Trends & AI Search in both English and Spanish 
+🎙️ With experienced Spanish and International SEO specialists @SEOJoBlogs, @mjcachon, @ikhuerta, @ghostmou, @ClaraSoteras, Inma Cruz Fuentes, @silvia_smp, @gfiorelli1, @gemmafontane, @TaylorDanRW, @WillKennard, @yagmrsmsk, @NikkiRHalliwell, @Giridja, @JudithLewis and more. 
+💰 Completely free! 
+Where and how to register? Free registration will open on Sunday June 15 with a link to the registration page to be included in the next #SEOFOMO newsletter and later shared over here on social media. 
+Registration is on a first-come, first-served basis, so if you haven't yet, register to the #SEOFOMO newsletter to avoid missing a spot: https://t.co/Dxleipf8tb
+I want to thank @semrush  and in particular @SEOJoBlogs and yagmrsmsk for their support 🙌
+See you in Barcelooooona 💪
+Number of Likes: 38
+Number of Views: 4125
+Number of Retweets: 12
+Number of Replies: 2
+Number of Quotes: 5
+Number of Bookmarks: 4
+Language: en
+Tagged Users: Dan Taylor, Gemma Fontané, Judith Lewis, Gianluca Fiorelli, Yagmur Simsek, Iñaki Huerta 🦑/📊/🔝, Clara Soteras, Semrush, MJ Cachón, J Turnbull 🇺🇦, Will Kennard, Alfonso Moure, Nikki Halliwell, 🐝 Olesia Korobka 💙💛🐝, Silvia Martin
+Hashtags: SEOFOMO
+
+Creation Date: 2025-06-13 07:04:38+00:00 
+Tweet Text: How we’re adapting SEO for LLMs and AI search by Kevin Corbett & @cramforce  from @vercel :
+"Search isn’t just about ranking anymore. It’s about being surfaced in new places, under new rules."
+Going through:
+* Balancing traditional SEO and LLM SEO
+* How LLMs read and process content
+* What LLMs actually reward
+* Tracking AI impact
+And more! A must-read: https://t.co/m1eflCCfus
+Number of Likes: 116
+Number of Views: 6648
+Number of Retweets: 22
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 116
+Language: en
+Tagged Users: Vercel, Malte Ubl
+Hashtags: nan
+
+Creation Date: 2025-06-12 15:47:22+00:00 
+Tweet Text: 🚨 The next #SEOFOMO Meetup will be in a 🔥 new location in Europe and will be officially announced tomorrow 👀  Stay tuned for the announcement over here! 🙌 Registration will be free again... at a first-come, first-served basis, so you gotta be fast 💪 Stay tuned! https://t.co/qlo8TSD2Iz
+Number of Likes: 11
+Number of Views: 1248
+Number of Retweets: 2
+Number of Replies: 0
+Number of Quotes: 0
+Number of Bookmarks: 1
+Language: en
+Tagged Users: nan
+Hashtags: SEOFOMO
+
+Creation Date: 2025-06-12 09:00:59+00:00 
+Tweet Text: AI search behavior research & analysis has now been made possible at scale thanks to @tryprofound  new Conversation Explorer 🤖🙌
+What topics are searched in the most popular and relevant prompts about your business, products, or services? You can now do this research with Profound.
+Read more: https://t.co/aSzxdF7Zto
+PS: I love how tools like @tryprofound  and @Similarweb  are releasing data and functionality that allows us to better understand prompt behavior to assess how users are searching, how we're performing and easily identify opportunities. I'll be recording a video about it this week 💪
+Number of Likes: 62
+Number of Views: 5670
+Number of Retweets: 22
+Number of Replies: 6
+Number of Quotes: 0
+Number of Bookmarks: 42
+Language: en
+Tagged Users: Similarweb, Profound
+Hashtags: nan
+
+
+Example Non-Finfluencer Profile 2
+- Profile Image: https://pbs.twimg.com/profile_images/1891047932851335168/PIAIeFfU_normal.jpg
+- Profile Name: Money Quotes
+- Profile ID: MoneyQuotesX
+- Location: nan
+- Profile Description: I’m passionate about sharing insightful, motivational quotes on money, wealth, and financial wisdom.
+- Profile External Link: https://t.co/bkFjEmuxHw
+- Profile Creation Date: 2024-01-30T02:32:36.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 23561 Followers
+- Following: 8923 Users
+- Total Number of Tweets: 83017
+- Number of Favorites: 162718
+- Number of Media Content: 965
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-20 10:46:47+00:00 
+Tweet Text: There are two kinds of people:
+- Those who think money is evil
+- Those who understand how the world works
+Number of Likes: 126
+Number of Views: 6436
+Number of Retweets: 18
+Number of Replies: 40
+Number of Quotes: 0
+Number of Bookmarks: 9
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-19 16:05:20+00:00 
+Tweet Text: In a world addicted to spending,
+Discipline is a money-printing machine.
+Number of Likes: 376
+Number of Views: 18482
+Number of Retweets: 42
+Number of Replies: 100
+Number of Quotes: 3
+Number of Bookmarks: 33
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-19 11:07:01+00:00 
+Tweet Text: There’s no glow-up like getting your finances right.
+Number of Likes: 520
+Number of Views: 40414
+Number of Retweets: 70
+Number of Replies: 98
+Number of Quotes: 3
+Number of Bookmarks: 29
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-18 16:53:43+00:00 
+Tweet Text: Every rich person was once just someone who believed they could escape the script.
+Number of Likes: 1505
+Number of Views: 49862
+Number of Retweets: 220
+Number of Replies: 145
+Number of Quotes: 5
+Number of Bookmarks: 220
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-18 11:24:30+00:00 
+Tweet Text: The real flex is making money doing what you’d do for free.
+Number of Likes: 770
+Number of Views: 1698619
+Number of Retweets: 99
+Number of Replies: 149
 Number of Quotes: 7
-Number of Bookmarks: 1013
+Number of Bookmarks: 48
 Language: en
 Tagged Users: nan
 Hashtags: nan
 
-Creation Date: 2025-01-18 00:04:54+00:00 
-Tweet Text: In my second data update for 2025, I focus on US equities and their performance in 2024, with both a historical perspective and a forward-looking lens. Suffice to say that stocks are richly priced, but whether they are too high is a judgment to make. https://t.co/LT5Ko33joD
-Number of Likes: 775
-Number of Views: 110394
-Number of Retweets: 119
-Number of Replies: 15
-Number of Quotes: 6
-Number of Bookmarks: 419
+Creation Date: 2025-06-17 16:58:06+00:00 
+Tweet Text: Financial literacy is your superpower in a system designed to keep you powerless.
+Number of Likes: 1156
+Number of Views: 46654
+Number of Retweets: 193
+Number of Replies: 116
+Number of Quotes: 7
+Number of Bookmarks: 186
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-17 11:04:29+00:00 
+Tweet Text: Broke people gossip. Wealthy people strategize.
+Number of Likes: 1345
+Number of Views: 159473
+Number of Retweets: 240
+Number of Replies: 169
+Number of Quotes: 10
+Number of Bookmarks: 158
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-16 16:02:58+00:00 
+Tweet Text: You don’t need 6 streams of income.
+You need 1 that works.
+1 stream that compounds.
+1 stream that scales.
+Multiple streams come after mastery.
+Number of Likes: 444
+Number of Views: 22462
+Number of Retweets: 52
+Number of Replies: 109
+Number of Quotes: 2
+Number of Bookmarks: 64
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-16 10:09:37+00:00 
+Tweet Text: The real flex: waking up when you want, doing what you love, and never checking the price tag.
+Number of Likes: 1144
+Number of Views: 3471232
+Number of Retweets: 174
+Number of Replies: 188
+Number of Quotes: 11
+Number of Bookmarks: 133
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-15 15:49:19+00:00 
+Tweet Text: The most dangerous money myth:
+“I’ll start saving when I make more.”
+Truth:
+You won’t.
+You’ll spend more.
+Discipline doesn’t come with income.
+It comes with mindset.
+Number of Likes: 325
+Number of Views: 13620
+Number of Retweets: 45
+Number of Replies: 94
+Number of Quotes: 3
+Number of Bookmarks: 25
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+
+Example Non-Finfluencer Profile 3
+- Profile Image: https://pbs.twimg.com/profile_images/1588693184623693824/NtTR8aBz_normal.jpg
+- Profile Name: Aviva - Denver - Warehouse
+- Profile ID: AvivaRealEstate
+- Location: Denver, CO
+- Profile Description: #1 Commercial Real Estate Page Online | Managing Broker at Warehouse Hotline | DENVER, CO | Host of Commercial Real Estate Secrets Podcast
+- Profile External Link: https://t.co/APLYn5WKDH
+- Profile Creation Date: 2021-08-01T23:03:04.000000Z
+- Verified Profile: False
+- Blue Verified Profile: True
+- Protected Profile: False
+- Number of Followers: 9840 Followers
+- Following: 1916 Users
+- Total Number of Tweets: 5446
+- Number of Favorites: 18767
+- Number of Media Content: 903
+- Tweets (Sorted from Newest to Oldest):
+Creation Date: 2025-06-20 03:33:05+00:00 
+Tweet Text: This flower blooms one night per year https://t.co/ypksU2zIYr
+Number of Likes: 5
+Number of Views: 450
+Number of Retweets: 0
+Number of Replies: 2
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-20 00:15:44+00:00 
+Tweet Text: Tell me something better than having someone’s location on your iPhone
+Number of Likes: 10
+Number of Views: 4273
+Number of Retweets: 1
+Number of Replies: 10
+Number of Quotes: 1
+Number of Bookmarks: 1
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-19 16:22:51+00:00 
+Tweet Text: On a call with @MrDavidSchwartz 
+‘X is LinkedIn 10 years ago’
+Agree or disagree?
+Number of Likes: 0
+Number of Views: 806
+Number of Retweets: 0
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: OffMarketKing
+Hashtags: nan
+
+Creation Date: 2025-06-19 11:13:00+00:00 
+Tweet Text: If you think retail is dead, you’re not paying attention to the drive-thrus printing money. https://t.co/uGMXtYdv3F
+Number of Likes: 3
+Number of Views: 438
+Number of Retweets: 0
+Number of Replies: 1
+Number of Quotes: 0
+Number of Bookmarks: 1
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-18 16:15:22+00:00 
+Tweet Text: 🎉 CRE Secrets turns 2!
+From square-foot talks to million-dollar mindsets—thank YOU for listening, sharing, and shaping the journey.
+More insights. More wins. Year 3 is just getting started. 
+Full article: https://t.co/wXTBWSMRDQ https://t.co/YitW84u6fJ
+Number of Likes: 7
+Number of Views: 400
+Number of Retweets: 0
+Number of Replies: 1
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-17 12:02:07+00:00 
+Tweet Text: $100M raised—without going viral or gaming the system. Just smart syndication, long-term trust, and a clear investment thesis. Watch the full episode to learn how Clint Harris built lasting credibility—and scaled with integrity. https://t.co/WfUGeEnpzS https://t.co/CqfyU5ckOp
+Number of Likes: 7
+Number of Views: 689
+Number of Retweets: 0
+Number of Replies: 0
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-16 11:33:51+00:00 
+Tweet Text: Forget the flip-and-sell mindset. Clint Harris shares how long-term real estate holds unlock time, location, and true financial freedom. https://t.co/Pqc4SLFr0N
+Number of Likes: 10
+Number of Views: 1492
+Number of Retweets: 0
+Number of Replies: 3
+Number of Quotes: 0
+Number of Bookmarks: 4
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-14 19:03:44+00:00 
+Tweet Text: The wealthier the buyer / the lower the threshold for verifying finances.
+Example = mom and pop tenant in 1920 SF. Need to see financials.
+50MM land sale. An article will do.
+Number of Likes: 4
+Number of Views: 817
+Number of Retweets: 0
+Number of Replies: 0
+Number of Quotes: 0
+Number of Bookmarks: 0
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-12 18:55:54+00:00 
+Tweet Text: How ironic is it that new investors often choose multifamily as a starting place in Commercial Real Estate.
+If only they knew it was the biggest pain in the ass product type you could imagine.
+Aside from hospitality.
+Number of Likes: 168
+Number of Views: 23417
+Number of Retweets: 3
+Number of Replies: 40
+Number of Quotes: 0
+Number of Bookmarks: 16
+Language: en
+Tagged Users: nan
+Hashtags: nan
+
+Creation Date: 2025-06-12 14:18:03+00:00 
+Tweet Text: Property values are down—but your tax bill isn’t. Here’s why (and what to do about it). https://t.co/9Fk2Ct2sU3
+Number of Likes: 2
+Number of Views: 606
+Number of Retweets: 0
+Number of Replies: 2
+Number of Quotes: 0
+Number of Bookmarks: 1
 Language: en
 Tagged Users: nan
 Hashtags: nan
 """
 
+expert_reflection_prompt_template = """Expert Reflections from Professional Portfolio Manager
+{expert_reflection_portfoliomanager}
+
+Expert Reflections from Investment Advisor
+{expert_reflection_investmentadvisor}
+
+Expert Reflections from Chartered Financial Analyst
+{expert_reflection_financialanalyst}
+
+Expert Reflections from Economist
+{expert_reflection_economist}"""
+
 tiktok_finfluencer_onboarding_system_prompt = (
     base_finfluencer_onboarding_system_prompt.format(
         platform="Tiktok",
         finfluencer_examples=tiktok_finfluencer_examples,
+        nonfinfluencer_examples=tiktok_nonfinfluencer_examples,
+        expert_reflection_prompt_template=expert_reflection_prompt_template,
         profile_prompt_template=tiktok_profile_prompt_template,
     )
 )
@@ -1947,6 +2138,8 @@ x_finfluencer_onboarding_system_prompt = (
     base_finfluencer_onboarding_system_prompt.format(
         platform="X (formerly Twitter)",
         finfluencer_examples=x_finfluencer_examples,
+        nonfinfluencer_examples=x_nonfinfluencer_examples,
+        expert_reflection_prompt_template=expert_reflection_prompt_template,
         profile_prompt_template=x_profile_prompt_template,
     )
 )
@@ -1960,20 +2153,19 @@ For each question, follow these instructions strictly:
 4) For each selected symbol/category, indicate the level of speculation involved in this selection on a scale from 0 (not speculative at all, every single element of the profile data was useful in the selection) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation levels should be a direct measure of the amount of useful information available in the profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from the profile-- and should not be affected by additional information available to you from any other source.
 
 To ensure consistency, use the following guidelines to determine speculation levels:
-0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
-21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
-41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
-61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
-81-100 (High speculation): The profile data provides no or almost no information relevant to the question. (e.g., assumptions based on very general information)
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question (e.g., context from multiple sources within the profile or videos).
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question (e.g., inferred from user interests or indirect references).
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question (e.g., very subtle hints or minimal context).
+81-100 (High speculation): The profile data provides no or almost no information relevant to the question (e.g., assumptions based on very general information).
 
 5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
 6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
 
 Format your output as follows (this is just an example; do not focus on the specific explanation, symbol, category, speculation, or value provided):
-**question: Is this a finfluencer?**  
+**question: Indicate on a scale of 0 to 100, how likely this creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)?**  
 **explanation: [Detailed explanation for selected response]**  
-**symbol: [Symbol selected]**  
-**category: [Category selected]**  
+**value: [Value selected]**  
 **speculation: [Speculation score selected]**
 
 **question: Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)?**  
@@ -2007,7 +2199,7 @@ Format your output as follows (this is just an example; do not focus on the spec
 **value: [Value selected]**  
 **speculation: [Speculation score selected]**
 
-**question: Who is the finfluencer’s target audience?**  
+**question: Who is the influencer’s target audience?**  
 **explanation: [Detailed explanation for selected response]**  
 **symbol: [Symbol selected]**  
 **category: [Category selected]**  
@@ -2015,24 +2207,22 @@ Format your output as follows (this is just an example; do not focus on the spec
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
 
-Question 1: Is this a finfluencer?
-A1) Yes
-A2) No
+Question 1: Indicate on a scale of 0 to 100, how likely this creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)?
 
 Question 2: Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? Please consider quantitative thresholds such as follower count and engagement rate when answering this question. For example, a micro-influencer will be in the 20-40 range, whereas an account with hundreds of thousands of followers and high engagement might rate 80+.
 
 Question 3: Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)? For example, an experienced analyst with a solid track record and formal education is considered more credible than an influencer making unverified claims and promoting speculative bets without disclaimers.
 
 Question 4: Which of these areas of finance are the primary focus of the influencer’s posts? Pick the most dominant theme or list two if it is truly split; however, one primary focus is always more preferable.
-B1) Stock Trading and Equities: Content centered on stock picks, technical analysis, trading strategies, and market indexes.
-B2) Bonds and Fixed Income: Content centered on interest rates, bond markets (government bonds, corporate bonds), Fed’s interest rate changes, and yield.
-B3) Options Trading and Derivatives: Content centered on option strategies (calls, puts, spreads) and futures or other derivatives.
-B4) Macroeconomic Analysis: Content centered on big-picture financial commentary – covering economic indicators, central bank policies, inflation, GDP, economic reports, and how world events affect markets.
-B5) Cryptocurrency: Content centered on crypto assets (Bitcoin, Ethereum, altcoins, blockchain projects, NFTs), price updates, blockchain technology, certain crypto tokens, crypto trading tips, and news (regulatory updates and major moves in crypto markets).
-B6) Real Estate Investments: Content centered on property investing, rental income, house flipping, REITs, housing market trends, share housing market data, and tips on evaluating real estate deal.
-B7) Personal Finances and Budgeting: Content centered on personal finance topics such as budgeting, saving, debt management, credit scores, and general financial literacy without specific market picks.
-B8) News and Current Events: Content centered on general news, current events, and trending topics that may not be directly related to finance but are discussed in the context of financial markets.
-B9) Other: Content that does not fit into any of the above categories, such as lifestyle, entertainment, or unrelated topics.
+A1) Stock Trading and Equities: Content centered on stock picks, technical analysis, trading strategies, and market indexes.
+A2) Bonds and Fixed Income: Content centered on interest rates, bond markets (government bonds, corporate bonds), Fed’s interest rate changes, and yield.
+A3) Options Trading and Derivatives: Content centered on option strategies (calls, puts, spreads) and futures or other derivatives.
+A4) Macroeconomic Analysis: Content centered on big-picture financial commentary – covering economic indicators, central bank policies, inflation, GDP, economic reports, and how world events affect markets.
+A5) Cryptocurrency: Content centered on crypto assets (Bitcoin, Ethereum, altcoins, blockchain projects, NFTs), price updates, blockchain technology, certain crypto tokens, crypto trading tips, and news (regulatory updates and major moves in crypto markets).
+A6) Real Estate Investments: Content centered on property investing, rental income, house flipping, REITs, housing market trends, share housing market data, and tips on evaluating real estate deal.
+A7) Personal Finances and Budgeting: Content centered on personal finance topics such as budgeting, saving, debt management, credit scores, and general financial literacy without specific market picks.
+A8) News and Current Events: Content centered on general news, current events, and trending topics that may not be directly related to finance but are discussed in the context of financial markets.
+A9) Other: Content that does not fit into any of the above categories, such as lifestyle, entertainment, or unrelated topics.
 
 Question 5: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's individual stock predictions (0 means very low quality and 100 means very high quality)?
 
@@ -2040,11 +2230,11 @@ Question 6: Indicate on a scale of 0 to 100, how would you rate the quality of t
 
 Question 7: Indicate on a scale of 0 to 100, how would you rate the quality of this influencer's broader evaluation of the economy (0 means very low quality and 100 means very high quality)?
 
-Question 8: Who is the finfluencer’s target audience?
-C1) Young Investors
-C2) Retirement Investors
-C3) Seasoned Investors
-C4) Others
+Question 8: Who is the influencer’s target audience?
+B1) Young Investors
+B2) Retirement Investors
+B3) Seasoned Investors
+B4) Others
 """
 
 tiktok_finfluencer_onboarding_user_prompt = (
@@ -2056,103 +2246,10 @@ x_finfluencer_onboarding_user_prompt = base_finfluencer_onboarding_user_prompt.f
 )
 
 
-# Market Signals Expert Reflection Prompts
-base_expert_reflection_system_prompt = """Imagine you are an expert {expert_role} (with a PhD) analyzing the {platform} profile of a financial influencer with the following details:
-{profile_prompt_template}
-"""
-
-base_expert_reflection_user_prompt = """Drawing on your expertise as an expert {expert_role} (with a PhD), write a set of observations/reflections about this financial influencer that:
-- Assesses the influencer’s credibility (e.g., engagement levels, consistency of advice, regional influence, etc.).
-- Identifies likely perspectives or biases regarding U.S. stock and bond market sentiment, sector performance, and specific stock recommendations.
-- Examines the influencer’s reasoning or thought process, such as fundamental vs. technical analysis, short-term vs. long-term outlook, or other discernible strategies.
-- Cites evidence from the provided profile details (e.g., follower counts, video transcripts, profile signature) to support each observation or reflection.
-
-Provide more than 5 but fewer than 20 observations based on the amount of information available in the profile."""
-
-tiktok_portfoliomanager_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Portfolio Manager",
-        platform="TikTok",
-        profile_prompt_template=tiktok_profile_prompt_template,
-    )
-)
-
-x_portfoliomanager_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Portfolio Manager",
-        platform="X (formerly Twitter)",
-        profile_prompt_template=x_profile_prompt_template,
-    )
-)
-
-portfoliomanager_reflection_user_prompt = base_expert_reflection_user_prompt.format(
-    expert_role="Portfolio Manager"
-)
-
-tiktok_investmentadvisor_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Investment Advisor",
-        platform="TikTok",
-        profile_prompt_template=tiktok_profile_prompt_template,
-    )
-)
-
-x_investmentadvisor_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Investment Advisor",
-        platform="X (formerly Twitter)",
-        profile_prompt_template=x_profile_prompt_template,
-    )
-)
-
-investmentadvisor_reflection_user_prompt = base_expert_reflection_user_prompt.format(
-    expert_role="Investment Advisor"
-)
-
-tiktok_financialanalyst_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Chartered Financial Analyst",
-        platform="TikTok",
-        profile_prompt_template=tiktok_profile_prompt_template,
-    )
-)
-
-x_financialanalyst_reflection_system_prompt = (
-    base_expert_reflection_system_prompt.format(
-        expert_role="Chartered Financial Analyst",
-        platform="X (formerly Twitter)",
-        profile_prompt_template=x_profile_prompt_template,
-    )
-)
-
-financialanalyst_reflection_user_prompt = base_expert_reflection_user_prompt.format(
-    expert_role="Chartered Financial Analyst"
-)
-
-tiktok_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
-    expert_role="Economist",
-    platform="TikTok",
-    profile_prompt_template=tiktok_profile_prompt_template,
-)
-
-x_economist_reflection_system_prompt = base_expert_reflection_system_prompt.format(
-    expert_role="Economist",
-    platform="X (formerly Twitter)",
-    profile_prompt_template=x_profile_prompt_template,
-)
-
-economist_reflection_user_prompt = base_expert_reflection_user_prompt.format(
-    expert_role="Economist"
-)
-
-
 # Market Signals Interview Prompts
 base_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a {platform} financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
 1. Your profile and videos will be monitored daily
 2. You will undergo daily interviews to discuss your perspective on the financial markets
-3. You will receive high-level and abstract “expert reflections” from a professional portfolio manager, an investment advisor, a chartered financial analyst, and an economist regarding your profile and its content. These reflections are provided below:
-
-{expert_reflection_prompt_template}
 
 The details of your {platform} profile are as follows:
 {profile_prompt_template}
@@ -2160,29 +2257,15 @@ The details of your {platform} profile are as follows:
 Instructions
 Answer the following questions based strictly on the available data while maintaining the persona and perspective of the {platform} financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
-expert_reflection_prompt_template = """Expert Reflections from Professional Portfolio Manager
-{expert_reflection_portfoliomanager}
-
-Expert Reflections from Investment Advisor
-{expert_reflection_investmentadvisor}
-
-Expert Reflections from Chartered Financial Analyst
-{expert_reflection_financialanalyst}
-
-Expert Reflections from Economist
-{expert_reflection_economist}"""
-
 tiktok_finfluencer_interview_system_prompt = (
     base_finfluencer_interview_system_prompt.format(
         platform="TikTok",
-        expert_reflection_prompt_template=expert_reflection_prompt_template,
         profile_prompt_template=tiktok_profile_prompt_template,
     )
 )
 
 x_finfluencer_interview_system_prompt = base_finfluencer_interview_system_prompt.format(
     platform="X (formerly Twitter)",
-    expert_reflection_prompt_template=expert_reflection_prompt_template,
     profile_prompt_template=x_profile_prompt_template,
 )
 
