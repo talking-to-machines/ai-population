@@ -1,17 +1,15 @@
 import os
 import pandas as pd
-import requests
-from requests.auth import HTTPBasicAuth
 from tqdm import tqdm
-from datetime import datetime, timezone
+from datetime import datetime
 
 tqdm.pandas()
 from ai_population.config.market_signals_config import (
     PIPELINE_EXECUTION_DATE,
     MIN_FOLLOWER_COUNT,
-    NUM_RESULTS_PER_PROFILE,
+    NUM_POSTS_PER_PROFILE,
     MIN_POSTS_COUNT,
-    NUM_POST_PER_KEYWORD,
+    NUM_POSTS_PER_KEYWORD,
     PROFILE_SEARCH_START_DATE,
     PROFILE_SEARCH_END_DATE,
     PROJECT_NAME_X,
@@ -40,8 +38,6 @@ PROFILE_SEARCH_END_DATE = datetime.strptime(
 ).strftime("%Y-%m-%d")
 
 from ai_population.config.base_config import (
-    X_API_USERNAME,
-    X_API_PASSWORD,
     GPT_MODEL,
 )
 from ai_population.src.utils import (
@@ -52,6 +48,9 @@ from ai_population.src.utils import (
     coalesce_columns_by_regex,
     extract_stock_mentions,
     format_stock_recommendations,
+    perform_x_keyword_search,
+    perform_x_profile_metadata_search,
+    perform_x_profile_search,
 )
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
@@ -428,214 +427,6 @@ def extract_tagged_users(entity_dict: dict) -> str:
         return ""
 
 
-def perform_x_keyword_search(
-    project_name: str,
-    execution_date: str,
-    search_terms: list,
-    output_file_path: str,
-) -> pd.DataFrame:
-    """
-    Performs a keyword search using the X (formerly Twitter) API for a given list of search terms, processes the results, and saves them to a CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize output data into subfolders.
-        execution_date (str): Date of execution, used to further organize output data.
-        search_terms (list): List of keywords or search terms to query.
-        output_file_path (str): Name of the CSV file to save the search results.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the search results, including extracted account IDs, hashtags, and tagged users.
-    """
-
-    def batched(iterable, n):
-        """Yield successive n-sized batches from iterable."""
-        for i in range(0, len(iterable), n):
-            yield iterable[i : i + n]
-
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Perform keyword search in batches of 5 (due to limitations of API call)
-    all_search_results = []
-    for batch_terms in batched(search_terms, 5):
-        response = requests.get(
-            "https://abundance.it.com/get_tweets_by_search_term",
-            params={
-                "search_term": batch_terms,
-                "or_operator": 0,
-                "max_tweets": NUM_POST_PER_KEYWORD * len(batch_terms),
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-        )
-        all_search_results += response.json()
-
-    keyword_search_results = pd.DataFrame(all_search_results)
-    keyword_search_results = keyword_search_results.drop_duplicates(
-        subset="id"
-    ).reset_index(drop=True)
-    keyword_search_results["account_id"] = keyword_search_results["author"].apply(
-        lambda x: x.get("userName")
-    )
-    keyword_search_results["hashtags"] = keyword_search_results["entities"].apply(
-        extract_hashtags
-    )
-    keyword_search_results["tagged_users"] = keyword_search_results["entities"].apply(
-        extract_tagged_users
-    )
-    keyword_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return keyword_search_results
-
-
-def perform_x_profile_search(
-    project_name: str,
-    execution_date: str,
-    input_file_path: str,
-    output_file_path: str,
-    start_date: str,
-    end_date: str,
-) -> pd.DataFrame:
-    """
-    Performs a profile search for a list of account IDs, retrieves tweets for each profile, and saves the results to a CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize data directories.
-        execution_date (str): Date of execution, used to create a subdirectory for output.
-        input_file_path (str): Path to the CSV file containing account IDs (relative to the project data directory).
-        output_file_path (str): Name of the output CSV file to save the search results.
-        start_date (str): Start date for the search.
-        end_date (str): End date for the search.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the search results for all profiles.
-    """
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Define search parameters
-    profile_list = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
-    )["account_id"].tolist()
-
-    # Peform profile search
-    response_list = []
-    for profile in tqdm(profile_list):
-        response = requests.get(
-            "https://abundance.it.com/get_tweets",
-            params={
-                "user": profile,
-                "max_tweets_per_user": NUM_RESULTS_PER_PROFILE,
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-        )
-        response_list += response.json()[0]
-
-    profile_search_results = pd.DataFrame(response_list)
-    profile_search_results["account_id"] = profile_search_results["author"].apply(
-        lambda x: x.get("userName")
-    )
-    profile_search_results["hashtags"] = profile_search_results["entities"].apply(
-        extract_hashtags
-    )
-    profile_search_results["tagged_users"] = profile_search_results["entities"].apply(
-        extract_tagged_users
-    )
-
-    # Filter posts that happen before start_date
-    profile_search_results["createdAt"] = pd.to_datetime(
-        profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-    )
-    filtered_profile_search_results = profile_search_results[
-        profile_search_results["createdAt"]
-        >= datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    ].reset_index(drop=True)
-
-    filtered_profile_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return profile_search_results
-
-
-def perform_x_profile_metadata_search(
-    project_name: str,
-    execution_date: str,
-    input_file_path: str,
-    output_file_path: str = "",
-) -> pd.DataFrame:
-    """
-    Performs a profile metadata search for a list of account IDs from an input CSV file and saves the results to an output CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize data directories.
-        execution_date (str): Date of execution, used to organize data directories.
-        input_file_path (str): Path to the input CSV file containing 'account_id' column.
-        output_file_path (str, optional): Path to the output CSV file where results will be saved. Defaults to "".
-
-    Returns:
-        pd.DataFrame: DataFrame containing the profile metadata search results.
-    """
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Define list of profiles for search
-    profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
-    )
-    assert (
-        "account_id" in profile_data.columns
-    ), "Input file must contain 'account_id' column."
-    profile_list = list(set(profile_data["account_id"].tolist()))
-
-    # Perform profile metadata search
-    response_list = []
-    for profile in tqdm(profile_list):
-        response = requests.get(
-            "https://abundance.it.com/get_user_info",
-            params={
-                "user": profile,
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-        )
-        response_list += response.json()
-
-    profile_metadata_search_results = pd.DataFrame(response_list)
-    profile_metadata_search_results.rename(
-        columns={"userName": "account_id"}, inplace=True
-    )
-    profile_metadata_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return profile_metadata_search_results
-
-
 def filter_x_profiles(
     project_name: str,
     execution_date: str,
@@ -708,7 +499,8 @@ if __name__ == "__main__":
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         search_terms=SEARCH_TERMS_X,
-        output_file_path=KEYWORD_SEARCH_FILE_X,
+        output_file=KEYWORD_SEARCH_FILE_X,
+        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     # Step 2: Extract profile metadata for search results
@@ -716,8 +508,8 @@ if __name__ == "__main__":
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=os.path.join(PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_X),
-        output_file_path=PROFILE_METADATA_SEARCH_FILE_X,
+        input_file=os.path.join(PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_X),
+        output_file=PROFILE_METADATA_SEARCH_FILE_X,
     )
 
     # Step 3: Filter profiles that do not meet filtering criteria
@@ -787,7 +579,7 @@ if __name__ == "__main__":
     update_verified_profile_pool(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=ONBOARDING_RESULTS_FILE_X,
+        input_file=ONBOARDING_RESULTS_FILE_X,
         verified_profile_pool=FINFLUENCER_POOL_FILE_X,
         prediction_threshold=PREDICTION_THRESHOLD_X,
     )
@@ -799,16 +591,17 @@ if __name__ == "__main__":
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=FINFLUENCER_POOL_FILE_X,
-        output_file_path=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
+        input_file=FINFLUENCER_POOL_FILE_X,
+        output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
     )
     perform_x_profile_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=FINFLUENCER_POOL_FILE_X,
-        output_file_path=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+        input_file=FINFLUENCER_POOL_FILE_X,
+        output_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
         start_date=PROFILE_SEARCH_START_DATE,
         end_date=PROFILE_SEARCH_END_DATE,
+        num_posts_per_profile=NUM_POSTS_PER_PROFILE,
     )
     extract_stock_mentions(
         project_name=PROJECT_NAME_X,

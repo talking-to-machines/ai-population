@@ -5,6 +5,9 @@ import yt_dlp
 import time
 import json
 import re
+import requests
+from requests.auth import HTTPBasicAuth
+from datetime import datetime, timezone
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -243,25 +246,25 @@ def download_video(row: pd.Series, project_name: str, execution_date: str) -> No
         print(f"An error occurred downloading {video_url}:", str(e))
 
 
-def optimize_audio_file(input_file_path: str, output_file_path: str) -> None:
+def optimize_audio_file(input_file: str, output_file: str) -> None:
     """
     Optimize an audio file by downsampling it to 16 kHz and converting it to mono.
 
     Args:
-        input_file_path (str): The path to the input audio file.
-        output_file_path (str): The path where the optimized audio file will be saved.
+        input_file (str): The path to the input audio file.
+        output_file (str): The path where the optimized audio file will be saved.
 
     Returns:
         None
     """
     # Load the audio file
-    audio = AudioSegment.from_file(input_file_path)
+    audio = AudioSegment.from_file(input_file)
 
     # Downsample the audio to 16 kHz and convert to mono
     audio = audio.set_frame_rate(16000).set_channels(1)
 
     # Export the optimized audio file
-    audio.export(output_file_path, format="wav")
+    audio.export(output_file, format="wav")
 
 
 def transcribe_videos(row: pd.Series, project_name: str, execution_date: str) -> str:
@@ -339,7 +342,7 @@ def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
 def construct_system_prompt(
     row: pd.Series, system_prompt_template: str, interview_type: str
 ) -> str:
-    if interview_type.startswith("tiktok_finfluencer"):
+    if interview_type.startswith("tiktok"):
         profile_args = {
             "profile_image": row["profile_pic_url"],
             "profile_name": row["account_id"],
@@ -364,7 +367,7 @@ def construct_system_prompt(
             "like_engagement_rate": row["like_engagement_rate"],
             "video_transcripts": row["posts_combined"],
         }
-    elif interview_type.startswith("x_finfluencer"):
+    elif interview_type.startswith("x"):
         profile_args = {
             "profile_picture": row["profilePicture"],
             "name": row["name"],
@@ -1178,97 +1181,97 @@ def perform_profile_interview(
         )
 
 
-def perform_profile_interview_shorten(
-    project_name: str,
-    execution_date: str,
-    gpt_model: str,
-    profile_metadata_input_file: str,
-    profile_metadata_output_file: str,
-    system_prompt_field: str,
-    user_prompt_field: str,
-    llm_response_field: str,
-    interview_type: str,
-    batch_interview: bool = True,
-) -> None:
+# def perform_profile_interview_shorten(
+#     project_name: str,
+#     execution_date: str,
+#     gpt_model: str,
+#     profile_metadata_input_file: str,
+#     profile_metadata_output_file: str,
+#     system_prompt_field: str,
+#     user_prompt_field: str,
+#     llm_response_field: str,
+#     interview_type: str,
+#     batch_interview: bool = True,
+# ) -> None:
 
-    print("Loading profile metadata...")
-    profile_metadata = pd.read_csv(
-        f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
-    )
+#     print("Loading profile metadata...")
+#     profile_metadata = pd.read_csv(
+#         f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
+#     )
 
-    print("Generate system and user prompts...")
-    profile_metadata[system_prompt_field] = profile_metadata.apply(
-        construct_system_prompt, args=(interview_type,), axis=1
-    )
-    profile_metadata[user_prompt_field] = profile_metadata.apply(
-        construct_user_prompt, args=(interview_type,), axis=1
-    )
+#     print("Generate system and user prompts...")
+#     profile_metadata[system_prompt_field] = profile_metadata.apply(
+#         construct_system_prompt, args=(interview_type,), axis=1
+#     )
+#     profile_metadata[user_prompt_field] = profile_metadata.apply(
+#         construct_user_prompt, args=(interview_type,), axis=1
+#     )
 
-    if batch_interview:
-        # Generate custom ids
-        if "custom_id" in profile_metadata.columns:
-            profile_metadata.drop(columns="custom_id", inplace=True)
+#     if batch_interview:
+#         # Generate custom ids
+#         if "custom_id" in profile_metadata.columns:
+#             profile_metadata.drop(columns="custom_id", inplace=True)
 
-        profile_metadata = profile_metadata.reset_index(drop=False)
-        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+#         profile_metadata = profile_metadata.reset_index(drop=False)
+#         profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
-        # Create folder to contain batch files
-        batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
-        os.makedirs(batch_file_dir, exist_ok=True)
+#         # Create folder to contain batch files
+#         batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
+#         os.makedirs(batch_file_dir, exist_ok=True)
 
-        # Perform batch query for survey questions
-        batch_file_dir = create_batch_file(
-            profile_metadata,
-            project_name=project_name,
-            execution_date=execution_date,
-            gpt_model=gpt_model,
-            system_prompt_field=system_prompt_field,
-            user_prompt_field=user_prompt_field,
-            batch_file_name="batch_input.jsonl",
-        )
+#         # Perform batch query for survey questions
+#         batch_file_dir = create_batch_file(
+#             profile_metadata,
+#             project_name=project_name,
+#             execution_date=execution_date,
+#             gpt_model=gpt_model,
+#             system_prompt_field=system_prompt_field,
+#             user_prompt_field=user_prompt_field,
+#             batch_file_name="batch_input.jsonl",
+#         )
 
-        print("Perform batch query using OpenAI API...")
-        llm_responses = batch_query(
-            project_name=project_name,
-            execution_date=execution_date,
-            batch_input_file_dir="batch_input.jsonl",
-            batch_output_file_dir="batch_output.jsonl",
-        )
-        llm_responses.rename(
-            columns={"query_response": llm_response_field}, inplace=True
-        )
+#         print("Perform batch query using OpenAI API...")
+#         llm_responses = batch_query(
+#             project_name=project_name,
+#             execution_date=execution_date,
+#             batch_input_file_dir="batch_input.jsonl",
+#             batch_output_file_dir="batch_output.jsonl",
+#         )
+#         llm_responses.rename(
+#             columns={"query_response": llm_response_field}, inplace=True
+#         )
 
-        # Merge LLM response with original dataset
-        print("Merge LLM response with original dataset...")
-        profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-        profile_metadata_with_responses = pd.merge(
-            left=profile_metadata,
-            right=llm_responses[["custom_id", llm_response_field]],
-            on="custom_id",
-        )
+#         # Merge LLM response with original dataset
+#         print("Merge LLM response with original dataset...")
+#         profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+#         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+#         profile_metadata_with_responses = pd.merge(
+#             left=profile_metadata,
+#             right=llm_responses[["custom_id", llm_response_field]],
+#             on="custom_id",
+#         )
 
-        # Save profile metadata after analysis into CSV file
-        print("Saving profile metadata after interview...")
-        profile_metadata_with_responses.to_csv(
-            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
-            index=False,
-        )
+#         # Save profile metadata after analysis into CSV file
+#         print("Saving profile metadata after interview...")
+#         profile_metadata_with_responses.to_csv(
+#             f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
+#             index=False,
+#         )
 
-    else:
-        print("Querying the OpenAI Chat Completion API (one row at a time)...")
-        profile_metadata[llm_response_field] = profile_metadata.progress_apply(
-            row_query,
-            args=([system_prompt_field, user_prompt_field, gpt_model],),
-            axis=1,
-        )
+#     else:
+#         print("Querying the OpenAI Chat Completion API (one row at a time)...")
+#         profile_metadata[llm_response_field] = profile_metadata.progress_apply(
+#             row_query,
+#             args=([system_prompt_field, user_prompt_field, gpt_model],),
+#             axis=1,
+#         )
 
-        # Save profile metadata after analysis into CSV file
-        print("Saving profile metadata after interview...")
-        profile_metadata.to_csv(
-            f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
-            index=False,
-        )
+#         # Save profile metadata after analysis into CSV file
+#         print("Saving profile metadata after interview...")
+#         profile_metadata.to_csv(
+#             f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
+#             index=False,
+#         )
 
 
 def build_profile_prompt(
@@ -1421,7 +1424,7 @@ def perform_video_transcription(
 def update_verified_profile_pool(
     project_name: str,
     execution_date: str,
-    input_file_path: str,
+    input_file: str,
     verified_profile_pool: str,
     prediction_threshold: float,
 ) -> None:
@@ -1433,7 +1436,7 @@ def update_verified_profile_pool(
     Args:
         project_name (str): Name of the project directory containing the data.
         execution_date (str): Date of execution, used to locate the input file and as the inclusion date for new profiles.
-        input_file_path (str): Relative path to the CSV file containing interviewed profiles.
+        input_file (str): Relative path to the CSV file containing interviewed profiles.
         verified_profile_pool (str): Filename of the verified profile pool CSV.
         prediction_threshold (float): Minimum likelihood score to consider a profile as a financial influencer.
 
@@ -1441,7 +1444,7 @@ def update_verified_profile_pool(
         None
     """
     interviewed_profiles = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, input_file_path)
+        os.path.join(base_dir, "../data", project_name, execution_date, input_file)
     )
     verified_profiles = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, verified_profile_pool)
@@ -1668,3 +1671,494 @@ def extract_stock_mentions(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
+
+
+def perform_tiktok_keyword_search(
+    project_name: str,
+    execution_date: str,
+    search_terms: list,
+    output_file: str,
+    num_post_per_keyword: int,
+) -> pd.DataFrame:
+    """
+    Perform a TikTok keyword search using the Bright Data API and save the results to a CSV file.
+
+    Args:
+        project_name (str): The name of the project. A subfolder with this name will be created
+            within the data folder to store the output file.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
+        search_terms (list): The list containing the search terms,
+            one term per line.
+        output_file (str): The file path where the resulting CSV file will be saved.
+        num_post_per_keyword (int): The maximum number of posts that should be returned per keyword search.
+
+    Returns:
+        pd.DataFrame: Returns the keyword search results as a pandas Dataframe.
+
+    Raises:
+        requests.exceptions.RequestException: If there is an issue with the API request.
+        KeyError: If the response from the API does not contain the expected keys.
+        ValueError: If the response data is not in the expected format.
+    """
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Initialise keyword search job
+    data = [
+        {"search_keyword": keyword, "num_of_posts": num_post_per_keyword, "country": ""}
+        for keyword in search_terms
+    ]
+    response = requests.post(
+        "https://api.brightdata.com/datasets/v3/trigger",
+        headers={
+            "Authorization": f"Bearer {BRIGHTDATA_API}",
+            "Content-Type": "application/json",
+        },
+        params={
+            "dataset_id": "gd_lu702nij2f790tmv9h",
+            "format": "csv",
+            "uncompressed_webhook": "true",
+            "force_deliver": "true",
+            "include_errors": "true",
+            "type": "discover_new",
+            "discover_by": "keyword",
+        },
+        json=data,
+    )
+    snapshot_id = response.json().get("snapshot_id")
+
+    # Retrieve keyword search results
+    response_json = {"status": "running"}
+    while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+        response = requests.get(
+            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+            headers={
+                "Authorization": f"Bearer {BRIGHTDATA_API}",
+            },
+            params={
+                "format": "json",
+            },
+        )
+        response_json = response.json()
+
+    keyword_search_results = pd.DataFrame(response_json)
+    if "warning_code" in keyword_search_results.columns:
+        keyword_search_results = keyword_search_results[
+            keyword_search_results["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in keyword_search_results.columns:
+        keyword_search_results = keyword_search_results[
+            keyword_search_results["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+    keyword_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return keyword_search_results
+
+
+def perform_tiktok_profile_search(
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    output_file: str,
+    start_date: str,
+    end_date: str,
+    num_posts_per_profile: int,
+) -> pd.DataFrame:
+    """
+    Perform a TikTok profile search and retrieve posts data for specified profiles.
+
+    This function triggers a profile search job using the Bright Data API, retrieves
+    the results, and saves them to a CSV file. It also ensures the necessary project
+    subfolder structure exists within the data directory.
+
+    Args:
+        project_name (str): Name of the project, used to create a subfolder in the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
+        input_file (str): Path to the CSV file containing TikTok account IDs under the column "account_id".
+        output_file (str): Path to save the retrieved profile search results as a CSV file.
+        start_date (str): The start date for the profile search.
+        end_date (str): The end date for the profile search.
+        num_posts_per_profile (int): The maximum number of posts returned per profile
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the profile search results.
+    """
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Define search parameters
+    profile_list = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, input_file)
+    )["account_id"].tolist()
+
+    # Initialise profile search job
+    data = [
+        {
+            "url": f"https://www.tiktok.com/@{profile}",
+            "num_of_posts": num_posts_per_profile,
+            "posts_to_not_include": "",
+            "start_date": start_date,
+            "end_date": end_date,
+            "what_to_collect": "Posts",
+            "post_type": "Video Posts",
+            "country": "",
+        }
+        for profile in profile_list
+    ]
+    response = requests.post(
+        "https://api.brightdata.com/datasets/v3/trigger",
+        headers={
+            "Authorization": f"Bearer {BRIGHTDATA_API}",
+            "Content-Type": "application/json",
+        },
+        params={
+            "dataset_id": "gd_lu702nij2f790tmv9h",
+            "include_errors": "true",
+            "type": "discover_new",
+            "discover_by": "profile_url",
+        },
+        json=data,
+    )
+    snapshot_id = response.json().get("snapshot_id")
+
+    # Retrieve profile search results
+    response_json = {"status": "running"}
+    while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+        response = requests.get(
+            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+            headers={
+                "Authorization": f"Bearer {BRIGHTDATA_API}",
+            },
+            params={
+                "format": "json",
+            },
+        )
+        response_json = response.json()
+
+    profile_search_results = pd.DataFrame(response_json)
+    if "warning_code" in profile_search_results.columns:
+        profile_search_results = profile_search_results[
+            profile_search_results["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in profile_search_results.columns:
+        profile_search_results = profile_search_results[
+            profile_search_results["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
+    profile_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return profile_search_results
+
+
+def perform_tiktok_profile_metadata_search(
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    output_file: str = "",
+) -> pd.DataFrame:
+    """
+    Perform a TikTok profile metadata search using Bright Data API and save the results to a CSV file.
+
+    Args:
+        project_name (str): Name of the project. Used to create a subfolder within the data directory.
+        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
+        input_file (str): Path to the input DataFrame containing TikTok account IDs. Must include a column named 'account_id'.
+        output_file (str, optional): Path to save the output CSV file. Defaults to an empty string.
+
+    Returns:
+        pd.DataFrame: DataFrame containing the TikTok profile metadata search results.
+
+    Raises:
+        AssertionError: If the input DataFrame does not contain the 'account_id' column.
+    """
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Define list of profiles for search
+    profile_data = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, input_file)
+    )
+    assert (
+        "account_id" in profile_data.columns
+    ), "Input file must contain 'account_id' column."
+    profile_list = list(set(profile_data["account_id"].tolist()))
+
+    # Initialise profile metadata search job
+    data = [
+        {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
+        for profile in profile_list
+    ]
+    response = requests.post(
+        "https://api.brightdata.com/datasets/v3/trigger",
+        headers={
+            "Authorization": f"Bearer {BRIGHTDATA_API}",
+            "Content-Type": "application/json",
+        },
+        params={
+            "dataset_id": "gd_l1villgoiiidt09ci",
+            "include_errors": "true",
+        },
+        json=data,
+    )
+    snapshot_id = response.json().get("snapshot_id")
+
+    # Retrieve keyword search results
+    response_json = {"status": "running"}
+    while isinstance(response_json, dict) and response_json.get("status") == "running":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+        response = requests.get(
+            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+            headers={
+                "Authorization": f"Bearer {BRIGHTDATA_API}",
+            },
+            params={
+                "format": "json",
+            },
+        )
+        response_json = response.json()
+
+    profile_metadata_search_results = pd.DataFrame(response_json)
+    if "warning_code" in profile_metadata_search_results.columns:
+        profile_metadata_search_results = profile_metadata_search_results[
+            profile_metadata_search_results["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in profile_metadata_search_results.columns:
+        profile_metadata_search_results = profile_metadata_search_results[
+            profile_metadata_search_results["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
+    profile_metadata_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return profile_metadata_search_results
+
+
+def perform_x_keyword_search(
+    project_name: str,
+    execution_date: str,
+    search_terms: list,
+    output_file: str,
+    num_posts_per_keyword: int,
+) -> pd.DataFrame:
+    """
+    Performs a keyword search using the X (formerly Twitter) API for a given list of search terms, processes the results, and saves them to a CSV file.
+
+    Args:
+        project_name (str): Name of the project, used to organize output data into subfolders.
+        execution_date (str): Date of execution, used to further organize output data.
+        search_terms (list): List of keywords or search terms to query.
+        output_file (str): Name of the CSV file to save the search results.
+        num_posts_per_keyword (int): The maximum number of posts returned per keyword search.
+
+    Returns:
+        pd.DataFrame: DataFrame containing the search results, including extracted account IDs, hashtags, and tagged users.
+    """
+
+    def batched(iterable, n):
+        """Yield successive n-sized batches from iterable."""
+        for i in range(0, len(iterable), n):
+            yield iterable[i : i + n]
+
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Perform keyword search in batches of 5 (due to limitations of API call)
+    all_search_results = []
+    for batch_terms in batched(search_terms, 5):
+        response = requests.get(
+            "https://abundance.it.com/get_tweets_by_search_term",
+            params={
+                "search_term": batch_terms,
+                "or_operator": 0,
+                "max_tweets": num_posts_per_keyword * len(batch_terms),
+            },
+            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+        )
+        all_search_results += response.json()
+
+    keyword_search_results = pd.DataFrame(all_search_results)
+    keyword_search_results = keyword_search_results.drop_duplicates(
+        subset="id"
+    ).reset_index(drop=True)
+    keyword_search_results["account_id"] = keyword_search_results["author"].apply(
+        lambda x: x.get("userName")
+    )
+    keyword_search_results["hashtags"] = keyword_search_results["entities"].apply(
+        extract_hashtags
+    )
+    keyword_search_results["tagged_users"] = keyword_search_results["entities"].apply(
+        extract_tagged_users
+    )
+    keyword_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return keyword_search_results
+
+
+def perform_x_profile_search(
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    output_file: str,
+    start_date: str,
+    end_date: str,
+    num_posts_per_profile: int,
+) -> pd.DataFrame:
+    """
+    Performs a profile search for a list of account IDs, retrieves tweets for each profile, and saves the results to a CSV file.
+
+    Args:
+        project_name (str): Name of the project, used to organize data directories.
+        execution_date (str): Date of execution, used to create a subdirectory for output.
+        input_file (str): Path to the CSV file containing account IDs (relative to the project data directory).
+        output_file (str): Name of the output CSV file to save the search results.
+        start_date (str): Start date for the search.
+        end_date (str): End date for the search.
+        num_posts_per_profile (int): Maximum number of posts returned per profile search.
+
+    Returns:
+        pd.DataFrame: DataFrame containing the search results for all profiles.
+    """
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Define search parameters
+    profile_list = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, input_file)
+    )["account_id"].tolist()
+
+    # Peform profile search
+    response_list = []
+    for profile in tqdm(profile_list):
+        response = requests.get(
+            "https://abundance.it.com/get_tweets",
+            params={
+                "user": profile,
+                "max_tweets_per_user": num_posts_per_profile,
+            },
+            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+        )
+        response_list += response.json()[0]
+
+    profile_search_results = pd.DataFrame(response_list)
+    profile_search_results["account_id"] = profile_search_results["author"].apply(
+        lambda x: x.get("userName")
+    )
+    profile_search_results["hashtags"] = profile_search_results["entities"].apply(
+        extract_hashtags
+    )
+    profile_search_results["tagged_users"] = profile_search_results["entities"].apply(
+        extract_tagged_users
+    )
+
+    # Filter posts that happen before start_date
+    profile_search_results["createdAt"] = pd.to_datetime(
+        profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
+    )
+    filtered_profile_search_results = profile_search_results[
+        profile_search_results["createdAt"]
+        >= datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    ].reset_index(drop=True)
+
+    filtered_profile_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return profile_search_results
+
+
+def perform_x_profile_metadata_search(
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    output_file: str = "",
+) -> pd.DataFrame:
+    """
+    Performs a profile metadata search for a list of account IDs from an input CSV file and saves the results to an output CSV file.
+
+    Args:
+        project_name (str): Name of the project, used to organize data directories.
+        execution_date (str): Date of execution, used to organize data directories.
+        input_file (str): Path to the input CSV file containing 'account_id' column.
+        output_file (str, optional): Path to the output CSV file where results will be saved. Defaults to "".
+
+    Returns:
+        pd.DataFrame: DataFrame containing the profile metadata search results.
+    """
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Define list of profiles for search
+    profile_data = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, input_file)
+    )
+    assert (
+        "account_id" in profile_data.columns
+    ), "Input file must contain 'account_id' column."
+    profile_list = list(set(profile_data["account_id"].tolist()))
+
+    # Perform profile metadata search
+    response_list = []
+    for profile in tqdm(profile_list):
+        response = requests.get(
+            "https://abundance.it.com/get_user_info",
+            params={
+                "user": profile,
+            },
+            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+        )
+        response_list += response.json()
+
+    profile_metadata_search_results = pd.DataFrame(response_list)
+    profile_metadata_search_results.rename(
+        columns={"userName": "account_id"}, inplace=True
+    )
+    profile_metadata_search_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+    return profile_metadata_search_results

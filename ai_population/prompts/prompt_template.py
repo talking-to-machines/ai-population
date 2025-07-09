@@ -2407,15 +2407,28 @@ Post Date: {mention_date}
 Post: {post}"""
 
 
-# Election Polling
-entity_geographic_inclusion_system_prompt = """You are analyzing a social media profile on TikTok to answer a set of questions. The TikTok profile data includes:
-{profile_prompt}
+# AI Election Polling
+base_entity_geographic_inclusion_system_prompt = """You are analyzing a social media profile on {platform} to answer a set of questions. The {platform} profile data includes:
+{profile_prompt_template}
 
 Instructions
 Analyze the provided information and answer the following questions based strictly on the available data. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
 
+tiktok_entity_geographic_inclusion_system_prompt = (
+    base_entity_geographic_inclusion_system_prompt.format(
+        platform="TikTok",
+        profile_prompt_template=tiktok_profile_prompt_template,
+    )
+)
 
-entity_geographic_inclusion_user_prompt = """You will be presented with a series of questions related to the profile of the TikTok user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
+x_entity_geographic_inclusion_system_prompt = (
+    base_entity_geographic_inclusion_system_prompt.format(
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+base_entity_geographic_inclusion_user_prompt = """You will be presented with a series of questions related to the profile of the {platform} user. Each question is preceded by predefined response options, each labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:
 1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
@@ -2456,12 +2469,19 @@ Question 1: Is this an account of a real-life existing person, or of another kin
 A1) Person
 A2) Other
 
-Question 2: Does the user of this TikTok account live in Canada?
+Question 2: Does the user of this {platform} account live in {country}?
 B1) Yes 
 B2) No
 
 Question 3: If the response to Question 2 is “Yes,” specify the state (province) the user is living in. Otherwise, respond with “NA.”"""
 
+tiktok_entity_geographic_inclusion_user_prompt = (
+    base_entity_geographic_inclusion_user_prompt.format(platform="TikTok")
+)
+
+x_entity_geographic_inclusion_user_prompt = (
+    base_entity_geographic_inclusion_user_prompt.format(platform="X (formerly Twitter)")
+)
 
 polling_system_prompt = """{profile_prompt}"""
 

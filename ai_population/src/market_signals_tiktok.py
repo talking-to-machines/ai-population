@@ -9,8 +9,8 @@ from ai_population.config.market_signals_config import (
     PIPELINE_EXECUTION_DATE,
     MIN_FOLLOWER_COUNT,
     MIN_VIDEO_COUNT,
-    NUM_POST_PER_KEYWORD,
-    NUM_RESULTS_PER_PROFILE,
+    NUM_POSTS_PER_KEYWORD,
+    NUM_POSTS_PER_PROFILE,
     PROFILE_SEARCH_START_DATE,
     PROFILE_SEARCH_END_DATE,
     PROJECT_NAME_TIKTOK,
@@ -44,6 +44,9 @@ from ai_population.src.utils import (
     coalesce_columns_by_regex,
     extract_stock_mentions,
     format_stock_recommendations,
+    perform_tiktok_keyword_search,
+    perform_tiktok_profile_metadata_search,
+    perform_tiktok_profile_search,
 )
 from ai_population.prompts.prompt_template import (
     tiktok_finfluencer_onboarding_system_prompt,
@@ -380,293 +383,6 @@ def perform_tiktok_stock_recommendation_interview(
     )
 
 
-def perform_tiktok_keyword_search(
-    project_name: str,
-    execution_date: str,
-    search_terms: list,
-    output_file_path: str,
-) -> pd.DataFrame:
-    """
-    Perform a TikTok keyword search using the Bright Data API and save the results to a CSV file.
-
-    Args:
-        project_name (str): The name of the project. A subfolder with this name will be created
-            within the data folder to store the output file.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        search_terms (list): The list containing the search terms,
-            one term per line.
-        output_file_path (str): The file path where the resulting CSV file will be saved.
-
-    Returns:
-        pd.DataFrame: Returns the keyword search results as a pandas Dataframe.
-
-    Raises:
-        requests.exceptions.RequestException: If there is an issue with the API request.
-        KeyError: If the response from the API does not contain the expected keys.
-        ValueError: If the response data is not in the expected format.
-    """
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Initialise keyword search job
-    data = [
-        {"search_keyword": keyword, "num_of_posts": NUM_POST_PER_KEYWORD, "country": ""}
-        for keyword in search_terms
-    ]
-    response = requests.post(
-        "https://api.brightdata.com/datasets/v3/trigger",
-        headers={
-            "Authorization": f"Bearer {BRIGHTDATA_API}",
-            "Content-Type": "application/json",
-        },
-        params={
-            "dataset_id": "gd_lu702nij2f790tmv9h",
-            "format": "csv",
-            "uncompressed_webhook": "true",
-            "force_deliver": "true",
-            "include_errors": "true",
-            "type": "discover_new",
-            "discover_by": "keyword",
-        },
-        json=data,
-    )
-    snapshot_id = response.json().get("snapshot_id")
-
-    # Retrieve keyword search results
-    response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-        response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
-            headers={
-                "Authorization": f"Bearer {BRIGHTDATA_API}",
-            },
-            params={
-                "format": "json",
-            },
-        )
-        response_json = response.json()
-
-    keyword_search_results = pd.DataFrame(response_json)
-    if "warning_code" in keyword_search_results.columns:
-        keyword_search_results = keyword_search_results[
-            keyword_search_results["warning_code"] != "dead_page"
-        ].reset_index(drop=True)
-    if "error_code" in keyword_search_results.columns:
-        keyword_search_results = keyword_search_results[
-            keyword_search_results["error_code"] != "crawl_failed"
-        ].reset_index(drop=True)
-    keyword_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return keyword_search_results
-
-
-def perform_tiktok_profile_search(
-    project_name: str,
-    execution_date: str,
-    input_file_path: str,
-    output_file_path: str,
-    start_date: str,
-    end_date: str,
-) -> pd.DataFrame:
-    """
-    Perform a TikTok profile search and retrieve posts data for specified profiles.
-
-    This function triggers a profile search job using the Bright Data API, retrieves
-    the results, and saves them to a CSV file. It also ensures the necessary project
-    subfolder structure exists within the data directory.
-
-    Args:
-        project_name (str): Name of the project, used to create a subfolder in the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file_path (str): Path to the CSV file containing TikTok account IDs under the column "account_id".
-        output_file_path (str): Path to save the retrieved profile search results as a CSV file.
-        start_date (str): The start date for the profile search.
-        end_date (str): The end date for the profile search.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the profile search results.
-    """
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Define search parameters
-    profile_list = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
-    )["account_id"].tolist()
-
-    # Initialise profile search job
-    data = [
-        {
-            "url": f"https://www.tiktok.com/@{profile}",
-            "num_of_posts": NUM_RESULTS_PER_PROFILE,
-            "posts_to_not_include": "",
-            "start_date": start_date,
-            "end_date": end_date,
-            "what_to_collect": "Posts",
-            "post_type": "Video Posts",
-            "country": "",
-        }
-        for profile in profile_list
-    ]
-    response = requests.post(
-        "https://api.brightdata.com/datasets/v3/trigger",
-        headers={
-            "Authorization": f"Bearer {BRIGHTDATA_API}",
-            "Content-Type": "application/json",
-        },
-        params={
-            "dataset_id": "gd_lu702nij2f790tmv9h",
-            "include_errors": "true",
-            "type": "discover_new",
-            "discover_by": "profile_url",
-        },
-        json=data,
-    )
-    snapshot_id = response.json().get("snapshot_id")
-
-    # Retrieve profile search results
-    response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-        response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
-            headers={
-                "Authorization": f"Bearer {BRIGHTDATA_API}",
-            },
-            params={
-                "format": "json",
-            },
-        )
-        response_json = response.json()
-
-    profile_search_results = pd.DataFrame(response_json)
-    if "warning_code" in profile_search_results.columns:
-        profile_search_results = profile_search_results[
-            profile_search_results["warning_code"] != "dead_page"
-        ].reset_index(drop=True)
-    if "error_code" in profile_search_results.columns:
-        profile_search_results = profile_search_results[
-            profile_search_results["error_code"] != "crawl_failed"
-        ].reset_index(drop=True)
-
-    profile_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return profile_search_results
-
-
-def perform_tiktok_profile_metadata_search(
-    project_name: str,
-    execution_date: str,
-    input_file_path: str,
-    output_file_path: str = "",
-) -> pd.DataFrame:
-    """
-    Perform a TikTok profile metadata search using Bright Data API and save the results to a CSV file.
-
-    Args:
-        project_name (str): Name of the project. Used to create a subfolder within the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file_path (str): Path to the input DataFrame containing TikTok account IDs. Must include a column named 'account_id'.
-        output_file_path (str, optional): Path to save the output CSV file. Defaults to an empty string.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the TikTok profile metadata search results.
-
-    Raises:
-        AssertionError: If the input DataFrame does not contain the 'account_id' column.
-    """
-    # Create the project subfolder within the data folder if it does not exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
-
-    # Define list of profiles for search
-    profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file_path)
-    )
-    assert (
-        "account_id" in profile_data.columns
-    ), "Input file must contain 'account_id' column."
-    profile_list = list(set(profile_data["account_id"].tolist()))
-
-    # Initialise profile metadata search job
-    data = [
-        {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
-        for profile in profile_list
-    ]
-    response = requests.post(
-        "https://api.brightdata.com/datasets/v3/trigger",
-        headers={
-            "Authorization": f"Bearer {BRIGHTDATA_API}",
-            "Content-Type": "application/json",
-        },
-        params={
-            "dataset_id": "gd_l1villgoiiidt09ci",
-            "include_errors": "true",
-        },
-        json=data,
-    )
-    snapshot_id = response.json().get("snapshot_id")
-
-    # Retrieve keyword search results
-    response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-        response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
-            headers={
-                "Authorization": f"Bearer {BRIGHTDATA_API}",
-            },
-            params={
-                "format": "json",
-            },
-        )
-        response_json = response.json()
-
-    profile_metadata_search_results = pd.DataFrame(response_json)
-    if "warning_code" in profile_metadata_search_results.columns:
-        profile_metadata_search_results = profile_metadata_search_results[
-            profile_metadata_search_results["warning_code"] != "dead_page"
-        ].reset_index(drop=True)
-    if "error_code" in profile_metadata_search_results.columns:
-        profile_metadata_search_results = profile_metadata_search_results[
-            profile_metadata_search_results["error_code"] != "crawl_failed"
-        ].reset_index(drop=True)
-
-    profile_metadata_search_results.to_csv(
-        os.path.join(
-            base_dir, "../data", project_name, execution_date, output_file_path
-        ),
-        index=False,
-    )
-
-    return profile_metadata_search_results
-
-
 def filter_tiktok_profiles(
     project_name: str,
     execution_date: str,
@@ -737,7 +453,8 @@ if __name__ == "__main__":
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         search_terms=SEARCH_TERMS_TIKTOK,
-        output_file_path=KEYWORD_SEARCH_FILE_TIKTOK,
+        output_file=KEYWORD_SEARCH_FILE_TIKTOK,
+        num_post_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     # Step 2: Extract profile metadata for search results
@@ -745,10 +462,8 @@ if __name__ == "__main__":
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=os.path.join(
-            PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_TIKTOK
-        ),
-        output_file_path=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+        input_file=os.path.join(PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_TIKTOK),
+        output_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
     )
 
     # Step 3: Filter profiles that do not meet filtering criteria
@@ -823,7 +538,7 @@ if __name__ == "__main__":
     update_verified_profile_pool(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=ONBOARDING_RESULTS_FILE_TIKTOK,
+        input_file=ONBOARDING_RESULTS_FILE_TIKTOK,
         verified_profile_pool=FINFLUENCER_POOL_FILE_TIKTOK,
         prediction_threshold=PREDICTION_THRESHOLD_TIKTOK,
     )
@@ -835,16 +550,17 @@ if __name__ == "__main__":
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=FINFLUENCER_POOL_FILE_TIKTOK,
-        output_file_path=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+        input_file=FINFLUENCER_POOL_FILE_TIKTOK,
+        output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
     )
     perform_tiktok_profile_search(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
-        input_file_path=FINFLUENCER_POOL_FILE_TIKTOK,
-        output_file_path=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        input_file=FINFLUENCER_POOL_FILE_TIKTOK,
+        output_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         start_date=PROFILE_SEARCH_START_DATE,
         end_date=PROFILE_SEARCH_END_DATE,
+        num_posts_per_profile=NUM_POSTS_PER_PROFILE,
     )
     perform_video_transcription(
         project_name=PROJECT_NAME_TIKTOK,
