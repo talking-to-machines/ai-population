@@ -173,7 +173,7 @@ base_finfluencer_onboarding_system_prompt = """You are analyzing a social media 
 DEFINITION OF A FINFLUENCER
 A finfluencer is a creator whose content includes providing:
 1) Macroeconomic analysis on the financial markets (e.g., interest-rate outlook, inflation prints, jobs data, earnings season)
-2) Business-related news and current events that have an impact on the US and global economy (e.g., Federal Reserve policy, rate cutes, market-moving news)
+2) Business-related news and current events that have an impact on the US and global economy (e.g., Federal Reserve policy, rate cuts, market-moving news)
 3) Opinions, predictions, or recommendations about different financial assets:
     • Individual equities/stocks (e.g., stock market, S&P 500, tickers, options, day-trading setups, etc.)
     • Crypto-assets (e.g., Bitcoin, Ethereum, alt-coins)
@@ -2312,17 +2312,17 @@ Format your output as follows (this is just an example; do not focus on the spec
 **category: [Category selected]e**
 **speculation: [Speculation score selected]**
 
-**question: In the next 1–3 months, do you expect U.S. bond prices (or interest rates) to rise, remain unchanged, or fall?**
+**question: In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-**question: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?**
+**question: Considering current market conditions, which sector or sectors do you believe are poised for better than average performance over the next 3–6 months? Can you briefly explain why you picked these?**
 **response: [Detailed response]**
 **speculation: [Speculation score selected]**
 
-**question: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?**
+**question: Considering current market conditions, which sector or sectors do you believe are poised for poorer than average performance over the next 3–6 months? Can you briefly explain why you picked these?**
 **response: [Detailed response]**
 **speculation: [Speculation score selected]**
 
@@ -2364,30 +2364,32 @@ D1) Rise
 D2) Stay About The Same
 D3) Fall
 
-Question 5: In the next 1–3 months, do you expect U.S. bond prices (or interest rates) to rise, remain unchanged, or fall?
+Question 5: In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall?
 E1) Rise
 E2) Stay About The Same
 E3) Fall
 
-Question 6: Considering current market conditions, which sectors do you believe are poised to do well in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are outperformers? Why?
+Question 6: Considering current market conditions, which sector or sectors do you believe are poised for better than average performance over the next 3–6 months? Can you briefly explain why you picked these?
 
-Question 7: Considering current market conditions, which sectors do you believe are poised to do poorly in the next 3–6 months? Can you give some background on these choices? Can you briefly explain why you picked these? Are there others you really think are underperformers? Why?
+Question 7: Considering current market conditions, which sector or sectors do you believe are poised for poorer than average performance over the next 3–6 months? Can you briefly explain why you picked these?
 
 Question 8: Did you mention any stocks or stock tickers in the Russell 4000 list (e.g., {russell_4000_tickers})?
 F1) Yes
 F2) No
 
-Question 9: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
-"""
+Question 9: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?"""
 
 stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
 
 Based on the information provided to you, answer the following questions:
 - mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
 - recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
-- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response.
+- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
 - confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
 - virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- risks: Indicate on a scale of 0 to 100, a measure of how risky this stock recommendation is (0-20 means minimal risk, 20-40 means low risk, 40-60 means moderate risk, 60-80 means high risk, 80+ means the stock recommendation is very risky). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+- horizon: Indicate on a scale of 1 to 4, the time-horizon over which your stock recommendation is expected to be profitable (1 means "over the very short term (less than 1 month)", 2 means "over the short term (between 1 and 6 months)", 3 means "over the medium term (between 6 months and 2 years)", 4 means "over the long term (over 2 years)"). Answer with NA, if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- conflicts: Do you have any potential conflicts of interest with this stock recommendation (i.e., recommending a stock that you own, or recommending a stock of a company you do business with)? Respond with either Yes or No. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
 
 Follow these instructions strictly when providing your response:
 1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
@@ -2397,6 +2399,9 @@ Follow these instructions strictly when providing your response:
 **explanation: [Detailed explanation for your selected response]**
 **confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
 **virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**risks: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**horizon: [1-4 or NA if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**conflicts: [Yes/No or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
 
 YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
@@ -2483,7 +2488,28 @@ x_entity_geographic_inclusion_user_prompt = (
     base_entity_geographic_inclusion_user_prompt.format(platform="X (formerly Twitter)")
 )
 
-polling_system_prompt = """{profile_prompt}"""
+# TODO to be finalised
+base_ai_election_polling_interview_system_prompt = """"""
 
+x_ai_election_polling_interview_system_prompt = (
+    base_ai_election_polling_interview_system_prompt.format(
+        platform="X (formerly Twitter)",
+    )
+)
 
-polling_user_prompt = """"""
+tiktok_ai_election_polling_interview_system_prompt = (
+    base_ai_election_polling_interview_system_prompt.format(platform="TikTok")
+)
+
+# TODO to be finalised
+base_ai_election_polling_interview_user_prompt = """"""
+
+x_ai_election_polling_interview_user_prompt = (
+    base_ai_election_polling_interview_user_prompt.format(
+        platform="X (formerly Twitter)",
+    )
+)
+
+tiktok_ai_election_polling_interview_user_prompt = (
+    base_ai_election_polling_interview_user_prompt.format(platform="TikTok")
+)
