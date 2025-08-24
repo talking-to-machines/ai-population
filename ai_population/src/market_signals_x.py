@@ -37,9 +37,7 @@ PROFILE_SEARCH_END_DATE = datetime.strptime(
     PROFILE_SEARCH_END_DATE, "%m-%d-%Y"
 ).strftime("%Y-%m-%d")
 
-from ai_population.config.base_config import (
-    GPT_MODEL,
-)
+from ai_population.config.base_config import GPT_MODEL
 from ai_population.src.utils import (
     extract_llm_responses,
     format_stock_mentions,
@@ -529,31 +527,7 @@ if __name__ == "__main__":
     generate_expert_reflections(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
-        role="portfolio_manager",
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="financial_analyst",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=EXPERT_REFLECTION_FILE_X,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="economist",
         profile_metadata_file=EXPERT_REFLECTION_FILE_X,
         post_file=KEYWORD_SEARCH_FILE_X,
         output_file=EXPERT_REFLECTION_FILE_X,

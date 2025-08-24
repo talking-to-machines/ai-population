@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-import requests
-import time
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -30,11 +28,7 @@ from ai_population.config.market_signals_config import (
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
     PREDICTION_THRESHOLD_TIKTOK,
 )
-from ai_population.config.base_config import (
-    WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS,
-    BRIGHTDATA_API,
-    GPT_MODEL,
-)
+from ai_population.config.base_config import GPT_MODEL
 from ai_population.src.utils import (
     extract_llm_responses,
     format_stock_mentions,
@@ -488,31 +482,7 @@ if __name__ == "__main__":
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
-        role="portfolio_manager",
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        post_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        output_file=EXPERT_REFLECTION_FILE_TIKTOK,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_TIKTOK,
-        post_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        output_file=EXPERT_REFLECTION_FILE_TIKTOK,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="financial_analyst",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_TIKTOK,
-        post_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        output_file=EXPERT_REFLECTION_FILE_TIKTOK,
-    )
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="economist",
         profile_metadata_file=EXPERT_REFLECTION_FILE_TIKTOK,
         post_file=KEYWORD_SEARCH_FILE_TIKTOK,
         output_file=EXPERT_REFLECTION_FILE_TIKTOK,
