@@ -19,7 +19,6 @@ from ai_population.prompts.prompt_template import (
     tiktok_video_prompt_template,
     x_tweet_prompt_template,
     tiktok_profile_prompt_template,
-    finfluencer_interview_user_prompt,
 )
 from ai_population.config.base_config import *
 from ai_population.config.market_signals_config import (
@@ -344,47 +343,47 @@ def construct_system_prompt(
 ) -> str:
     if interview_type.startswith("tiktok"):
         profile_args = {
-            "profile_image": row["profile_pic_url"],
-            "profile_name": row["account_id"],
-            "profile_nickname": row["nickname"],
-            "profile_biography": row["biography"],
-            "profile_signature": row["signature"],
-            "profile_bio_link": row["bio_link"],
-            "profile_url": row["url"],
-            "profile_lang": row["predicted_lang"],
-            "profile_creation": row["create_time"],
-            "verified_status": row["is_verified"],
-            "num_followers": row["followers"],
-            "num_following": row["following"],
-            "num_likes": row["likes"],
-            "num_videos": row["videos_count"],
-            "num_digg": row["digg_count"],
-            "private_account": row["is_private"],
-            "region": row["region"],
-            "tiktok_seller": row["is_commerce_user"],
-            "awg_engagement_rate": row["awg_engagement_rate"],
-            "comment_engagement_rate": row["comment_engagement_rate"],
-            "like_engagement_rate": row["like_engagement_rate"],
-            "video_transcripts": row["posts_combined"],
+            "profile_image": row.get("profile_pic_url", ""),
+            "profile_name": row.get("account_id", ""),
+            "profile_nickname": row.get("nickname", ""),
+            "profile_biography": row.get("biography", ""),
+            "profile_signature": row.get("signature", ""),
+            "profile_bio_link": row.get("bio_link", ""),
+            "profile_url": row.get("url", ""),
+            "profile_lang": row.get("predicted_lang", ""),
+            "profile_creation": row.get("create_time", ""),
+            "verified_status": row.get("is_verified", ""),
+            "num_followers": row.get("followers", ""),
+            "num_following": row.get("following", ""),
+            "num_likes": row.get("likes", ""),
+            "num_videos": row.get("videos_count", ""),
+            "num_digg": row.get("digg_count", ""),
+            "private_account": row.get("is_private", ""),
+            "region": row.get("region", ""),
+            "tiktok_seller": row.get("is_commerce_user", ""),
+            "awg_engagement_rate": row.get("awg_engagement_rate", ""),
+            "comment_engagement_rate": row.get("comment_engagement_rate", ""),
+            "like_engagement_rate": row.get("like_engagement_rate", ""),
+            "video_transcripts": row.get("posts_combined", ""),
         }
     elif interview_type.startswith("x"):
         profile_args = {
-            "profile_picture": row["profilePicture"],
-            "name": row["name"],
-            "account_id": row["account_id"],
-            "location": row["location"],
-            "description": row["description"],
-            "url": row["url"],
-            "created_at": row["createdAt"],
-            "is_verified": row["isVerified"],
-            "is_blue_verified": row["isBlueVerified"],
-            "protected": row["protected"],
-            "followers": row["followers"],
-            "following": row["following"],
-            "statuses_count": row["statusesCount"],
-            "favourites_count": row["favouritesCount"],
-            "media_count": row["mediaCount"],
-            "tweets": row["posts_combined"],
+            "profile_picture": row.get("profilePicture", ""),
+            "name": row.get("name", ""),
+            "account_id": row.get("account_id", ""),
+            "location": row.get("location", ""),
+            "description": row.get("description", ""),
+            "url": row.get("url", ""),
+            "created_at": row.get("createdAt", ""),
+            "is_verified": row.get("isVerified", ""),
+            "is_blue_verified": row.get("isBlueVerified", ""),
+            "protected": row.get("protected", ""),
+            "followers": row.get("followers", ""),
+            "following": row.get("following", ""),
+            "statuses_count": row.get("statusesCount", ""),
+            "favourites_count": row.get("favouritesCount", ""),
+            "media_count": row.get("mediaCount", ""),
+            "tweets": row.get("posts_combined", ""),
         }
 
     else:
@@ -394,17 +393,8 @@ def construct_system_prompt(
         "tiktok_finfluencer_onboarding",
     ]:
         additional_args = {
-            "expert_reflection_portfoliomanager": row[
-                "tiktok_finfluencer_expert_reflection_portfoliomanager_response"
-            ],
             "expert_reflection_investmentadvisor": row[
                 "tiktok_finfluencer_expert_reflection_investmentadvisor_response"
-            ],
-            "expert_reflection_financialanalyst": row[
-                "tiktok_finfluencer_expert_reflection_financialanalyst_response"
-            ],
-            "expert_reflection_economist": row[
-                "tiktok_finfluencer_expert_reflection_economist_response"
             ],
         }
         profile_args.update(additional_args)
@@ -412,17 +402,8 @@ def construct_system_prompt(
         "x_finfluencer_onboarding",
     ]:
         additional_args = {
-            "expert_reflection_portfoliomanager": row[
-                "x_finfluencer_expert_reflection_portfoliomanager_response"
-            ],
             "expert_reflection_investmentadvisor": row[
                 "x_finfluencer_expert_reflection_investmentadvisor_response"
-            ],
-            "expert_reflection_financialanalyst": row[
-                "x_finfluencer_expert_reflection_financialanalyst_response"
-            ],
-            "expert_reflection_economist": row[
-                "x_finfluencer_expert_reflection_economist_response"
             ],
         }
         profile_args.update(additional_args)
@@ -456,7 +437,7 @@ def construct_user_prompt(
         # Construct user prompt
         return user_prompt_template.format(
             russell_4000_tickers=russell4000_stock_ticker_str,
-            stock_mentions=row["stock_mentions"],
+            stock_mentions=row.get("stock_mentions", ""),
         )
 
     if interview_type in [
@@ -465,11 +446,17 @@ def construct_user_prompt(
     ]:
         # Load stock mentioned and reference to post
         return user_prompt_template.format(
-            stock_name=row["stock_name"],
-            stock_ticker=row["stock_ticker"],
-            mention_date=row["mention_date"],
-            post=row["post"],
+            stock_name=row.get("stock_name", ""),
+            stock_ticker=row.get("stock_ticker", ""),
+            mention_date=row.get("mention_date", ""),
+            post=row.get("post", ""),
         )
+
+    if interview_type == "x_digital_twin_voting_preference":
+        municipality = (
+            "NA" if pd.isna(row["COMUNA - category"]) else row["COMUNA - category"]
+        )
+        return user_prompt_template.format(municipality=municipality)
 
     else:
         return user_prompt_template
@@ -647,28 +634,15 @@ def format_stock_mentions(stock_mentions_str: str) -> pd.DataFrame:
 
 
 def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
-    """
-    Extracts structured stock recommendation information from a formatted string.
-
-    The function parses a string containing stock recommendation details, where each field is denoted by a specific pattern (e.g., '**mentioned_by_finfluencer: ...**'), and returns the extracted fields as a pandas Series.
-
-    Args:
-        stock_recommendation_str (str): The input string containing stock recommendation details, formatted with specific markers for each field.
-
-    Returns:
-        pd.Series: A pandas Series with the following keys:
-            - "mentioned_by_finfluencer": The name of the finfluencer who mentioned the stock, or None if not found.
-            - "recommendation": The recommendation text, or None if not found.
-            - "explanation": The explanation for the recommendation, or None if not found.
-            - "confidence": The confidence level of the recommendation, or None if not found.
-            - "virality": The virality score or description, or None if not found.
-    """
     # Define regex patterns for each field
     mentioned_by_finfluencer_pattern = r"\*\*mentioned_by_finfluencer: (.*?)\*\*"
     recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
     explanation_pattern = r"\*\*explanation: (.*?)\*\*"
     confidence_pattern = r"\*\*confidence: (.*?)\*\*"
     virality_pattern = r"\*\*virality: (.*?)\*\*"
+    risks_pattern = r"\*\*risks: (.*?)\*\*"
+    horizon_pattern = r"\*\*horizon: (.*?)\*\*"
+    conflicts_pattern = r"\*\*conflicts: (.*?)\*\*"
 
     # Extract the relevant fields from the stock recommendation string
     mentioned_by_finfluencer = re.search(
@@ -680,6 +654,9 @@ def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
     explanation = re.search(explanation_pattern, stock_recommendation_str, re.DOTALL)
     confidence = re.search(confidence_pattern, stock_recommendation_str, re.DOTALL)
     virality = re.search(virality_pattern, stock_recommendation_str, re.DOTALL)
+    risks = re.search(risks_pattern, stock_recommendation_str, re.DOTALL)
+    horizon = re.search(horizon_pattern, stock_recommendation_str, re.DOTALL)
+    conflicts = re.search(conflicts_pattern, stock_recommendation_str, re.DOTALL)
 
     # Create a pandas series from stock recommendation string
     stock_recommendation_series = pd.Series(
@@ -691,10 +668,39 @@ def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
             "explanation": explanation.group(1) if explanation else None,
             "confidence": confidence.group(1) if confidence else None,
             "virality": virality.group(1) if virality else None,
+            "risks": risks.group(1) if risks else None,
+            "horizon": horizon.group(1) if horizon else None,
+            "conflicts": conflicts.group(1) if conflicts else None,
         }
     )
 
     return stock_recommendation_series
+
+
+def _coerce_history(x):
+    # Accept list or JSON string; return list[{"role","content"}]
+    if x is None or (isinstance(x, float) and pd.isna(x)):
+        return []
+    if isinstance(x, str):
+        try:
+            return json.loads(x)
+        except Exception:
+            return []
+    return list(x)
+
+
+def messages_to_input(messages: list) -> str:
+    """
+    Convert a list of chat messages (each a dict with 'role' and 'content')
+    into a single transcript string for the Responses API 'input'.
+    """
+    lines = []
+    for m in messages:
+        role = str(m.get("role", "")).upper()
+        content = str(m.get("content", "")).strip()
+        if content:  # skip empty
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines)
 
 
 def create_batch_file(
@@ -704,38 +710,72 @@ def create_batch_file(
     gpt_model: str,
     system_prompt_field: str,
     user_prompt_field: str = "question_prompt",
+    history_field: str = None,
     batch_file_name: str = "batch_input.jsonl",
+    vector_store_ids: list = [],
 ) -> str:
-    """
-    Creates a batch file in JSON Lines format from a DataFrame of prompts.
-
-    Args:
-        prompts (pd.DataFrame): DataFrame containing the prompts data.
-        project_name (str): The name of the project.
-        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
-        system_prompt_field (str): The column name in the DataFrame for the system prompt content.
-        user_prompt_field (str, optional): The column name in the DataFrame for the user prompt content. Defaults to "question_prompt".
-        batch_file_name (str, optional): The name of the output batch file. Defaults to "batch_input.jsonl".
-
-    Returns:
-        str: The name of the created batch file.
-    """
     # Creating an array of json tasks
     tasks = []
+
     for i in range(len(prompts)):
-        task = {
-            "custom_id": f'{prompts.loc[i, "custom_id"]}',
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": gpt_model,
-                "temperature": 0,
-                "messages": [
-                    {"role": "system", "content": prompts.loc[i, system_prompt_field]},
-                    {"role": "user", "content": prompts.loc[i, user_prompt_field]},
-                ],
-            },
-        }
+        custom_id = f"{prompts.loc[i, 'custom_id']}"
+        sys_txt = (
+            str(prompts.loc[i, system_prompt_field])
+            if system_prompt_field in prompts.columns
+            else ""
+        )
+
+        user_txt = (
+            str(prompts.loc[i, user_prompt_field])
+            if user_prompt_field in prompts.columns
+            else ""
+        )
+
+        history = _coerce_history(
+            prompts.get(history_field, [None])[i]
+            if history_field in prompts.columns
+            else []
+        )
+
+        # Build messages
+        messages = []
+        if sys_txt:
+            messages.append({"role": "system", "content": sys_txt})
+
+        if history:
+            for m in history:
+                r, c = m.get("role", "user"), m.get("content", "")
+                messages.append({"role": r, "content": c})
+
+        messages.append({"role": "user", "content": user_txt})
+
+        if vector_store_ids:
+            task = {
+                "custom_id": custom_id,
+                "method": "POST",
+                "url": "/v1/responses",
+                "body": {
+                    "model": gpt_model,
+                    "temperature": 0,
+                    "input": messages_to_input(messages),
+                    "tools": [
+                        {"type": "file_search", "vector_store_ids": vector_store_ids}
+                    ],
+                },
+            }
+
+        else:
+            task = {
+                "custom_id": custom_id,
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": gpt_model,
+                    "temperature": 0,
+                    "messages": messages,
+                },
+            }
+
         tasks.append(task)
 
     # Creating batch file
@@ -754,19 +794,8 @@ def batch_query(
     execution_date: str,
     batch_input_file_dir: str,
     batch_output_file_dir: str,
+    vector_store_ids: list = [],
 ) -> pd.DataFrame:
-    """
-    Executes a batch query using the OpenAI API and processes the results into a pandas DataFrame.
-
-    Args:
-        project_name (str): The name of the project.
-        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
-        batch_input_file_dir (str): The directory path of the batch input file.
-        batch_output_file_dir (str): The directory path where the batch output file will be saved.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the processed results from the batch query.
-    """
     # Upload batch input file
     batch_file = openai_client.files.create(
         file=open(
@@ -777,11 +806,18 @@ def batch_query(
     )
 
     # Create batch job
-    batch_job = openai_client.batches.create(
-        input_file_id=batch_file.id,
-        endpoint="/v1/chat/completions",
-        completion_window="24h",
-    )
+    if vector_store_ids:
+        batch_job = openai_client.batches.create(
+            input_file_id=batch_file.id,
+            endpoint="/v1/responses",
+            completion_window="24h",
+        )
+    else:
+        batch_job = openai_client.batches.create(
+            input_file_id=batch_file.id,
+            endpoint="/v1/chat/completions",
+            completion_window="24h",
+        )
 
     # Check batch status
     while True:
@@ -815,14 +851,38 @@ def batch_query(
         for line in file:
             # Parsing the JSON result string into a dict
             result = json.loads(line.strip())
-            response_list.append(
-                {
-                    "custom_id": f'{result["custom_id"]}',
-                    "query_response": result["response"]["body"]["choices"][0][
-                        "message"
-                    ]["content"],
-                }
-            )
+
+            if vector_store_ids:
+                try:
+                    response_list.append(
+                        {
+                            "custom_id": f'{result["custom_id"]}',
+                            "query_response": result["response"]["body"]["output"][1][
+                                "content"
+                            ][0]["text"],
+                        }
+                    )
+                except IndexError:
+                    response_list.append(
+                        {
+                            "custom_id": f'{result["custom_id"]}',
+                            "query_response": result["response"]["body"]["output"][0][
+                                "content"
+                            ][0]["text"],
+                        }
+                    )
+                except:
+                    raise
+
+            else:
+                response_list.append(
+                    {
+                        "custom_id": f'{result["custom_id"]}',
+                        "query_response": result["response"]["body"]["choices"][0][
+                            "message"
+                        ]["content"],
+                    }
+                )
 
     return pd.DataFrame(response_list)
 
@@ -994,17 +1054,61 @@ def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
     for i in range(len(filtered_tweets)):
         tweets_list += [
             x_tweet_prompt_template.format(
-                created_at=filtered_tweets.loc[i, "createdAt"],
-                text=filtered_tweets.loc[i, "text"],
-                like_count=filtered_tweets.loc[i, "likeCount"],
-                view_count=filtered_tweets.loc[i, "viewCount"],
-                retweet_count=filtered_tweets.loc[i, "retweetCount"],
-                reply_count=filtered_tweets.loc[i, "replyCount"],
-                quote_count=filtered_tweets.loc[i, "quoteCount"],
-                bookmark_count=filtered_tweets.loc[i, "bookmarkCount"],
-                lang=filtered_tweets.loc[i, "lang"],
-                tagged_users=filtered_tweets.loc[i, "tagged_users"],
-                hashtags=filtered_tweets.loc[i, "hashtags"],
+                created_at=(
+                    filtered_tweets.loc[i, "createdAt"]
+                    if "createdAt" in filtered_tweets.columns
+                    else ""
+                ),
+                text=(
+                    filtered_tweets.loc[i, "text"]
+                    if "text" in filtered_tweets.columns
+                    else ""
+                ),
+                like_count=(
+                    filtered_tweets.loc[i, "likeCount"]
+                    if "likeCount" in filtered_tweets.columns
+                    else ""
+                ),
+                view_count=(
+                    filtered_tweets.loc[i, "viewCount"]
+                    if "viewCount" in filtered_tweets.columns
+                    else ""
+                ),
+                retweet_count=(
+                    filtered_tweets.loc[i, "retweetCount"]
+                    if "retweetCount" in filtered_tweets.columns
+                    else ""
+                ),
+                reply_count=(
+                    filtered_tweets.loc[i, "replyCount"]
+                    if "replyCount" in filtered_tweets.columns
+                    else ""
+                ),
+                quote_count=(
+                    filtered_tweets.loc[i, "quoteCount"]
+                    if "quoteCount" in filtered_tweets.columns
+                    else ""
+                ),
+                bookmark_count=(
+                    filtered_tweets.loc[i, "bookmarkCount"]
+                    if "bookmarkCount" in filtered_tweets.columns
+                    else ""
+                ),
+                lang=(
+                    filtered_tweets.loc[i, "lang"]
+                    if "lang" in filtered_tweets.columns
+                    else ""
+                ),
+                tagged_users=(
+                    filtered_tweets.loc[i, "tagged_users"]
+                    if "tagged_users" in filtered_tweets.columns
+                    else ""
+                ),
+                hashtags=(
+                    filtered_tweets.loc[i, "hashtags"]
+                    if "hashtags" in filtered_tweets.columns
+                    else ""
+                ),
             )
         ]
 
@@ -1051,7 +1155,8 @@ def perform_profile_interview(
     user_prompt_template: str,
     llm_response_field: str,
     interview_type: str,
-    batch_interview: bool = True,
+    history_field: str = None,
+    vector_store_ids: list = [],
 ) -> None:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1098,180 +1203,65 @@ def perform_profile_interview(
     else:
         raise ValueError(f"Interview type: {interview_type} not supported.")
 
-    profile_metadata[f"{interview_type}_system_prompt"] = profile_metadata.apply(
-        construct_system_prompt, args=(system_prompt_template, interview_type), axis=1
-    )
+    if system_prompt_template:
+        profile_metadata[f"{interview_type}_system_prompt"] = profile_metadata.apply(
+            construct_system_prompt,
+            args=(system_prompt_template, interview_type),
+            axis=1,
+        )
     profile_metadata[f"{interview_type}_user_prompt"] = profile_metadata.apply(
         construct_user_prompt, args=(user_prompt_template, interview_type), axis=1
     )
 
-    if batch_interview:
-        # Generate custom ids
-        if "custom_id" in profile_metadata.columns:
-            profile_metadata.drop(columns="custom_id", inplace=True)
+    # Generate custom ids
+    if "custom_id" in profile_metadata.columns:
+        profile_metadata.drop(columns="custom_id", inplace=True)
 
-        profile_metadata = profile_metadata.reset_index(drop=False)
-        profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
+    profile_metadata = profile_metadata.reset_index(drop=False)
+    profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
 
-        # Create folder to contain batch files
-        os.makedirs(
-            os.path.join(
-                base_dir, "../data", project_name, execution_date, "batch-files"
-            ),
-            exist_ok=True,
-        )
+    # Create folder to contain batch files
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date, "batch-files"),
+        exist_ok=True,
+    )
 
-        # Perform batch query for survey questions
-        create_batch_file(
-            profile_metadata,
-            project_name=project_name,
-            execution_date=execution_date,
-            gpt_model=gpt_model,
-            system_prompt_field=f"{interview_type}_system_prompt",
-            user_prompt_field=f"{interview_type}_user_prompt",
-            batch_file_name="batch_input.jsonl",
-        )
+    # Perform batch query for survey questions
+    create_batch_file(
+        profile_metadata,
+        project_name=project_name,
+        execution_date=execution_date,
+        gpt_model=gpt_model,
+        system_prompt_field=f"{interview_type}_system_prompt",
+        user_prompt_field=f"{interview_type}_user_prompt",
+        history_field=history_field,
+        batch_file_name="batch_input.jsonl",
+        vector_store_ids=vector_store_ids,
+    )
 
-        llm_responses = batch_query(
-            project_name=project_name,
-            execution_date=execution_date,
-            batch_input_file_dir="batch_input.jsonl",
-            batch_output_file_dir="batch_output.jsonl",
-        )
-        llm_responses.rename(
-            columns={"query_response": llm_response_field}, inplace=True
-        )
+    llm_responses = batch_query(
+        project_name=project_name,
+        execution_date=execution_date,
+        batch_input_file_dir="batch_input.jsonl",
+        batch_output_file_dir="batch_output.jsonl",
+        vector_store_ids=vector_store_ids,
+    )
+    llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
 
-        # Merge LLM response with original dataset
-        profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-        profile_metadata_with_responses = pd.merge(
-            left=profile_metadata,
-            right=llm_responses[["custom_id", llm_response_field]],
-            on="custom_id",
-        )
+    # Merge LLM response with original dataset
+    profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+    llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+    profile_metadata_with_responses = pd.merge(
+        left=profile_metadata,
+        right=llm_responses[["custom_id", llm_response_field]],
+        on="custom_id",
+    )
 
-        # Save profile metadata after analysis into CSV file
-        profile_metadata_with_responses.to_csv(
-            os.path.join(
-                base_dir, "../data", project_name, execution_date, output_file
-            ),
-            index=False,
-        )
-
-    else:
-        profile_metadata[llm_response_field] = profile_metadata.progress_apply(
-            row_query,
-            args=(
-                [
-                    f"{interview_type}_system_prompt",
-                    f"{interview_type}_user_prompt",
-                    gpt_model,
-                ],
-            ),
-            axis=1,
-        )
-
-        # Save profile metadata after analysis into CSV file
-        profile_metadata.to_csv(
-            os.path.join(
-                base_dir, "../data", project_name, execution_date, output_file
-            ),
-            index=False,
-        )
-
-
-# def perform_profile_interview_shorten(
-#     project_name: str,
-#     execution_date: str,
-#     gpt_model: str,
-#     profile_metadata_input_file: str,
-#     profile_metadata_output_file: str,
-#     system_prompt_field: str,
-#     user_prompt_field: str,
-#     llm_response_field: str,
-#     interview_type: str,
-#     batch_interview: bool = True,
-# ) -> None:
-
-#     print("Loading profile metadata...")
-#     profile_metadata = pd.read_csv(
-#         f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
-#     )
-
-#     print("Generate system and user prompts...")
-#     profile_metadata[system_prompt_field] = profile_metadata.apply(
-#         construct_system_prompt, args=(interview_type,), axis=1
-#     )
-#     profile_metadata[user_prompt_field] = profile_metadata.apply(
-#         construct_user_prompt, args=(interview_type,), axis=1
-#     )
-
-#     if batch_interview:
-#         # Generate custom ids
-#         if "custom_id" in profile_metadata.columns:
-#             profile_metadata.drop(columns="custom_id", inplace=True)
-
-#         profile_metadata = profile_metadata.reset_index(drop=False)
-#         profile_metadata.rename(columns={"index": "custom_id"}, inplace=True)
-
-#         # Create folder to contain batch files
-#         batch_file_dir = f"{base_dir}/../data/{project_name}/batch-files"
-#         os.makedirs(batch_file_dir, exist_ok=True)
-
-#         # Perform batch query for survey questions
-#         batch_file_dir = create_batch_file(
-#             profile_metadata,
-#             project_name=project_name,
-#             execution_date=execution_date,
-#             gpt_model=gpt_model,
-#             system_prompt_field=system_prompt_field,
-#             user_prompt_field=user_prompt_field,
-#             batch_file_name="batch_input.jsonl",
-#         )
-
-#         print("Perform batch query using OpenAI API...")
-#         llm_responses = batch_query(
-#             project_name=project_name,
-#             execution_date=execution_date,
-#             batch_input_file_dir="batch_input.jsonl",
-#             batch_output_file_dir="batch_output.jsonl",
-#         )
-#         llm_responses.rename(
-#             columns={"query_response": llm_response_field}, inplace=True
-#         )
-
-#         # Merge LLM response with original dataset
-#         print("Merge LLM response with original dataset...")
-#         profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-#         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-#         profile_metadata_with_responses = pd.merge(
-#             left=profile_metadata,
-#             right=llm_responses[["custom_id", llm_response_field]],
-#             on="custom_id",
-#         )
-
-#         # Save profile metadata after analysis into CSV file
-#         print("Saving profile metadata after interview...")
-#         profile_metadata_with_responses.to_csv(
-#             f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
-#             index=False,
-#         )
-
-#     else:
-#         print("Querying the OpenAI Chat Completion API (one row at a time)...")
-#         profile_metadata[llm_response_field] = profile_metadata.progress_apply(
-#             row_query,
-#             args=([system_prompt_field, user_prompt_field, gpt_model],),
-#             axis=1,
-#         )
-
-#         # Save profile metadata after analysis into CSV file
-#         print("Saving profile metadata after interview...")
-#         profile_metadata.to_csv(
-#             f"{base_dir}/../data/{project_name}/{profile_metadata_output_file}",
-#             index=False,
-#         )
+    # Save profile metadata after analysis into CSV file
+    profile_metadata_with_responses.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
 
 
 def build_profile_prompt(
@@ -1308,26 +1298,26 @@ def build_profile_prompt(
     print("Construct profile prompt...")
     profile_metadata["profile_prompt"] = profile_metadata.apply(
         lambda row: tiktok_profile_prompt_template.format(
-            profile_image=row["avatar"],
-            profile_name=row["profile"],
-            profile_nickname=row["nickName"],
-            verified_status=row["verified"],
-            private_account=row["privateAccount"],
-            region=row["region"],
-            tiktok_seller=row["ttSeller"],
-            profile_signature=row["signature"],
-            num_followers=row["fans"],
-            num_following=row["following"],
-            num_likes=row["heart"],
-            num_videos=row["video"],
-            num_digg=row["digg"],
+            profile_image=row.get("avatar", ""),
+            profile_name=row.get("profile", ""),
+            profile_nickname=row.get("nickName", ""),
+            verified_status=row.get("verified", ""),
+            private_account=row.get("privateAccount", ""),
+            region=row.get("region", ""),
+            tiktok_seller=row.get("ttSeller", ""),
+            profile_signature=row.get("signature", ""),
+            num_followers=row.get("fans", ""),
+            num_following=row.get("following", ""),
+            num_likes=row.get("heart", ""),
+            num_videos=row.get("video", ""),
+            num_digg=row.get("digg", ""),
             total_likes_over_num_followers=calculate_profile_engagement(
                 row["heart"], row["fans"]
             ),
             total_likes_over_num_videos=calculate_profile_engagement(
                 row["heart"], row["video"]
             ),
-            video_transcripts=row["posts_combined"],
+            video_transcripts=row.get("posts_combined", ""),
         ),
         axis=1,
     )
@@ -1772,26 +1762,8 @@ def perform_tiktok_profile_search(
     start_date: str,
     end_date: str,
     num_posts_per_profile: int,
+    local_file: str = None,
 ) -> pd.DataFrame:
-    """
-    Perform a TikTok profile search and retrieve posts data for specified profiles.
-
-    This function triggers a profile search job using the Bright Data API, retrieves
-    the results, and saves them to a CSV file. It also ensures the necessary project
-    subfolder structure exists within the data directory.
-
-    Args:
-        project_name (str): Name of the project, used to create a subfolder in the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file (str): Path to the CSV file containing TikTok account IDs under the column "account_id".
-        output_file (str): Path to save the retrieved profile search results as a CSV file.
-        start_date (str): The start date for the profile search.
-        end_date (str): The end date for the profile search.
-        num_posts_per_profile (int): The maximum number of posts returned per profile
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the profile search results.
-    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -1805,60 +1777,95 @@ def perform_tiktok_profile_search(
         os.path.join(base_dir, "../data", project_name, input_file)
     )["account_id"].tolist()
 
-    # Initialise profile search job
-    data = [
-        {
-            "url": f"https://www.tiktok.com/@{profile}",
-            "num_of_posts": num_posts_per_profile,
-            "posts_to_not_include": "",
-            "start_date": start_date,
-            "end_date": end_date,
-            "what_to_collect": "Posts",
-            "post_type": "Video Posts",
-            "country": "",
-        }
-        for profile in profile_list
-    ]
-    response = requests.post(
-        "https://api.brightdata.com/datasets/v3/trigger",
-        headers={
-            "Authorization": f"Bearer {BRIGHTDATA_API}",
-            "Content-Type": "application/json",
-        },
-        params={
-            "dataset_id": "gd_lu702nij2f790tmv9h",
-            "include_errors": "true",
-            "type": "discover_new",
-            "discover_by": "profile_url",
-        },
-        json=data,
-    )
-    snapshot_id = response.json().get("snapshot_id")
-
-    # Retrieve profile search results
-    response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-        response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+    if local_file is None:  # Perform API search
+        # Initialise profile search job
+        data = [
+            {
+                "url": f"https://www.tiktok.com/@{profile}",
+                "num_of_posts": num_posts_per_profile,
+                "posts_to_not_include": "",
+                "start_date": start_date,
+                "end_date": end_date,
+                "what_to_collect": "Posts",
+                "post_type": "Video Posts",
+                "country": "",
+            }
+            for profile in profile_list
+        ]
+        response = requests.post(
+            "https://api.brightdata.com/datasets/v3/trigger",
             headers={
                 "Authorization": f"Bearer {BRIGHTDATA_API}",
+                "Content-Type": "application/json",
             },
             params={
-                "format": "json",
+                "dataset_id": "gd_lu702nij2f790tmv9h",
+                "include_errors": "true",
+                "type": "discover_new",
+                "discover_by": "profile_url",
             },
+            json=data,
         )
-        response_json = response.json()
+        snapshot_id = response.json().get("snapshot_id")
 
-    profile_search_results = pd.DataFrame(response_json)
-    if "warning_code" in profile_search_results.columns:
-        profile_search_results = profile_search_results[
-            profile_search_results["warning_code"] != "dead_page"
-        ].reset_index(drop=True)
-    if "error_code" in profile_search_results.columns:
-        profile_search_results = profile_search_results[
-            profile_search_results["error_code"] != "crawl_failed"
-        ].reset_index(drop=True)
+        # Retrieve profile search results
+        response_json = {"status": "running"}
+        while (
+            isinstance(response_json, dict) and response_json.get("status") == "running"
+        ):
+            time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+            response = requests.get(
+                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                headers={
+                    "Authorization": f"Bearer {BRIGHTDATA_API}",
+                },
+                params={
+                    "format": "json",
+                },
+            )
+            response_json = response.json()
+
+        profile_search_results = pd.DataFrame(response_json)
+        if "warning_code" in profile_search_results.columns:
+            profile_search_results = profile_search_results[
+                profile_search_results["warning_code"] != "dead_page"
+            ].reset_index(drop=True)
+        if "error_code" in profile_search_results.columns:
+            profile_search_results = profile_search_results[
+                profile_search_results["error_code"] != "crawl_failed"
+            ].reset_index(drop=True)
+
+    else:  # Perform local search
+        local_profile_search = pd.read_csv(local_file)
+        local_profile_search["create_time_processed"] = pd.to_datetime(
+            local_profile_search["create_time"], utc=True
+        )
+        profile_search_results = pd.DataFrame()
+
+        for profile in tqdm(profile_list):
+            # Filter by account id, and post start and end date
+            filtered_profile_search = local_profile_search[
+                (local_profile_search["account_id"] == profile)
+                & (
+                    local_profile_search["create_time_processed"]
+                    >= pd.to_datetime(start_date, utc=True)
+                )
+                & (
+                    local_profile_search["create_time_processed"]
+                    <= pd.to_datetime(end_date, utc=True)
+                )
+            ].reset_index(drop=True)
+
+            if filtered_profile_search.empty:
+                continue
+
+            profile_search_results = pd.concat(
+                [
+                    profile_search_results,
+                    filtered_profile_search.drop(columns=["create_time_processed"]),
+                ],
+                ignore_index=True,
+            )
 
     profile_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
@@ -1873,22 +1880,8 @@ def perform_tiktok_profile_metadata_search(
     execution_date: str,
     input_file: str,
     output_file: str = "",
+    local_file: str = None,
 ) -> pd.DataFrame:
-    """
-    Perform a TikTok profile metadata search using Bright Data API and save the results to a CSV file.
-
-    Args:
-        project_name (str): Name of the project. Used to create a subfolder within the data directory.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        input_file (str): Path to the input DataFrame containing TikTok account IDs. Must include a column named 'account_id'.
-        output_file (str, optional): Path to save the output CSV file. Defaults to an empty string.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the TikTok profile metadata search results.
-
-    Raises:
-        AssertionError: If the input DataFrame does not contain the 'account_id' column.
-    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -1906,56 +1899,65 @@ def perform_tiktok_profile_metadata_search(
     ), "Input file must contain 'account_id' column."
     profile_list = list(set(profile_data["account_id"].tolist()))
 
-    # Initialise profile metadata search job
-    data = [
-        {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
-        for profile in profile_list
-    ]
-    response = requests.post(
-        "https://api.brightdata.com/datasets/v3/trigger",
-        headers={
-            "Authorization": f"Bearer {BRIGHTDATA_API}",
-            "Content-Type": "application/json",
-        },
-        params={
-            "dataset_id": "gd_l1villgoiiidt09ci",
-            "include_errors": "true",
-        },
-        json=data,
-    )
-    snapshot_id = response.json().get("snapshot_id")
-
-    # Retrieve keyword search results
-    response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
-        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-        response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+    if local_file is None:  # Perform API search
+        # Initialise profile metadata search job
+        data = [
+            {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
+            for profile in profile_list
+        ]
+        response = requests.post(
+            "https://api.brightdata.com/datasets/v3/trigger",
             headers={
                 "Authorization": f"Bearer {BRIGHTDATA_API}",
+                "Content-Type": "application/json",
             },
             params={
-                "format": "json",
+                "dataset_id": "gd_l1villgoiiidt09ci",
+                "include_errors": "true",
             },
+            json=data,
         )
-        response_json = response.json()
+        snapshot_id = response.json().get("snapshot_id")
 
-    profile_metadata_search_results = pd.DataFrame(response_json)
-    if "warning_code" in profile_metadata_search_results.columns:
-        profile_metadata_search_results = profile_metadata_search_results[
-            profile_metadata_search_results["warning_code"] != "dead_page"
-        ].reset_index(drop=True)
-    if "error_code" in profile_metadata_search_results.columns:
-        profile_metadata_search_results = profile_metadata_search_results[
-            profile_metadata_search_results["error_code"] != "crawl_failed"
+        # Retrieve profile metadata search results
+        response_json = {"status": "running"}
+        while (
+            isinstance(response_json, dict) and response_json.get("status") == "running"
+        ):
+            time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+            response = requests.get(
+                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                headers={
+                    "Authorization": f"Bearer {BRIGHTDATA_API}",
+                },
+                params={
+                    "format": "json",
+                },
+            )
+            response_json = response.json()
+
+        profile_metadata = pd.DataFrame(response_json)
+        if "warning_code" in profile_metadata.columns:
+            profile_metadata = profile_metadata[
+                profile_metadata["warning_code"] != "dead_page"
+            ].reset_index(drop=True)
+        if "error_code" in profile_metadata.columns:
+            profile_metadata = profile_metadata[
+                profile_metadata["error_code"] != "crawl_failed"
+            ].reset_index(drop=True)
+
+    else:  # Perform local search
+        local_profile_metadata = pd.read_csv(local_file)
+        profile_metadata = local_profile_metadata[
+            local_profile_metadata["account_id"].isin(profile_list)
         ].reset_index(drop=True)
 
-    profile_metadata_search_results.to_csv(
+    profile_metadata.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
 
-    return profile_metadata_search_results
+    return profile_metadata
 
 
 def perform_x_keyword_search(
@@ -1965,20 +1967,6 @@ def perform_x_keyword_search(
     output_file: str,
     num_posts_per_keyword: int,
 ) -> pd.DataFrame:
-    """
-    Performs a keyword search using the X (formerly Twitter) API for a given list of search terms, processes the results, and saves them to a CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize output data into subfolders.
-        execution_date (str): Date of execution, used to further organize output data.
-        search_terms (list): List of keywords or search terms to query.
-        output_file (str): Name of the CSV file to save the search results.
-        num_posts_per_keyword (int): The maximum number of posts returned per keyword search.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the search results, including extracted account IDs, hashtags, and tagged users.
-    """
-
     def batched(iterable, n):
         """Yield successive n-sized batches from iterable."""
         for i in range(0, len(iterable), n):
@@ -2035,22 +2023,8 @@ def perform_x_profile_search(
     start_date: str,
     end_date: str,
     num_posts_per_profile: int,
+    local_file: str = None,
 ) -> pd.DataFrame:
-    """
-    Performs a profile search for a list of account IDs, retrieves tweets for each profile, and saves the results to a CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize data directories.
-        execution_date (str): Date of execution, used to create a subdirectory for output.
-        input_file (str): Path to the CSV file containing account IDs (relative to the project data directory).
-        output_file (str): Name of the output CSV file to save the search results.
-        start_date (str): Start date for the search.
-        end_date (str): End date for the search.
-        num_posts_per_profile (int): Maximum number of posts returned per profile search.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the search results for all profiles.
-    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -2065,39 +2039,72 @@ def perform_x_profile_search(
     )["account_id"].tolist()
 
     # Peform profile search
-    response_list = []
-    for profile in tqdm(profile_list):
-        response = requests.get(
-            "https://abundance.it.com/get_tweets",
-            params={
-                "user": profile,
-                "max_tweets_per_user": num_posts_per_profile,
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+    if local_file is None:  # Perform API search
+        response_list = []
+        for profile in tqdm(profile_list):
+            response = requests.get(
+                "https://abundance.it.com/get_tweets",
+                params={
+                    "user": profile,
+                    "max_tweets_per_user": num_posts_per_profile,
+                },
+                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+            )
+            response_list += response.json()[0]
+
+        profile_search_results = pd.DataFrame([r for r in response_list if r])
+        profile_search_results["account_id"] = profile_search_results["author"].apply(
+            lambda x: x.get("userName")
         )
-        response_list += response.json()[0]
+        profile_search_results["hashtags"] = profile_search_results["entities"].apply(
+            extract_hashtags
+        )
+        profile_search_results["tagged_users"] = profile_search_results[
+            "entities"
+        ].apply(extract_tagged_users)
 
-    profile_search_results = pd.DataFrame(response_list)
-    profile_search_results["account_id"] = profile_search_results["author"].apply(
-        lambda x: x.get("userName")
-    )
-    profile_search_results["hashtags"] = profile_search_results["entities"].apply(
-        extract_hashtags
-    )
-    profile_search_results["tagged_users"] = profile_search_results["entities"].apply(
-        extract_tagged_users
-    )
+        # Filter posts that happen before start_date
+        profile_search_results["createdAt"] = pd.to_datetime(
+            profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
+        )
+        profile_search_results = profile_search_results[
+            profile_search_results["createdAt"]
+            >= datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        ].reset_index(drop=True)
 
-    # Filter posts that happen before start_date
-    profile_search_results["createdAt"] = pd.to_datetime(
-        profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-    )
-    filtered_profile_search_results = profile_search_results[
-        profile_search_results["createdAt"]
-        >= datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    ].reset_index(drop=True)
+    else:  # Perform local search
+        local_profile_search = pd.read_csv(local_file)
+        local_profile_search["create_time_processed"] = pd.to_datetime(
+            local_profile_search["createdAt"], utc=True
+        )
+        profile_search_results = pd.DataFrame()
 
-    filtered_profile_search_results.to_csv(
+        for profile in tqdm(profile_list):
+            # Filter by account id, and post start and end date
+            filtered_profile_search = local_profile_search[
+                (local_profile_search["account_id"] == profile)
+                & (
+                    local_profile_search["create_time_processed"]
+                    >= pd.to_datetime(start_date, utc=True)
+                )
+                & (
+                    local_profile_search["create_time_processed"]
+                    <= pd.to_datetime(end_date, utc=True)
+                )
+            ].reset_index(drop=True)
+
+            if filtered_profile_search.empty:
+                continue
+
+            profile_search_results = pd.concat(
+                [
+                    profile_search_results,
+                    filtered_profile_search.drop(columns=["create_time_processed"]),
+                ],
+                ignore_index=True,
+            )
+
+    profile_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
@@ -2110,19 +2117,8 @@ def perform_x_profile_metadata_search(
     execution_date: str,
     input_file: str,
     output_file: str = "",
+    local_file: str = None,
 ) -> pd.DataFrame:
-    """
-    Performs a profile metadata search for a list of account IDs from an input CSV file and saves the results to an output CSV file.
-
-    Args:
-        project_name (str): Name of the project, used to organize data directories.
-        execution_date (str): Date of execution, used to organize data directories.
-        input_file (str): Path to the input CSV file containing 'account_id' column.
-        output_file (str, optional): Path to the output CSV file where results will be saved. Defaults to "".
-
-    Returns:
-        pd.DataFrame: DataFrame containing the profile metadata search results.
-    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -2140,25 +2136,31 @@ def perform_x_profile_metadata_search(
     ), "Input file must contain 'account_id' column."
     profile_list = list(set(profile_data["account_id"].tolist()))
 
-    # Perform profile metadata search
-    response_list = []
-    for profile in tqdm(profile_list):
-        response = requests.get(
-            "https://abundance.it.com/get_user_info",
-            params={
-                "user": profile,
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-        )
-        response_list += response.json()
+    if local_file is None:  # Perform API search
+        # Perform profile metadata search
+        response_list = []
+        for profile in tqdm(profile_list):
+            response = requests.get(
+                "https://abundance.it.com/get_user_info",
+                params={
+                    "user": profile,
+                },
+                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+            )
+            response_list += response.json()
 
-    profile_metadata_search_results = pd.DataFrame(response_list)
-    profile_metadata_search_results.rename(
-        columns={"userName": "account_id"}, inplace=True
-    )
-    profile_metadata_search_results.to_csv(
+        profile_metadata = pd.DataFrame([r for r in response_list if r])
+        profile_metadata.rename(columns={"userName": "account_id"}, inplace=True)
+
+    else:  # Perform local search
+        local_profile_metadata = pd.read_csv(local_file)
+        profile_metadata = local_profile_metadata[
+            local_profile_metadata["account_id"].isin(profile_list)
+        ].reset_index(drop=True)
+
+    profile_metadata.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
 
-    return profile_metadata_search_results
+    return profile_metadata

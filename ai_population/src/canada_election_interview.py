@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 tqdm.pandas()
 from config.base_config import GPT_MODEL
-from config.canada_election_config import (
+from ai_population.config.ai_election_polling_config import (
     PROJECT,
     SEARCH_TERMS_FILE,
     KEYWORD_SEARCH_VIDEO_METADATA_FILE,

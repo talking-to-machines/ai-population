@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import argparse
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -12,18 +12,15 @@ from src.utils import (
     perform_x_keyword_search,
     perform_x_profile_search,
     perform_x_profile_metadata_search,
-    # build_profile_prompt,
     extract_llm_responses,
     perform_profile_interview,
     coalesce_columns_by_regex,
-    # construct_system_prompt,
-    # construct_user_prompt,
-    # extract_video_transcripts,
-    # calculate_profile_engagement,
 )
 from prompts.prompt_template import (
     x_entity_geographic_inclusion_system_prompt,
     x_entity_geographic_inclusion_user_prompt,
+    x_ai_election_polling_interview_system_prompt,
+    x_ai_election_polling_interview_user_prompt,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -240,84 +237,56 @@ def apply_entity_geographic_inclusion_criteria(
 
 # TODO to be updated
 def apply_quota_inclusion_criteria(
-    profile: pd.Series,
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    output_file: str,
+    polled_profiles_file: str,
 ) -> pd.Series:
     return None
 
 
-# TODO to be updated
+# TODO need to refer to technical paper on dependent and indepepdent features and finalise interview prompts
 def conduct_polling(
     project_name: str,
     execution_date: str,
-    profile: pd.Series,
-    profile_latest_videos: pd.DataFrame,
-    polling_results_file: str,
-    poll_date: datetime,
+    profile_metadata_file: str,
+    post_file: str,
+    output_file: str,
 ) -> None:
-    # # Format past video transcripts
-    # video_transcripts_combined = extract_video_transcripts(
-    #     profile_id=profile["id"], video_metadata=profile_latest_videos
-    # )
+    perform_profile_interview(
+        project_name=project_name,
+        execution_date=execution_date,
+        gpt_model=GPT_MODEL,
+        profile_metadata_file=profile_metadata_file,
+        post_file=post_file,
+        output_file=output_file,
+        system_prompt_template=x_ai_election_polling_interview_system_prompt,
+        user_prompt_template=x_ai_election_polling_interview_user_prompt,
+        llm_response_field="x_ai_election_polling_interview",
+        interview_type="x_ai_election_polling_interview",
+    )
 
-    # # Construct profile prompt
-    # profile["profile_prompt"] = profile_prompt_template.format(
-    #     profile_image=profile["avatar"],
-    #     profile_name=profile["profile"],
-    #     profile_nickname=profile["nickName"],
-    #     verified_status=profile["verified"],
-    #     private_account=profile["privateAccount"],
-    #     region=profile["region"],
-    #     tiktok_seller=profile["ttSeller"],
-    #     profile_signature=profile["signature"],
-    #     num_followers=profile["fans"],
-    #     num_following=profile["following"],
-    #     num_likes=profile["heart"],
-    #     num_videos=profile["video"],
-    #     num_digg=profile["digg"],
-    #     total_likes_over_num_followers=calculate_profile_engagement(
-    #         profile["heart"], profile["fans"]
-    #     ),
-    #     total_likes_over_num_videos=calculate_profile_engagement(
-    #         profile["heart"], profile["video"]
-    #     ),
-    #     video_transcripts=video_transcripts_combined,
-    # )
-    # # TODO need to refer to technical paper on dependent and indepepdent features?
-    # # TODO include construction of background-informed, feature building prompt
+    # Preprocess post interview results
+    post_interview_results = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file)
+    )
+    extracted_responses = post_interview_results[
+        "x_ai_election_polling_interview"
+    ].apply(extract_llm_responses)
+    post_interview_results = pd.concat(
+        [post_interview_results, extracted_responses], axis=1
+    )
+    # Merge identical columns from interview response
+    post_interview_results = coalesce_columns_by_regex(
+        post_interview_results, AI_ELECTION_INTERVIEW_REGEX_PATTERNS
+    )
 
-    # # Construct system prompt
-    # profile["system_prompt"] = construct_system_prompt(
-    #     profile, interview_type="polling"
-    # )
-
-    # # Construct user prompt
-    # profile["user_prompt"] = construct_user_prompt(profile, interview_type="polling")
-
-    # # Perform polling interview
-    # interview_response = ""  # TODO to be implemented
-
-    # # Preprocess post interview responses
-    # extracted_interview_responses = extract_llm_responses(
-    #     interview_response, substring_exclusion_list=[]
-    # )
-    # profile_with_interview_responses = pd.concat(
-    #     [profile, extracted_interview_responses], ignore_index=True
-    # )
-    # profile_with_interview_responses["poll_date"] = poll_date
-
-    # # Save the formatted polling interview responses
-    # past_polling_results = pd.read_csv(
-    #     f"{base_dir}/../data/{project_name}/{polling_results_file}"
-    # )
-    # updated_polling_results = pd.concat(
-    #     [past_polling_results, profile_with_interview_responses.to_frame().T],
-    #     ignore_index=True,
-    # )
-    # updated_polling_results.to_csv(
-    #     f"{base_dir}/../data/{project_name}/{polling_results_file}", index=False
-    # )
-
-    return None
+    # Save formatted interview results
+    post_interview_results.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
 
 
 def define_pipeline_constants(country: str) -> dict:
@@ -326,10 +295,11 @@ def define_pipeline_constants(country: str) -> dict:
         "keyword_search_file": KEYWORD_SEARCH_FILE_X,
         "profile_metadata_search_file": PROFILE_METADATA_SEARCH_FILE_X,
         "temporal_inclusion_criteria_file": TEMPORAL_INCLUSION_CRITERIA_FILE_X,
-        "polled_profiles": POLLED_PROFILES_FILE_X,
+        "polled_profiles": POLLED_PROFILES_X,
         "null_geography_exclusion_criteria_file": NULL_GEOGRAPHY_EXCLUSION_CRITERIA_FILE_X,
-        "eligible_profile_pool_file": ELIGIBLE_PROFILE_POOL_FILE_X,
-        "profile_search_file": PROFILE_SEARCH_FILE_X,
+        "entity_geographic_inclusion_criteria_file": ENTITY_GEOGRAPHIC_INCLUSION_CRITERIA_FILE_X,
+        "quota_inclusion_criteria_file": QUOTA_INCLUSION_CRITERIA_FILE_X,
+        "eligible_profile_search_file": ELIGIBLE_PROFILE_SEARCH_FILE_X,
         "digital_polling_file": DIGITAL_POLLING_FILE_X,
     }
 
@@ -425,37 +395,25 @@ if __name__ == "__main__":
     )
     print()
 
-    # TODO CONTINUE FROM HERE
     # Step 3: Poll Valid Users
     print("Step 3: Poll Valid Users")
-    ## Iterate through valid profile pool
-    print("Iterate through valid profile pool and store polling results...")
-    profile_pool = pd.read_csv(
-        f"{base_dir}/../data/{constants['project_name']}/{constants['pipeline_execution_date']}/{constants['entity_geographic_inclusion_criteria_file']}"
+    ## Apply quota inclusion criteria to identify eligible profiles for polling based on country-specific stratification frame
+    print("Apply quota inclusion criteria to identify eligible profiles for polling...")
+    apply_quota_inclusion_criteria(
+        project_name=constants["project_name"],
+        execution_date=constants["pipeline_execution_date"],
+        input_file=constants["entity_geographic_inclusion_criteria_file"],
+        output_file=constants["quota_inclusion_criteria_file"],
+        polled_profiles_file=constants["polled_profiles"],
     )
-    polling_results = pd.read_csv(
-        f"{base_dir}/../data/{constants['project_name']}/{constants['pipeline_execution_date']}/{constants['polled_profiles']}"
-    )
 
-    eligible_profile_pool = []
-    for i in tqdm(range(len(profile_pool))):
-        ## Apply quota inclusion criteria
-        eligible_profile = apply_quota_inclusion_criteria(profile=profile_pool.iloc[i])
-
-        if eligible_profile is None:  # Profile does not meet quota inclusion criteria
-            continue
-
-        else:
-            eligible_profile_pool.append(eligible_profile)
-
-    # TODO need to be updated to perform profile search and polling for the entire verified batch
-    ## Sample latest videos from eligible profiles
+    ## Query latest videos from eligible profiles
     print("Extract posts from eligible profiles during polling period...")
     profile_latest_videos = perform_x_profile_search(
         project_name=constants["project_name"],
         execution_date=constants["pipeline_execution_date"],
-        input_file_path=constants["eligible_profile_pool_file"],
-        output_file_path=constants["profile_search_file"],
+        input_file=constants["quota_inclusion_criteria_file"],
+        output_file=constants["eligible_profile_search_file"],
         start_date=PROFILE_SEARCH_START_DATE,
         end_date=PROFILE_SEARCH_END_DATE,
         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
@@ -466,8 +424,7 @@ if __name__ == "__main__":
     conduct_polling(
         project_name=constants["project_name"],
         execution_date=constants["pipeline_execution_date"],
-        profile=eligible_profile_pool,
-        profile_latest_videos=profile_latest_videos,
-        polling_results_file=constants["digital_polling_file"],
-        poll_date=constants["pipeline_execution_date"],
+        profile_metadata_file=constants["quota_inclusion_criteria_file"],
+        post_file=constants["eligible_profile_search_file"],
+        output_file=constants["digital_polling_file"],
     )

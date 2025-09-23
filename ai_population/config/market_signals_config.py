@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="ai_population/config/.env")
@@ -7,14 +6,14 @@ load_dotenv(dotenv_path="ai_population/config/.env")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
-PIPELINE_EXECUTION_DATE = datetime.today().date().strftime("%d-%m-%Y")
+PIPELINE_EXECUTION_DATE = "14-08-2025"  # datetime.today().date().strftime("%d-%m-%Y")
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
 MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 20
-NUM_POSTS_PER_PROFILE = 20
-PROFILE_SEARCH_START_DATE = "06-23-2025"  # MM-DD-YYYY format
-PROFILE_SEARCH_END_DATE = "06-24-2025"  # MM-DD-YYYY format
+NUM_POSTS_PER_PROFILE = 120  # original value 20
+PROFILE_SEARCH_START_DATE = "08-14-2025"  # MM-DD-YYYY format
+PROFILE_SEARCH_END_DATE = "08-15-2025"  # MM-DD-YYYY format
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 ONBOARDING_INTERVIEW_REGEX_PATTERNS = [
     r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*explanation$",
@@ -45,36 +44,44 @@ ONBOARDING_INTERVIEW_REGEX_PATTERNS = [
     r"^Who is the finfluencer’s target audience.*\-\s*speculation$",
 ]
 FINFLUENCER_INTERVIEW_REGEX_PATTERNS = [
-    r"^Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months.*\-\s*explanation$",
-    r"^Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months.*\-\s*symbol$",
-    r"^Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months.*\-\s*category$",
-    r"^Do you agree or disagree with the following statement: The U.S. economy is likely to enter a recession in the next 12 months.*\-\s*speculation$",
-    r"^How would you describe the current market sentiment among investors.*\-\s*explanation$",
-    r"^How would you describe the current market sentiment among investors.*\-\s*symbol$",
-    r"^How would you describe the current market sentiment among investors.*\-\s*category$",
-    r"^How would you describe the current market sentiment among investors.*\-\s*speculation$",
-    r"^Regarding the future direction of the stock market.*\-\s*explanation$",
-    r"^Regarding the future direction of the stock market.*\-\s*symbol$",
-    r"^Regarding the future direction of the stock market.*\-\s*category$",
-    r"^Regarding the future direction of the stock market.*\-\s*speculation$",
-    r"^In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*explanation$",
-    r"^In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*symbol$",
-    r"^In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*category$",
-    r"^In the next 1–3 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*speculation$",
-    r"^In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall.*\-\s*explanation$",
-    r"^In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall.*\-\s*symbol$",
-    r"^In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall.*\-\s*category$",
-    r"^In the next 1–3 months, do you expect interest rates on U.S. bonds to rise, remain unchanged, or fall.*\-\s*speculation$",
-    r"^Considering current market conditions, which sector or sectors do you believe are poised for better than average performance over the next 3–6 months.*\-\s*speculation$",
-    r"^Considering current market conditions, which sector or sectors do you believe are poised for better than average performance over the next 3–6 months.*\-\s*response$",
-    r"^Considering current market conditions, which sector or sectors do you believe are poised for poorer than average performance over the next 3–6 months.*\-\s*speculation$",
-    r"^Considering current market conditions, which sector or sectors do you believe are poised for poorer than average performance over the next 3–6 months.*\-\s*response$",
+    r"^What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months.*\-\s*explanation$",
+    r"^What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months.*\-\s*symbol$",
+    r"^What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months.*\-\s*category$",
+    r"^What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months.*\-\s*speculation$",
+    r"^Considering business conditions in the country as a whole, do you think that during the next 12 months we’ll have good times financially, or bad times, or what.*\-\s*explanation$",
+    r"^Considering business conditions in the country as a whole, do you think that during the next 12 months we’ll have good times financially, or bad times, or what.*\-\s*symbol$",
+    r"^Considering business conditions in the country as a whole, do you think that during the next 12 months we’ll have good times financially, or bad times, or what.*\-\s*category$",
+    r"^Considering business conditions in the country as a whole, do you think that during the next 12 months we’ll have good times financially, or bad times, or what.*\-\s*speculation$",
+    r"^In the next six months, do you expect business conditions to be better, worse, or the same.*\-\s*explanation$",
+    r"^In the next six months, do you expect business conditions to be better, worse, or the same.*\-\s*symbol$",
+    r"^In the next six months, do you expect business conditions to be better, worse, or the same.*\-\s*category$",
+    r"^In the next six months, do you expect business conditions to be better, worse, or the same.*\-\s*speculation$",
+    r"^In your view, is the overall investor sentiment currently bearish, neutral, or bullish.*\-\s*explanation$",
+    r"^In your view, is the overall investor sentiment currently bearish, neutral, or bullish.*\-\s*symbol$",
+    r"^In your view, is the overall investor sentiment currently bearish, neutral, or bullish.*\-\s*category$",
+    r"^In your view, is the overall investor sentiment currently bearish, neutral, or bullish.*\-\s*speculation$",
+    r"^I feel that the direction of the stock market over the next six months will be: Up (Bullish), No Change (Neutral), or Down (Bearish).*\-\s*explanation$",
+    r"^I feel that the direction of the stock market over the next six months will be: Up (Bullish), No Change (Neutral), or Down (Bearish).*\-\s*symbol$",
+    r"^I feel that the direction of the stock market over the next six months will be: Up (Bullish), No Change (Neutral), or Down (Bearish).*\-\s*category$",
+    r"^I feel that the direction of the stock market over the next six months will be: Up (Bullish), No Change (Neutral), or Down (Bearish).*\-\s*speculation$",
+    r"^In the next 6 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*explanation$",
+    r"^In the next 6 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*symbol$",
+    r"^In the next 6 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*category$",
+    r"^In the next 6 months, do you expect U.S. stock market indices to rise, stay about the same, or fall.*\-\s*speculation$",
+    r"^In the next 12 months, do you expect interest rates on U.S. bonds to rise, stay about the same, or fall.*\-\s*explanation$",
+    r"^In the next 12 months, do you expect interest rates on U.S. bonds to rise, stay about the same, or fall.*\-\s*symbol$",
+    r"^In the next 12 months, do you expect interest rates on U.S. bonds to rise, stay about the same, or fall.*\-\s*category$",
+    r"^In the next 12 months, do you expect interest rates on U.S. bonds to rise, stay about the same, or fall.*\-\s*speculation$",
+    r"^Considering current market conditions, select up to 2-3 sectors you believe are poised for better than average performance over the next 6 months, and briefly explain why.*\-\s*speculation$",
+    r"^Considering current market conditions, select up to 2-3 sectors you believe are poised for better than average performance over the next 6 months, and briefly explain why.*\-\s*response$",
+    r"^Considering current market conditions, select up to 2-3 sectors you believe are poised for poorer than average performance over the next 6 months, and briefly explain why.*\-\s*speculation$",
+    r"^Considering current market conditions, select up to 2-3 sectors you believe are poised for poorer than average performance over the next 6 months, and briefly explain why.*\-\s*response$",
     r"^Did you mention any stocks or stock tickers in the Russell 4000 list.*\-\s*explanation$",
     r"^Did you mention any stocks or stock tickers in the Russell 4000 list.*\-\s*symbol$",
     r"^Did you mention any stocks or stock tickers in the Russell 4000 list.*\-\s*category$",
     r"^Did you mention any stocks or stock tickers in the Russell 4000 list.*\-\s*speculation$",
-    r"^Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover.*\-\s*speculation$",
-    r"^Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover.*\-\s*response$",
+    r"^Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?.*\-\s*speculation$",
+    r"^Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?.*\-\s*response$",
 ]
 STOCK_RECOMMENDATION_OUTPUT_COLUMNS = [
     "stock_name",
@@ -91,6 +98,10 @@ STOCK_RECOMMENDATION_OUTPUT_COLUMNS = [
     "explanation",
     "confidence",
     "virality",
+    "risks",
+    "horizon",
+    "conflicts",
+    "model",
 ]
 
 # Tiktok-specific configurations
