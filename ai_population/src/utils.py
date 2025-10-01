@@ -1852,7 +1852,7 @@ def perform_tiktok_profile_search(
                 )
                 & (
                     local_profile_search["create_time_processed"]
-                    <= pd.to_datetime(end_date, utc=True)
+                    < pd.to_datetime(end_date, utc=True)
                 )
             ].reset_index(drop=True)
 
@@ -1922,7 +1922,7 @@ def perform_tiktok_profile_metadata_search(
         # Retrieve profile metadata search results
         response_json = {"status": "running"}
         while (
-            isinstance(response_json, dict) and response_json.get("status") == "running"
+            isinstance(response_json, dict) or response_json.get("status") == "running"
         ):
             time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
             response = requests.get(
@@ -2089,7 +2089,7 @@ def perform_x_profile_search(
                 )
                 & (
                     local_profile_search["create_time_processed"]
-                    <= pd.to_datetime(end_date, utc=True)
+                    < pd.to_datetime(end_date, utc=True)
                 )
             ].reset_index(drop=True)
 

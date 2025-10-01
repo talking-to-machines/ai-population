@@ -27,6 +27,8 @@ from ai_population.config.market_signals_config import (
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
     PREDICTION_THRESHOLD_TIKTOK,
+    FILTER_ORIGINAL_PROFILES_TIKTOK,
+    ORIGINAL_PROFILES_TIKTOK,
 )
 from ai_population.config.base_config import GPT_MODEL
 from ai_population.src.utils import (
@@ -45,14 +47,8 @@ from ai_population.src.utils import (
 from ai_population.prompts.prompt_template import (
     tiktok_finfluencer_onboarding_system_prompt,
     tiktok_finfluencer_onboarding_user_prompt,
-    tiktok_portfoliomanager_reflection_system_prompt,
-    portfoliomanager_reflection_user_prompt,
     tiktok_investmentadvisor_reflection_system_prompt,
     investmentadvisor_reflection_user_prompt,
-    tiktok_financialanalyst_reflection_system_prompt,
-    financialanalyst_reflection_user_prompt,
-    tiktok_economist_reflection_system_prompt,
-    economist_reflection_user_prompt,
     tiktok_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
     stock_recommendation_interview_user_prompt,
@@ -137,7 +133,7 @@ def generate_expert_reflections(
         project_name (str): The name of the project.
         execution_date (str): The date of execution.
         role (str): The expert role for reflection generation. Supported roles are
-            "portfolio_manager", "investment_advisor", "financial_analyst", and "economist".
+            "investment_advisor".
         profile_metadata_file (str): Path to the profile metadata file.
         post_file (str): Path to the TikTok post file.
         output_file (str): Path where the generated reflection will be saved.
@@ -145,35 +141,13 @@ def generate_expert_reflections(
     Raises:
         ValueError: If the provided role is not supported.
     """
-    if role == "portfolio_manager":
-        system_prompt_template = tiktok_portfoliomanager_reflection_system_prompt
-        user_prompt_template = portfoliomanager_reflection_user_prompt
-        llm_response_field = (
-            "tiktok_finfluencer_expert_reflection_portfoliomanager_response"
-        )
-        interview_type = "tiktok_finfluencer_expert_reflection_portfoliomanager"
-
-    elif role == "investment_advisor":
+    if role == "investment_advisor":
         system_prompt_template = tiktok_investmentadvisor_reflection_system_prompt
         user_prompt_template = investmentadvisor_reflection_user_prompt
         llm_response_field = (
             "tiktok_finfluencer_expert_reflection_investmentadvisor_response"
         )
         interview_type = "tiktok_finfluencer_expert_reflection_investmentadvisor"
-
-    elif role == "financial_analyst":
-        system_prompt_template = tiktok_financialanalyst_reflection_system_prompt
-        user_prompt_template = financialanalyst_reflection_user_prompt
-        llm_response_field = (
-            "tiktok_finfluencer_expert_reflection_financialanalyst_response"
-        )
-        interview_type = "tiktok_finfluencer_expert_reflection_financialanalyst"
-
-    elif role == "economist":
-        system_prompt_template = tiktok_economist_reflection_system_prompt
-        user_prompt_template = economist_reflection_user_prompt
-        llm_response_field = "tiktok_finfluencer_expert_reflection_economist_response"
-        interview_type = "tiktok_finfluencer_expert_reflection_economist"
 
     else:
         raise ValueError(f"Role {role} is not supported.")
@@ -198,26 +172,26 @@ def perform_tiktok_finfluencer_interview(
     profile_metadata_file: str,
     post_file: str,
     output_file: str,
+    filter_original_profiles: bool = False,
 ) -> None:
     """
-    Conducts a TikTok finfluencer interview workflow, processes the results, and saves the formatted output.
-
-    This function performs the following steps:
-    1. Runs a profile interview for a TikTok finfluencer using specified prompt templates and parameters.
-    2. Loads the interview results from a CSV file.
-    3. Extracts and processes LLM responses from the interview results.
-    4. Merges identical columns in the results based on predefined regex patterns.
-    5. Saves the processed and formatted interview results back to the CSV file.
+    Conducts an interview process for TikTok finfluencer profiles using a language model, processes the results, and saves the formatted output.
 
     Args:
         project_name (str): Name of the project directory.
         execution_date (str): Date of execution, used for organizing output files.
-        profile_metadata_file (str): Path to the file containing profile metadata.
-        post_file (str): Path to the file containing post data.
-        output_file (str): Name of the output CSV file to save results.
+        profile_metadata_file (str): Path to the CSV file containing profile metadata.
+        post_file (str): Path to the CSV file containing post data.
+        output_file (str): Name of the output CSV file to save interview results.
+        filter_original_profiles (bool, optional): If True, filters results to include only original TikTok profiles. Defaults to False.
 
     Returns:
         None
+
+    Side Effects:
+        - Reads and writes CSV files to disk.
+        - Processes and merges interview results.
+        - Optionally filters and saves results for original profiles only.
     """
     perform_profile_interview(
         project_name=project_name,
@@ -247,9 +221,29 @@ def perform_tiktok_finfluencer_interview(
         post_interview_results, FINFLUENCER_INTERVIEW_REGEX_PATTERNS
     )
 
+    # Include LLM model information
+    post_interview_results["model"] = GPT_MODEL
+
     # Save formatted interview results
+    if filter_original_profiles:
+        filtered_post_interview_results = post_interview_results[
+            post_interview_results["account_id"].isin(ORIGINAL_PROFILES_TIKTOK)
+        ].reset_index(drop=True)
+        filtered_post_interview_results.to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
     post_interview_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
         index=False,
     )
 
@@ -261,21 +255,21 @@ def perform_tiktok_stock_recommendation_interview(
     post_file: str,
     finfluencer_pool: str,
     output_file: str,
+    filter_original_profiles: bool = False,
 ) -> None:
     """
-    Performs the TikTok stock recommendation interview process for a given project and execution date.
+    Performs a TikTok stock recommendation interview process by preparing, formatting, and verifying stock mention data from TikTok finfluencer profiles.
 
-    This function processes influencer profile metadata and stock mention data, formats and merges relevant information,
-    removes duplicate stock recommendations, and saves the formatted data. It then conducts an interview process using
-    a language model to verify stock recommendations, sorts and filters the results, and saves the final verified recommendations.
+    This function processes profile metadata and finfluencer pool data to extract stock mentions, merges relevant information, and saves the formatted data. It then conducts an interview process using a language model to verify stock recommendations, extracts and formats the responses, sorts and filters the results, and saves the final verified stock recommendations.
 
     Args:
         project_name (str): Name of the project directory.
-        execution_date (str): Date of execution, used for organizing data.
-        profile_metadata_file (str): Filename of the influencer profile metadata CSV.
+        execution_date (str): Date of execution, used for organizing data files.
+        profile_metadata_file (str): Filename of the profile metadata CSV.
         post_file (str): Filename of the post data CSV.
-        finfluencer_pool (str): Filename of the finfluencer pool CSV containing influence and credibility scores.
-        output_file (str): Filename for saving the processed and verified stock recommendations.
+        finfluencer_pool (str): Filename of the finfluencer pool CSV.
+        output_file (str): Filename for saving the output CSV.
+        filter_original_profiles (bool, optional): If True, only retain recommendations from original profiles. Defaults to False.
 
     Returns:
         None
@@ -370,9 +364,29 @@ def perform_tiktok_stock_recommendation_interview(
         stock_recommendations["mentioned_by_finfluencer"].isin(["Yes", "No"])
     ].reset_index(drop=True)
 
+    # Include LLM model information
+    valid_stock_recommendations["model"] = GPT_MODEL
+
     # Save verified stock recommendations
+    if filter_original_profiles:
+        filtered_stock_recommendations = valid_stock_recommendations[
+            valid_stock_recommendations["account_id"].isin(ORIGINAL_PROFILES_TIKTOK)
+        ].reset_index(drop=True)
+        filtered_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
     valid_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
         index=False,
     )
 
@@ -442,7 +456,7 @@ def filter_tiktok_profiles(
 
 if __name__ == "__main__":
     # Step 1: Perform search using predefined list of search terms
-    print("Perform keyword search using predefined list of search terms...")
+    print("1. Perform keyword search using predefined list of search terms...")
     perform_tiktok_keyword_search(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -452,7 +466,7 @@ if __name__ == "__main__":
     )
 
     # Step 2: Extract profile metadata for search results
-    print("Perform profile metadata search for keyword search results...")
+    print("2. Perform profile metadata search for keyword search results...")
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -462,7 +476,7 @@ if __name__ == "__main__":
 
     # Step 3: Filter profiles that do not meet filtering criteria
     print(
-        "Filter TikTok profiles based on follower count, video count, and verified finfluencer list and perform video transcription..."
+        "3. Filter TikTok profiles based on follower count, video count, and verified finfluencer list and perform video transcription..."
     )
     filter_tiktok_profiles(
         project_name=PROJECT_NAME_TIKTOK,
@@ -478,18 +492,18 @@ if __name__ == "__main__":
     )
 
     # Step 4: Generate expert reflections
-    print("Generate expert reflections of potential influencers...")
+    print("4. Generate expert reflections of potential influencers...")
     generate_expert_reflections(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_TIKTOK,
+        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         post_file=KEYWORD_SEARCH_FILE_TIKTOK,
         output_file=EXPERT_REFLECTION_FILE_TIKTOK,
     )
 
     # Step 5: Conduct onboarding interview to identify financial influencers and add to influencer pool
-    print("Perform onboarding interview to identify financial influencers...")
+    print("5. Perform onboarding interview to identify financial influencers...")
     perform_tiktok_onboarding_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -515,7 +529,7 @@ if __name__ == "__main__":
 
     # Step 6: Perform profile search of identified financial influencers (profile metadata and posts) during search period
     print(
-        "Perform profile search of identified financial influencers (profile metadata and recent posts) during search period..."
+        "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during search period..."
     )
     perform_tiktok_profile_metadata_search(
         project_name=PROJECT_NAME_TIKTOK,
@@ -547,17 +561,18 @@ if __name__ == "__main__":
     )
 
     # Step 7: Conduct interview on financial markets
-    print("Conduct digital interview on financial markets...")
+    print("7. Conduct digital interview on financial markets...")
     perform_tiktok_finfluencer_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK,
+        filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
     )
 
     # Step 8: Conduct interview on stock recommendations
-    print("Conduct digital interview on stock recommendations...")
+    print("8. Conduct digital interview on stock recommendations...")
     perform_tiktok_stock_recommendation_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -565,4 +580,5 @@ if __name__ == "__main__":
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
         finfluencer_pool=FINFLUENCER_POOL_FILE_TIKTOK,
         output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK,
+        filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
     )

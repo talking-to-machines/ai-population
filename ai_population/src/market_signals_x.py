@@ -28,6 +28,8 @@ from ai_population.config.market_signals_config import (
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
     PREDICTION_THRESHOLD_X,
+    FILTER_ORIGINAL_PROFILES_X,
+    ORIGINAL_PROFILES_X,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -53,14 +55,8 @@ from ai_population.src.utils import (
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
     x_finfluencer_onboarding_user_prompt,
-    x_portfoliomanager_reflection_system_prompt,
-    portfoliomanager_reflection_user_prompt,
     x_investmentadvisor_reflection_system_prompt,
     investmentadvisor_reflection_user_prompt,
-    x_financialanalyst_reflection_system_prompt,
-    financialanalyst_reflection_user_prompt,
-    x_economist_reflection_system_prompt,
-    economist_reflection_user_prompt,
     x_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
     stock_recommendation_interview_user_prompt,
@@ -138,7 +134,7 @@ def generate_expert_reflections(
     Args:
         project_name (str): The name of the project for which reflections are being generated.
         execution_date (str): The date of execution in string format.
-        role (str): The expert role, must be one of "portfolio_manager", "investment_advisor", "financial_analyst", or "economist".
+        role (str): The expert role, must be one of the following roles: "investment_advisor".
         profile_metadata_file (str): Path to the profile metadata file.
         post_file (str): Path to the post file associated with the expert.
         output_file (str): Path where the generated reflection output will be saved.
@@ -146,31 +142,13 @@ def generate_expert_reflections(
     Raises:
         ValueError: If the provided role is not supported.
     """
-    if role == "portfolio_manager":
-        system_prompt_template = x_portfoliomanager_reflection_system_prompt
-        user_prompt_template = portfoliomanager_reflection_user_prompt
-        llm_response_field = "x_finfluencer_expert_reflection_portfoliomanager_response"
-        interview_type = "x_finfluencer_expert_reflection_portfoliomanager"
-
-    elif role == "investment_advisor":
+    if role == "investment_advisor":
         system_prompt_template = x_investmentadvisor_reflection_system_prompt
         user_prompt_template = investmentadvisor_reflection_user_prompt
         llm_response_field = (
             "x_finfluencer_expert_reflection_investmentadvisor_response"
         )
         interview_type = "x_finfluencer_expert_reflection_investmentadvisor"
-
-    elif role == "financial_analyst":
-        system_prompt_template = x_financialanalyst_reflection_system_prompt
-        user_prompt_template = financialanalyst_reflection_user_prompt
-        llm_response_field = "x_finfluencer_expert_reflection_financialanalyst_response"
-        interview_type = "x_finfluencer_expert_reflection_financialanalyst"
-
-    elif role == "economist":
-        system_prompt_template = x_economist_reflection_system_prompt
-        user_prompt_template = economist_reflection_user_prompt
-        llm_response_field = "x_finfluencer_expert_reflection_economist_response"
-        interview_type = "x_finfluencer_expert_reflection_economist"
 
     else:
         raise ValueError(f"Role {role} is not supported.")
@@ -195,23 +173,26 @@ def perform_x_finfluencer_interview(
     profile_metadata_file: str,
     post_file: str,
     output_file: str,
+    filter_original_profiles: bool = False,
 ) -> None:
     """
-    Conducts an interview process for X (Twitter) finfluencers, processes the results, and saves the formatted output.
+    Conducts an interview process for X (Twitter) finfluencer profiles, processes the results, and saves the formatted output.
 
     This function performs the following steps:
-    1. Runs a profile interview using the provided project and execution details, metadata, and post files.
+    1. Runs the profile interview using the specified GPT model and prompt templates.
     2. Loads the interview results from a CSV file.
-    3. Extracts and processes the LLM responses from the interview results.
-    4. Merges identical columns in the results based on predefined regex patterns.
-    5. Saves the formatted interview results back to the output CSV file.
+    3. Extracts and processes LLM responses from the interview results.
+    4. Merges columns with identical information based on predefined regex patterns.
+    5. Optionally filters the results to include only original profiles.
+    6. Saves both the filtered and full interview results to CSV files.
 
     Args:
         project_name (str): Name of the project directory.
         execution_date (str): Date of execution, used for organizing output files.
-        profile_metadata_file (str): Path to the profile metadata CSV file.
-        post_file (str): Path to the file containing posts to be used in the interview.
-        output_file (str): Name of the output CSV file to save the interview results.
+        profile_metadata_file (str): Path to the file containing profile metadata.
+        post_file (str): Path to the file containing post data.
+        output_file (str): Name of the output CSV file for interview results.
+        filter_original_profiles (bool, optional): If True, filters results to only include original profiles. Defaults to False.
 
     Returns:
         None
@@ -244,9 +225,29 @@ def perform_x_finfluencer_interview(
         post_interview_results, FINFLUENCER_INTERVIEW_REGEX_PATTERNS
     )
 
+    # Include LLM model information
+    post_interview_results["model"] = GPT_MODEL
+
     # Save formatted interview results
+    if filter_original_profiles:
+        filtered_post_interview_results = post_interview_results[
+            post_interview_results["account_id"].isin(ORIGINAL_PROFILES_X)
+        ].reset_index(drop=True)
+        filtered_post_interview_results.to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
     post_interview_results.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
         index=False,
     )
 
@@ -258,11 +259,14 @@ def perform_x_stock_recommendation_interview(
     post_file: str,
     finfluencer_pool: str,
     output_file: str,
+    filter_original_profiles: bool = False,
 ) -> None:
     """
-    Performs an interview process to generate and verify stock recommendations from finfluencer profiles on X (formerly Twitter).
+    Performs an interview process to extract and verify stock recommendations from X (formerly Twitter) finfluencers.
 
-    This function processes profile metadata and finfluencer pool data to extract, format, and verify stock mentions. It saves the formatted data, performs an interview process using a language model, and outputs verified stock recommendations.
+    This function processes profile metadata and finfluencer pool data to prepare a dataset of stock mentions,
+    formats and enriches the data, and then uses an LLM-based interview process to extract stock recommendations.
+    It further verifies and filters the recommendations, saving both the full and filtered results.
 
     Args:
         project_name (str): Name of the project directory.
@@ -271,6 +275,7 @@ def perform_x_stock_recommendation_interview(
         post_file (str): Filename for the posts CSV.
         finfluencer_pool (str): Filename for the finfluencer pool CSV.
         output_file (str): Filename for saving the output CSV.
+        filter_original_profiles (bool, optional): Whether to filter results to only original profiles. Defaults to False.
 
     Returns:
         None
@@ -367,9 +372,29 @@ def perform_x_stock_recommendation_interview(
         stock_recommendations["mentioned_by_finfluencer"].isin(["Yes", "No"])
     ].reset_index(drop=True)
 
+    # Include LLM model information
+    valid_stock_recommendations["model"] = GPT_MODEL
+
     # Save verified stock recommendations
+    if filter_original_profiles:
+        filtered_stock_recommendations = valid_stock_recommendations[
+            valid_stock_recommendations["account_id"].isin(ORIGINAL_PROFILES_X)
+        ].reset_index(drop=True)
+        filtered_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
     valid_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
         index=False,
     )
 
@@ -492,7 +517,7 @@ def filter_x_profiles(
 
 if __name__ == "__main__":
     # Step 1: Perform search using predefined list of search terms
-    print("Perform keyword search using predefined list of search terms...")
+    print("1. Perform keyword search using predefined list of search terms...")
     perform_x_keyword_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -502,7 +527,7 @@ if __name__ == "__main__":
     )
 
     # Step 2: Extract profile metadata for search results
-    print("Perform profile metadata search for keyword search results...")
+    print("2. Perform profile metadata search for keyword search results...")
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -512,7 +537,7 @@ if __name__ == "__main__":
 
     # Step 3: Filter profiles that do not meet filtering criteria
     print(
-        "Filter X profiles based on follower count, post count, and verified finfluencer list..."
+        "3. Filter X profiles based on follower count, post count, and verified finfluencer list..."
     )
     filter_x_profiles(
         project_name=PROJECT_NAME_X,
@@ -523,18 +548,18 @@ if __name__ == "__main__":
     )
 
     # Step 4: Generate expert reflections
-    print("Generate expert reflections of potential influencers...")
+    print("4. Generate expert reflections of potential influencers...")
     generate_expert_reflections(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         role="investment_advisor",
-        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
+        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
         post_file=KEYWORD_SEARCH_FILE_X,
         output_file=EXPERT_REFLECTION_FILE_X,
     )
 
     # Step 5: Conduct onboarding interview to identify financial influencers and add to influencer pool
-    print("Perform onboarding interview to identify financial influencers...")
+    print("5. Perform onboarding interview to identify financial influencers...")
     perform_x_onboarding_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -560,7 +585,7 @@ if __name__ == "__main__":
 
     # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
     print(
-        "Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
+        "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
     )
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
@@ -587,17 +612,18 @@ if __name__ == "__main__":
     )
 
     # Step 7: Conduct interview on financial markets
-    print("Conduct digital interview on financial markets...")
+    print("7. Conduct digital interview on financial markets...")
     perform_x_finfluencer_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
     )
 
     # Step 8: Conduct interview on stock recommendations
-    print("Conduct digital interview on stock recommendations...")
+    print("8. Conduct digital interview on stock recommendations...")
     perform_x_stock_recommendation_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -605,4 +631,5 @@ if __name__ == "__main__":
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
         finfluencer_pool=FINFLUENCER_POOL_FILE_X,
         output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
+        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
     )
