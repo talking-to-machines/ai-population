@@ -1,3 +1,13 @@
+import os
+import pandas as pd
+from ai_population.config.market_signals_config import (
+    SP_500_STOCK_TICKER_FILE,
+    RUSSELL_4000_STOCK_TICKER_FILE,
+)
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 # Tiktok Profile and Tweet Prompt Templates
 tiktok_video_prompt_template = """Creation Date: {video_creation_date}
 Video Description: {video_description}
@@ -88,7 +98,10 @@ Guidelines
 2. Cite concrete evidence in each observation as much as possible 
 3. Cover a range of angles based on your area of expertise: reach, credibility markers, content themes, analytical style, time horizon, sector bias, red-flag behaviour, etc.  
 4. Use concise, professional language; one or two sentences per observation.  
-5. Do not score the questions—just provide observations rich enough for someone else to score them."""
+5. Do not score the questions—just provide observations rich enough for someone else to score them.
+6. You may also use web search to retrieve relevant, up-to-date information about the specific tickers, sectors, asset classes, strategies, and macro themes that this profile is likely to care about. When using web search, prioritise reputable, finance-focused sources (e.g. major news outlets, official company filings, recognised data providers) and treat social-media or forum content primarily as sentiment signals rather than definitive facts. If using web search, cite the sources you used in your observations.
+7. Do not provide any additional commentary outside of the observations."""
+
 
 tiktok_investmentadvisor_reflection_system_prompt = (
     base_expert_reflection_system_prompt.format(
@@ -156,8 +169,15 @@ You are also provided high-level and abstract “expert reflections” from an i
 Here are the details of the {platform} profile you will be analyzing:
 {profile_prompt_template}
 
+You may also use web search to retrieve relevant, up-to-date information about the specific tickers, sectors, asset classes, strategies, and macro themes that this profile is likely to care about. When using web search, prioritise reputable, finance-focused sources (e.g. major news outlets, official company filings, recognised data providers) and treat social-media or forum content primarily as sentiment signals rather than definitive facts.
+
 Instructions
-Analyze the provided information and answer the following questions based strictly on the available data and definitions provided to you. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+Analyze the provided information and answer the following questions based strictly on:
+- The examples of financial influencers and non-financial influencers provided above, and
+- The expert reflections provided above, and
+- The {platform} profile details above, and
+- Any clearly relevant information retrieved via web search.
+Do not infer or assume any details beyond what is supported by these sources. If information is uncertain or conflicting, acknowledge this explicitly. Keep responses concise, precise, and data-driven."""
 
 tiktok_finfluencer_examples = """Example Finfluencer Profile 1:
 - Profile Image: https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/a089791b375beffd40eaf995a4541032~tplv-tiktokx-cropcenter:720:720.jpeg?dr=14579&refresh_token=3963c468&x-expires=1748991600&x-signature=4ZYa6NLuLm7QPpnYYhJOnEEeeUo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=my
@@ -2142,7 +2162,7 @@ Required Output Format: Enclose each line of your response between two asterisks
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION!
 
-Question 1: Indicate on a scale of 0 to 100, how likely this creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)?
+Question 1: Indicate on a scale of 0 to 100, how likely this content creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)?
 
 Question 2: Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? Please consider quantitative thresholds such as follower count and engagement rate when answering this question. For example, a micro-influencer will be in the 20-40 range, whereas an account with hundreds of thousands of followers and high engagement might rate 80+.
 
@@ -2182,15 +2202,20 @@ x_finfluencer_onboarding_user_prompt = base_finfluencer_onboarding_user_prompt.f
 
 
 # Market Signals Interview Prompts
-base_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a {platform} financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past video content and profile information. As part of this survey:
-1. Your profile and videos will be monitored daily
+base_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a {platform} financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past posts and profile information. As part of this survey:
+1. Your profile and posts will be monitored daily
 2. You will undergo daily interviews to discuss your perspective on the financial markets
 
-The details of your {platform} profile are as follows:
+Here are the details of the {platform} profile you will be analyzing:
 {profile_prompt_template}
 
+You may also use web search to retrieve relevant, up-to-date information about the specific tickers, sectors, asset classes, strategies, and macro themes that this profile is likely to care about. When using web search, prioritise reputable, finance-focused sources (e.g. major news outlets, official company filings, recognised data providers) and treat social-media or forum content primarily as sentiment signals rather than definitive facts.
+
 Instructions
-Answer the following questions based strictly on the available data while maintaining the persona and perspective of the {platform} financial influencer profile provided. Do not infer or assume any details beyond what is given. Keep responses concise, precise and data-driven."""
+Analyze the provided information and answer the following questions based strictly on:
+- The {platform} profile details above, and
+- Any clearly relevant information retrieved via web search.
+Do not infer or assume any details beyond what is supported by these sources. If information is uncertain or conflicting, acknowledge this explicitly. Keep responses concise, precise, and data-driven."""
 
 tiktok_finfluencer_interview_system_prompt = (
     base_finfluencer_interview_system_prompt.format(
@@ -2203,6 +2228,38 @@ x_finfluencer_interview_system_prompt = base_finfluencer_interview_system_prompt
     platform="X (formerly Twitter)",
     profile_prompt_template=x_profile_prompt_template,
 )
+
+stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
+
+Based on the information provided to you, answer the following questions:
+- mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
+- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
+- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- risks: Indicate on a scale of 0 to 100, a measure of how risky this stock recommendation is (0-20 means minimal risk, 20-40 means low risk, 40-60 means moderate risk, 60-80 means high risk, 80+ means the stock recommendation is very risky). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+- horizon: Indicate on a scale of 1 to 4, the time-horizon over which your stock recommendation is expected to be profitable (1 means "over the very short term (less than 1 month)", 2 means "over the short term (between 1 and 6 months)", 3 means "over the medium term (between 6 months and 2 years)", 4 means "over the long term (over 2 years)"). Answer with NA, if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- conflicts: Do you have any potential conflicts of interest with this stock recommendation (i.e., recommending a stock that you own, or recommending a stock of a company you do business with)? Respond with either Yes or No. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+
+Follow these instructions strictly when providing your response:
+1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
+2) Format your output as follows (this is just an example; do not focus on the specific response, explanation, recommendation, or value provided):
+**mentioned_by_finfluencer: [Yes/No]**
+**recommendation: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**explanation: [Detailed explanation for your selected response]**
+**confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**risks: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**horizon: [1-4 or NA if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**conflicts: [Yes/No or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+
+YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+
+The stock mentioned in your post is as follows:
+Stock Name: {stock_name}
+Stock Ticker: {stock_ticker}
+Post Date: {mention_date}
+Post: {post}"""
 
 finfluencer_interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
@@ -2222,7 +2279,7 @@ To ensure consistency, use the following guidelines to determine speculation lev
 5) For each selected category, please explain at length what features of the data contributed to your choice and your speculation level.
 6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
 
-Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+Required format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by a colon (:), and end with **. Do not include text outside the asterisks or additional lines.
 **question: What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months?**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
@@ -2235,7 +2292,7 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-**question: In the next six months, do you expect business conditions to be better, worse, or the same?**
+**question:  In the next six months, do you expect business conditions to be better, worse, or the same?**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
@@ -2265,22 +2322,59 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-**question: Considering current market conditions, select up to 2-3 sectors you believe are poised for better than average performance over the next 6 months, and briefly explain why.**
-**response: [Detailed response]**
-**speculation: [Speculation score selected]**
-
-**question: Considering current market conditions, select up to 2-3 sectors you believe are poised for poorer than average performance over the next 6 months, and briefly explain why.**
-**response: [Detailed response]**
-**speculation: [Speculation score selected]**
-
-**question: Did you mention any stocks or stock tickers in the Russell 4000 list?**
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Energy industry to perform over the next 6 months.**
 **explanation: [Detailed explanation for selected response]**
-**symbol: [Symbol selected]**
-**category: [Category selected]e**
+**value: [Value selected]**
 **speculation: [Speculation score selected]**
 
-**question: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?**
-**response: [Detailed response]**
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Materials industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Industrials industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Consumer Discretionary industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Consumer Staples industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Health Care industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Financials industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Information Technology industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Telecommunication Services industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Utilities industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Real Estate industry to perform over the next 6 months.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
 **speculation: [Speculation score selected]**
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
@@ -2322,51 +2416,117 @@ G1) Rise
 G2) Stay About The Same
 G3) Fall
 
-Question 8: Considering current market conditions, select up to 2-3 sectors you believe are poised for better than average performance over the next 6 months, and briefly explain why.
+Question 8a) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Energy industry (Energy Equipment & Services; Oil, Gas & Consumable Fuels) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
 
-Question 9: Considering current market conditions, select up to 2-3 sectors you believe are poised for poorer than average performance over the next 6 months, and briefly explain why.
+Question 8b) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Materials industry (Chemicals; Construction Materials; Containers & Packaging; Metals & Mining; Paper & Forest Products) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
 
-Question 10: Did you mention any stocks or stock tickers in the Russell 4000 list (e.g., {russell_4000_tickers})?
-H1) Yes
-H2) No
+Question 8c) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Industrials industry (Aerospace & Defense; Building Products; Construction & Engineering; Electrical Equipment; Industrial Conglomerates; Machinery; Trading Companies & Distributors; Commercial Services & Supplies; Professional Services; Air Freight & Logistics; Airlines; Marine; Road & Rail; Transportation Infrastructure) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
 
-Question 11: Is there anything else about the economy or markets that you’d like to comment on that we didn’t cover?
+Question 8d) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Consumer Discretionary industry (Auto Components; Automobiles; Household Durables; Leisure Products; Textiles, Apparel & Luxury Goods; Hotels, Restaurants & Leisure; Diversified Consumer Services; Media; Distributors; Internet & Direct Marketing Retail; Multiline Retail; Specialty Retail) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8e) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Consumer Staples industry (Food & Staples Retailing; Beverages; Food Products; Tobacco; Household Products; Personal Products) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8f) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Health Care industry (Health Care Equipment & Supplies; Health Care Providers & Services; Health Care Technology; Biotechnology; Pharmaceuticals; Life Sciences Tools & Services) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8g) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Financials industry (Banks; Thrifts & Mortgage Finance; Diversified Financial Services; Consumer Finance; Capital Markets; Mortgage REITs; Insurance) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8h) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Information Technology industry (Internet Software & Services; IT Services; Software; Communications Equipment; Technology Hardware, Storage & Peripherals; Electronic Equipment, Instruments & Components; Semiconductors & Semiconductor Equipment) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8i) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Telecommunication Services industry (Diversified Telecommunication Services; Wireless Telecommunication Services) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8j) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Utilities industry (Electric Utilities; Gas Utilities; Multi‑Utilities; Water Utilities; Independent Power & Renewable Electricity Producers) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 8k) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Real Estate industry (Equity REITs; Real Estate Management & Development) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
 """
 
-stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
+daily_stock_pick_user_prompt_prefix = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
-Based on the information provided to you, answer the following questions:
-- mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
-- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
-- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- risks: Indicate on a scale of 0 to 100, a measure of how risky this stock recommendation is (0-20 means minimal risk, 20-40 means low risk, 40-60 means moderate risk, 60-80 means high risk, 80+ means the stock recommendation is very risky). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
-- horizon: Indicate on a scale of 1 to 4, the time-horizon over which your stock recommendation is expected to be profitable (1 means "over the very short term (less than 1 month)", 2 means "over the short term (between 1 and 6 months)", 3 means "over the medium term (between 6 months and 2 years)", 4 means "over the long term (over 2 years)"). Answer with NA, if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- conflicts: Do you have any potential conflicts of interest with this stock recommendation (i.e., recommending a stock that you own, or recommending a stock of a company you do business with)? Respond with either Yes or No. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+For each question, follow these instructions strictly:
+1) Select the most likely response based strictly on the provided profile data. The chosen response must be the most accurate representation of the profile.
+2) For each question, indicate the level of speculation involved in your response on a scale from 0 (not speculative at all, every single element of the profile data was useful in the selection) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation levels should be a direct measure of the amount of useful information available in the profile and pertain only to the information available in the profile data -- namely the username, name, description, profile picture, and videos from the profile-- and should not be affected by additional information available to you from any other source.
 
-Follow these instructions strictly when providing your response:
-1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
-2) Format your output as follows (this is just an example; do not focus on the specific response, explanation, recommendation, or value provided):
-**mentioned_by_finfluencer: [Yes/No]**
-**recommendation: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**explanation: [Detailed explanation for your selected response]**
-**confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**risks: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**horizon: [1-4 or NA if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**conflicts: [Yes/No or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+To ensure consistency, use the following guidelines to determine speculation levels:
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no information relevant to the question. (e.g., assumptions based on very general information)
 
-YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+3) When asked to provide an explanation, please provide a detailed explanation and the data features that contributed to your response.
+4) When asked to provide a recommendation, please indicate on a scale of 0 to 100 your overall recommendation for a particular stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+.
+5) When asked to provide a confidence score, please indicate on a scale of 0 to 100 a measure of confidence for your stock pick (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence).
+6) When asked to provide an expected holding period (days), please indicate the time horizon (in days) over which you will hold a particular stock.
+7) When asked to provide a primary catalyst type, please indicate the main factor you expect to drive the stock’s performance. You must select from the following options: Earnings, Macro, Product, Regulatory, Flow-Technical, or Other.
+8) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
 
-The stock mentioned in your post is as follows:
-Stock Name: {stock_name}
-Stock Ticker: {stock_ticker}
-Post Date: {mention_date}
-Post: {post}"""
+Required format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by a colon (:), and end with **. Do not include text outside the asterisks or additional lines.
 
+"""
 
-# Digital Twin
+daily_stock_pick_user_prompt_top_conviction = """**question: Please indicate your top-conviction BUY stock pick for today by selecting a ticker from the Russell 4000 list.**
+**explanation: [Detailed explanation for selected response]**
+**stock ticker: [Stock ticker selected]**
+**speculation: [Speculation score selected]**
+
+**question: Please indicate your top-conviction SELL or SHORT stock pick for today by selecting a ticker from the Russell 4000 list.**
+**explanation: [Detailed explanation for selected response]**
+**stock ticker: [Stock ticker selected]**
+**speculation: [Speculation score selected]**
+
+YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+
+Question 1: Please indicate your top-conviction BUY stock pick for today by selecting a ticker from the Russell 4000 list (e.g., {russell_4000_tickers}).
+ 
+Question 2: Please indicate your top-conviction SELL or SHORT stock pick for today by selecting a ticker from the Russell 4000 list (e.g., {russell_4000_tickers}).
+"""
+
+sp500_stock_tickers = pd.read_csv(
+    os.path.join(base_dir, "../config", SP_500_STOCK_TICKER_FILE)
+)
+sp500_stock_tickers.drop_duplicates(subset=["TICKER"], inplace=True)
+sp500_stock_tickers["combined_ticker"] = sp500_stock_tickers.apply(
+    lambda stock_row: f"{stock_row['COMNAM']} ({stock_row['TICKER']})", axis=1
+)
+sp500_stock_ticker_list = sp500_stock_tickers["combined_ticker"].to_list()
+
+daily_stock_pick_user_prompt_stock_picks_format = [
+    f"""**question: {stock_ticker}**
+**explanation: [Detailed explanation for recommendation]**
+**recommendation: [Value selected]**
+**confidence: [Value selected]**  
+**speculation: [Speculation score selected]**
+**expected holding period: [Number of days selected]** 
+**primary catalyst type: [Earnings/Macro/Product/Regulatory/Flow-Technical/Other]**"""
+    for stock_ticker in sp500_stock_ticker_list
+]
+
+daily_stock_pick_user_prompt_stock_picks_questions = [
+    f"Question 3.{idx}: Based on your general knowledge of market conditions, indicate whether you would BUY, HOLD, or SELL (SHORT SELL) the stock ticker: {stock_ticker}"
+    for idx, stock_ticker in enumerate(sp500_stock_ticker_list)
+]
+
+CHUNK_SIZE = 50
+daily_stock_pick_user_prompts = [
+    daily_stock_pick_user_prompt_prefix + daily_stock_pick_user_prompt_top_conviction
+]
+for start in range(0, len(daily_stock_pick_user_prompt_stock_picks_format), CHUNK_SIZE):
+    fmt_chunk = daily_stock_pick_user_prompt_stock_picks_format[
+        start : start + CHUNK_SIZE
+    ]
+    q_chunk = daily_stock_pick_user_prompt_stock_picks_questions[
+        start : start + CHUNK_SIZE
+    ]
+    if not fmt_chunk or not q_chunk:
+        raise ValueError("Daily stock pick user prompt chunks cannot be empty")
+
+    daily_stock_pick_user_prompts.append(
+        daily_stock_pick_user_prompt_prefix
+        + "\n\n".join(fmt_chunk)
+        + "\n\nYOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!\n\n"
+        + "\n\n".join(q_chunk)
+    )
+
+# Digital Twin - Chile
 digital_twin_profile_prompt_template = """- Imagen De Perfil: {profile_picture}
 - Nombre Del Perfil: {name}
 - ID De Perfil: {account_id}
@@ -3404,6 +3564,253 @@ Vcu5) votaría por Johannes Kaiser, candidato del Partido Nacional Libertario (P
 Vcu6) votaría por Franco Parisi, candidato del Partido de la Gente (PDG), en las elecciones presidenciales de 2025 en {municipality}
 Vcu7) votaría por Marco Enríquez-Ominami, candidato independiente no afiliado a ningún partido mayoritario (recogiendo firmas), en las elecciones presidenciales de 2025 en {municipality}
 Vcu8) votaría por Eduardo Artés, candidato independiente no afiliado a ningún partido mayoritario (en proceso de recolección de firmas), en las elecciones presidenciales de 2025 en {municipality}"""
+
+
+# Joint LLM Digital Twin - Swiss
+base_jointllm_demographic_interview_system_prompt = """You are analyzing a social media profile on {platform} in order to answer a series of questions.
+The profile data on {platform} includes:
+{profile_prompt_template}
+
+Instructions:
+Analyze the provided information and answer the following questions exclusively on the basis of the available data. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
+"""
+
+x_jointllm_demographic_interview_system_prompt = (
+    base_jointllm_demographic_interview_system_prompt.format(
+        platform="X (formerly Twitter)",
+        profile_prompt_template=x_profile_prompt_template,
+    )
+)
+
+base_jointllm_demographic_interview_user_prompt = """You will be asked a series of questions about the user of this {platform} profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
+
+For each heading, follow these instructions precisely:  
+1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+2) Select exactly one symbol per question.
+3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
+4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data – i.e., username, name, description, profile picture, and profile videos – and must not be influenced by additional information from other sources.
+
+To ensure consistency, use the following guidelines for determining the degree of speculation:
+0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
+21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
+41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
+61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
+81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+
+5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
+6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
+
+Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+
+**question: PERSON LIVING IN SWITZERLAND**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: REGION**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: AGE**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: GENDER**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: PERSONAL NET WORTH**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: MARITAL STATUS**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: HIGHEST LEVEL OF EDUCATION**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: POLITICAL PARTY**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+
+Below is the list of categories to which this user may belong:
+PERSON LIVING IN SWITZERLAND: Does the user of this account live in Switzerland?
+PLC1) Yes
+PLC2) No 
+
+REGION: If the answer to the question “PERSON LIVING IN SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise answer with “NA”.
+REG1) Zurich
+REG2) Bern
+REG3) Lucerne
+REG4) Uri
+REG5) Schwyz
+REG6) Obwalden
+REG7) Nidwalden
+REG8) Glarus
+REG9) Zug
+REG10) Fribourg
+REG11) Solothurn
+REG12) Basel-Stadt
+REG13) Basel-Landschaft
+REG14) Schaffhausen
+REG15) Appenzell Ausserrhoden
+REG16) Appenzell Innerrhoden
+REG17) St. Gallen
+REG18) Graubünden
+REG19) Aargau
+REG20) Thurgau
+REG21) Ticino
+REG22) Vaud
+REG23) Valais
+REG24) Neuchâtel
+REG25) Geneva
+REG26) Jura
+REG27) NA
+
+AGE: How old are you?
+AG1) 18 to 24 years
+AG2) 25 to 34 years
+AG3) 35 to 44 years
+AG4) 45 to 54 years
+AG5) 55 to 64 years
+AG6) 65 to 74 years
+AG7) 75 years or older
+
+GENDER: What gender do you identify with?
+S1) Male
+S2) Female
+
+PERSONAL NET WORTH: In which income bracket do you see your monthly income?
+NW1) Under 500,000 CHF
+NW2) 500,000 – 1 million CHF
+NW3) 1 – 2 million CHF
+NW4) 2 – 3 million CHF
+NW5) 3 – 5 million CHF
+NW6) 5 – 10 million CHF
+NW7) 10 – 20 million CHF
+NW8) 20 – 50 million CHF
+NW9) Over 50 million CHF
+
+MARITAL STATUS: What is your current marital status?
+MAR1) Married – currently legally married and living together with your spouse
+MAR2) Separated – legally married but living apart from your spouse
+MAR3) Single – never married, including persons legally separated
+MAR4) Divorced – legally divorced and not remarried
+MAR5) Widowed – spouse deceased and not remarried
+
+HIGHEST LEVEL OF EDUCATION: What is your highest educational qualification?
+EDU1) No school leaving certificate or only primary/secondary school.
+EDU2) Vocational basic education without matura (upper secondary leaving certificate).
+EDU3) Vocational baccalaureate (Berufsmaturität).
+EDU4) Specialized baccalaureate (Fachmaturität).
+EDU5) Academic baccalaureate (Gymnasiale Maturität).
+EDU6) Higher vocational college (Höhere Fachschule).
+EDU7) Federal vocational examination or higher vocational examination.
+EDU8) Bachelor’s degree from a university of applied sciences or university of teacher education.
+EDU9) Bachelor’s degree from a university.
+EDU10) Master’s degree from a university of applied sciences or university of teacher education.
+EDU11) Master’s degree from a university.
+EDU12) Doctorate/PhD.
+
+POLITICAL PARTY: Which political party do you belong to?
+PP1) Sozialdemokratische Partei der Schweiz
+PP2) Schweizerische Volkspartei
+PP3) FDP.Die Liberalen
+PP4) Die Mitte
+PP5) Grüne Partei der Schweiz
+PP6) Grüne Liberale
+PP7) Evangelische Volkspartei
+PP8) Partei der Arbeit der Schweiz
+PP9) Eidgenössisch-Demokratische Union
+PP10) Mouvement Citoyens Genevois
+PP11) Other party
+PP12) Independent/no party"""
+
+x_jointllm_demographic_interview_user_prompt = (
+    base_jointllm_demographic_interview_user_prompt.format(
+        platform="X (formerly Twitter)"
+    )
+)
+
+jointllm_question_template = """VOTE {id}
+Assume it is {date}. The Swiss National Council (Nationalrat) is currently deliberating and voting on the {type}: “{name}”.
+It proposes the following: 
+{proposal_en}
+This is the justification given with the proposal: 
+{justification_en}
+How do you vote on this proposal?
+VOTE_{id}_1) Vote for the proposal
+VOTE_{id}_2) Vote against the proposal
+VOTE_{id}_3) Abstain from voting"""
+
+jointllm_format_example_template = """**question: VOTE {id}**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+"""
+
+base_jointllm_voting_interview_user_prompt = """You are then asked a series of questions about the voting preferences of the user of this {platform} profile.
+
+Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+{format_examples}
+
+YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+{questions}
+"""
+
+politician_election_info = pd.read_excel(
+    os.path.join(
+        base_dir, "../data/joint-llm-swiss-x/politician_election_info_en.xlsx"
+    ),
+    sheet_name="Tabellenblatt1",
+)
+politician_election_info = politician_election_info.fillna("")
+# Construct jointllm format examples
+jointllm_format_examples = [
+    jointllm_format_example_template.format(id=id)
+    for id in politician_election_info["id"].tolist()
+]
+
+# Construct jointllm questions
+jointllm_questions = [
+    jointllm_question_template.format(
+        id=row.id,
+        date=row.date,
+        type=row.type,
+        name=row.name,
+        proposal_en=row.proposal_en,
+        justification_en=row.justification_en,
+    )
+    for row in politician_election_info.itertuples()
+]
+
+x_jointllm_voting_interview_user_prompt = (
+    base_jointllm_voting_interview_user_prompt.format(
+        platform="X (formerly Twitter)",
+        format_examples="\n\n".join(jointllm_format_examples),
+        questions="\n\n".join(jointllm_questions),
+    )
+)
 
 
 # AI Election Polling

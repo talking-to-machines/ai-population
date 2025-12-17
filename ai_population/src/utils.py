@@ -1,20 +1,18 @@
+import os, ast, yt_dlp, time, json, re, requests
 import pandas as pd
-import os
-import ast
-import yt_dlp
-import time
-import json
-import re
-import requests
+
+pd.set_option("future.no_silent_downcasting", True)
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timezone
 from tqdm import tqdm
+from tqdm.auto import tqdm as tqdm_auto
 
 tqdm.pandas()
 
 from pydub import AudioSegment
 from apify_client import ApifyClient
-from openai import OpenAI
+from openai import OpenAI, APITimeoutError
+from concurrent.futures import ThreadPoolExecutor
 from ai_population.prompts.prompt_template import (
     tiktok_video_prompt_template,
     x_tweet_prompt_template,
@@ -24,7 +22,6 @@ from ai_population.config.base_config import *
 from ai_population.config.market_signals_config import (
     RUSSELL_4000_STOCK_TICKER_FILE,
 )
-
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -283,37 +280,54 @@ def transcribe_videos(row: pd.Series, project_name: str, execution_date: str) ->
     input_file_path = f"{base_dir}/../data/{project_name}/{execution_date}/video-downloads/{row['video_filename']}"
     optimized_file_path = f"{base_dir}/../data/{project_name}/{execution_date}/video-downloads/optimized_{row['video_filename'][:-4] + '.wav'}"
 
-    try:
-        with open(input_file_path, "rb") as audio_file:
-            transcription = openai_client.audio.transcriptions.create(
-                model="whisper-1", file=audio_file, response_format="text"
-            )
-        return transcription
+    max_retries = 3
+    retry_delay = 60  # seconds
 
-    except FileNotFoundError:
-        return None
+    for attempt in range(1, max_retries + 1):
+        try:
+            with open(input_file_path, "rb") as audio_file:
+                transcription = openai_client.audio.transcriptions.create(
+                    model="whisper-1", file=audio_file, response_format="text"
+                )
+            return transcription
 
-    except Exception as e:
-        if e.status_code == 413:
+        except FileNotFoundError:
+            return None
+
+        except APITimeoutError:
             print(
-                f"Error: File {row['video_filename']} is too large to process. Optimizing the audio file..."
+                f"Timeout error during transcription ({attempt}/{max_retries}). Retrying in {retry_delay}s..."
             )
-            # Optimize the audio file
-            optimize_audio_file(input_file_path, optimized_file_path)
-            try:
-                with open(optimized_file_path, "rb") as audio_file:
-                    transcription = openai_client.audio.transcriptions.create(
-                        model="whisper-1", file=audio_file, response_format="text"
-                    )
-                return transcription
-            except Exception as e:
+            time.sleep(retry_delay)
+            continue
+
+        except Exception as e:
+            status = getattr(e, "status", None) or getattr(e, "status_code", None)
+            if status == 413:
                 print(
-                    f"Error: File {optimized_file_path} is still too large after optimisation: {e}"
+                    f"Error: File {row['video_filename']} is too large to process. Optimizing the audio file..."
+                )
+                # Optimize the audio file
+                try:
+                    optimize_audio_file(input_file_path, optimized_file_path)
+                    with open(optimized_file_path, "rb") as audio_file:
+                        transcription = openai_client.audio.transcriptions.create(
+                            model="whisper-1", file=audio_file, response_format="text"
+                        )
+                    return transcription
+                except Exception as e2:
+                    print(
+                        f"Error: File {optimized_file_path} is still too large after optimisation: {e}"
+                    )
+                    return None
+            else:
+                print(
+                    f"Error encountered when transcribing {row['video_filename']}: {e}"
                 )
                 return None
-        else:
-            print(f"Error encountered when transcribing {row['video_filename']}: {e}")
-            return None
+
+    print(f"Failed to transcribe {row['video_filename']} after {max_retries} attempts.")
+    return None
 
 
 def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
@@ -417,8 +431,8 @@ def construct_user_prompt(
     row: pd.Series, user_prompt_template: str, interview_type: str
 ) -> str:
     if interview_type in [
-        "tiktok_finfluencer_interview",
-        "x_finfluencer_interview",
+        "tiktok_finfluencer_daily_stock_pick",
+        "x_finfluencer_daily_stock_pick",
     ]:
         # Load Russell 4000 stock tickers
         russell4000_stock_tickers = pd.read_csv(
@@ -437,7 +451,6 @@ def construct_user_prompt(
         # Construct user prompt
         return user_prompt_template.format(
             russell_4000_tickers=russell4000_stock_ticker_str,
-            stock_mentions=row.get("stock_mentions", ""),
         )
 
     if interview_type in [
@@ -458,12 +471,18 @@ def construct_user_prompt(
         )
         return user_prompt_template.format(municipality=municipality)
 
-    else:
-        return user_prompt_template
+    return user_prompt_template
 
 
 def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Series:
     # Split the text by double newlines to separate different questions
+    if (
+        text is None
+        or (isinstance(text, float) and pd.isna(text))
+        or str(text).strip() == ""
+    ):
+        return pd.Series(dtype=object)
+
     questions_blocks = re.split(r"(?=\*\*question:)", text)
     questions_blocks = [
         block
@@ -480,6 +499,11 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
     speculations_list = []
     values_list = []
     response_list = []
+    stock_ticker_list = []
+    recommendation_list = []
+    confidence_list = []
+    expected_holding_period_list = []
+    primary_catalyst_type_list = []
 
     # Define regex patterns for each field
     question_pattern = r"\*\*question: (.*?)\*\*"
@@ -489,6 +513,11 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
     speculation_pattern = r"\*\*speculation: (.*?)\*\*"
     value_pattern = r"\*\*value: (.*?)\*\*"
     response_pattern = r"\*\*response: (.*?)\*\*"
+    stock_ticker_pattern = r"\*\*stock ticker: (.*?)\*\*"
+    recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
+    confidence_pattern = r"\*\*confidence: (.*?)\*\*"
+    expected_holding_period_pattern = r"\*\*expected holding period: (.*?)\*\*"
+    primary_catalyst_type_pattern = r"\*\*primary catalyst type: (.*?)\*\*"
 
     # Iterate through each question block and extract the fields
     for block in questions_blocks:
@@ -501,6 +530,15 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         speculation = re.search(speculation_pattern, block, re.DOTALL)
         value = re.search(value_pattern, block, re.DOTALL)
         response = re.search(response_pattern, block, re.DOTALL)
+        stock_ticker = re.search(stock_ticker_pattern, block, re.DOTALL)
+        recommendation = re.search(recommendation_pattern, block, re.DOTALL)
+        confidence = re.search(confidence_pattern, block, re.DOTALL)
+        expected_holding_period = re.search(
+            expected_holding_period_pattern, block, re.DOTALL
+        )
+        primary_catalyst_type = re.search(
+            primary_catalyst_type_pattern, block, re.DOTALL
+        )
 
         questions_list.append(question.group(1).replace("”", "") if question else None)
         explanations_list.append(explanation.group(1) if explanation else None)
@@ -509,6 +547,15 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         speculations_list.append(speculation.group(1) if speculation else None)
         values_list.append(value.group(1) if value else None)
         response_list.append(response.group(1) if response else None)
+        stock_ticker_list.append(stock_ticker.group(1) if stock_ticker else None)
+        recommendation_list.append(recommendation.group(1) if recommendation else None)
+        confidence_list.append(confidence.group(1) if confidence else None)
+        expected_holding_period_list.append(
+            expected_holding_period.group(1) if expected_holding_period else None
+        )
+        primary_catalyst_type_list.append(
+            primary_catalyst_type.group(1) if primary_catalyst_type else None
+        )
 
     # Create a DataFrame
     data = {
@@ -519,6 +566,11 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         "speculation": speculations_list,
         "value": values_list,
         "response": response_list,
+        "stock_ticker": stock_ticker_list,
+        "recommendation": recommendation_list,
+        "confidence": confidence_list,
+        "expected_holding_period": expected_holding_period_list,
+        "primary_catalyst_type": primary_catalyst_type_list,
     }
     df = pd.DataFrame(data)
 
@@ -538,6 +590,22 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
             flattened_series[f"{question_prefix} - value"] = row["value"]
         if row["response"]:
             flattened_series[f"{question_prefix} - response"] = row["response"]
+        if row["stock_ticker"]:
+            flattened_series[f"{question_prefix} - stock ticker"] = row["stock_ticker"]
+        if row["recommendation"]:
+            flattened_series[f"{question_prefix} - recommendation"] = row[
+                "recommendation"
+            ]
+        if row["confidence"]:
+            flattened_series[f"{question_prefix} - confidence"] = row["confidence"]
+        if row["expected_holding_period"]:
+            flattened_series[f"{question_prefix} - expected holding period"] = row[
+                "expected_holding_period"
+            ]
+        if row["primary_catalyst_type"]:
+            flattened_series[f"{question_prefix} - primary catalyst type"] = row[
+                "primary_catalyst_type"
+            ]
 
     return flattened_series
 
@@ -560,11 +628,14 @@ def coalesce_columns_by_regex(data: pd.DataFrame, regex_list: list) -> pd.DataFr
     for pattern in regex_list:
         compiled_pattern = re.compile(pattern, flags=re.IGNORECASE)
         matching_cols = [col for col in data.columns if compiled_pattern.search(col)]
+        matching_cols = list(matching_cols)
         if not matching_cols:
             continue
 
         # Sort matching columns by null count (fewest nulls first)
-        sorted_cols = sorted(matching_cols, key=lambda col: data[col].isna().sum())
+        sorted_cols = sorted(
+            matching_cols, key=lambda col: data[col].isna().sum().sum()
+        )
 
         # Fill in missing values in the best column using bfill along row-wise for sorted matching columns
         retained_col = sorted_cols[0]
@@ -749,32 +820,67 @@ def create_batch_file(
 
         messages.append({"role": "user", "content": user_txt})
 
-        if vector_store_ids:
-            task = {
-                "custom_id": custom_id,
-                "method": "POST",
-                "url": "/v1/responses",
-                "body": {
-                    "model": gpt_model,
-                    "temperature": 0,
-                    "input": messages_to_input(messages),
-                    "tools": [
-                        {"type": "file_search", "vector_store_ids": vector_store_ids}
-                    ],
-                },
-            }
+        if gpt_model.startswith("gpt-4"):
+            if vector_store_ids:
+                task = {
+                    "custom_id": custom_id,
+                    "method": "POST",
+                    "url": "/v1/responses",
+                    "body": {
+                        "model": gpt_model,
+                        "temperature": 0,
+                        "input": messages_to_input(messages),
+                        "tools": [
+                            {
+                                "type": "file_search",
+                                "vector_store_ids": vector_store_ids,
+                            }
+                        ],
+                    },
+                }
 
+            else:
+                task = {
+                    "custom_id": custom_id,
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": gpt_model,
+                        "temperature": 0,
+                        "messages": messages,
+                    },
+                }
+
+        elif gpt_model.startswith("gpt-5"):
+            if vector_store_ids:
+                task = {
+                    "custom_id": custom_id,
+                    "method": "POST",
+                    "url": "/v1/responses",
+                    "body": {
+                        "model": gpt_model,
+                        "input": messages_to_input(messages),
+                        "tools": [
+                            {
+                                "type": "file_search",
+                                "vector_store_ids": vector_store_ids,
+                            }
+                        ],
+                    },
+                }
+
+            else:
+                task = {
+                    "custom_id": custom_id,
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": gpt_model,
+                        "messages": messages,
+                    },
+                }
         else:
-            task = {
-                "custom_id": custom_id,
-                "method": "POST",
-                "url": "/v1/chat/completions",
-                "body": {
-                    "model": gpt_model,
-                    "temperature": 0,
-                    "messages": messages,
-                },
-            }
+            raise ValueError(f"Unsupported GPT model: {gpt_model}")
 
         tasks.append(task)
 
@@ -1116,9 +1222,10 @@ def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
 
 
 def row_query(row: pd.Series, args: list) -> str:
-    system_prompt = row[args[0]]
-    user_prompt = row[args[1]]
-    gpt_model = args[2]
+    system_prompt = row[args[0][0]]
+    user_prompt = row[args[0][1]]
+    gpt_model = args[0][2]
+    enable_web_search = args[0][3]
 
     # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
     if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
@@ -1126,17 +1233,33 @@ def row_query(row: pd.Series, args: list) -> str:
 
     # Make a chat completion request
     try:
-        response = openai_client.chat.completions.create(
-            model=gpt_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0,
-        )
-
-        # Extract the assistant's response
-        return response.choices[0].message.content
+        if enable_web_search:
+            response = openai_client.responses.create(
+                model=gpt_model,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                tools=[
+                    {
+                        "type": "web_search",
+                        "search_context_size": "medium",
+                        "user_location": {"type": "approximate", "country": "US"},
+                    }
+                ],
+                tool_choice="required",
+                # temperature=0,
+            )
+        else:
+            response = openai_client.responses.create(
+                model=gpt_model,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0,
+            )
+        return response.output_text
 
     except Exception as e:
         # Handle errors (rate limits, etc.)
@@ -1157,6 +1280,8 @@ def perform_profile_interview(
     interview_type: str,
     history_field: str = None,
     vector_store_ids: list = [],
+    use_row_query: bool = False,
+    enable_web_search: bool = False,
 ) -> None:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1226,36 +1351,71 @@ def perform_profile_interview(
         exist_ok=True,
     )
 
-    # Perform batch query for survey questions
-    create_batch_file(
-        profile_metadata,
-        project_name=project_name,
-        execution_date=execution_date,
-        gpt_model=gpt_model,
-        system_prompt_field=f"{interview_type}_system_prompt",
-        user_prompt_field=f"{interview_type}_user_prompt",
-        history_field=history_field,
-        batch_file_name="batch_input.jsonl",
-        vector_store_ids=vector_store_ids,
-    )
+    if (
+        use_row_query or enable_web_search
+    ):  # When performing row-wise queries or enabling web search
+        profile_metadata_with_responses = profile_metadata.copy()
+        row_query_args = [
+            f"{interview_type}_system_prompt",
+            f"{interview_type}_user_prompt",
+            gpt_model,
+            enable_web_search,
+        ]
 
-    llm_responses = batch_query(
-        project_name=project_name,
-        execution_date=execution_date,
-        batch_input_file_dir="batch_input.jsonl",
-        batch_output_file_dir="batch_output.jsonl",
-        vector_store_ids=vector_store_ids,
-    )
-    llm_responses.rename(columns={"query_response": llm_response_field}, inplace=True)
+        # Choose how many parallel calls you want (tune for your rate limits)
+        max_workers = NUM_PARALLEL_PROCESSES
 
-    # Merge LLM response with original dataset
-    profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
-    llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-    profile_metadata_with_responses = pd.merge(
-        left=profile_metadata,
-        right=llm_responses[["custom_id", llm_response_field]],
-        on="custom_id",
-    )
+        # Prepare rows in order so results line up with the DataFrame
+        rows = [row for _, row in profile_metadata.iterrows()]
+
+        def run_row_query(row):
+            # row_query(row, args=(...)) matches your previous progress_apply usage
+            return row_query(
+                row,
+                args=(row_query_args,),
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(
+                tqdm_auto(executor.map(run_row_query, rows), total=len(rows))
+            )
+
+        # Assign results back to the DataFrame in the same order
+        profile_metadata_with_responses[llm_response_field] = results
+
+    else:  # Perform batch queries to save cost
+        # Perform batch query for survey questions
+        create_batch_file(
+            profile_metadata,
+            project_name=project_name,
+            execution_date=execution_date,
+            gpt_model=gpt_model,
+            system_prompt_field=f"{interview_type}_system_prompt",
+            user_prompt_field=f"{interview_type}_user_prompt",
+            history_field=history_field,
+            batch_file_name="batch_input.jsonl",
+            vector_store_ids=vector_store_ids,
+        )
+
+        llm_responses = batch_query(
+            project_name=project_name,
+            execution_date=execution_date,
+            batch_input_file_dir="batch_input.jsonl",
+            batch_output_file_dir="batch_output.jsonl",
+            vector_store_ids=vector_store_ids,
+        )
+        llm_responses.rename(
+            columns={"query_response": llm_response_field}, inplace=True
+        )
+
+        # Merge LLM response with original dataset
+        profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
+        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+        profile_metadata_with_responses = pd.merge(
+            left=profile_metadata,
+            right=llm_responses[["custom_id", llm_response_field]],
+            on="custom_id",
+        )
 
     # Save profile metadata after analysis into CSV file
     profile_metadata_with_responses.to_csv(
@@ -1334,17 +1494,17 @@ def perform_video_transcription(
     project_name: str, execution_date: str, video_file: str
 ) -> None:
     """
-        Perform video transcription for a given project by downloading videos, transcribing them,
-        and updating the video metadata file.
+    Perform video transcription for a given project by downloading videos, transcribing them,
+    and updating the video metadata file.
 
-        Args:
-            project_name (str): The name of the project. Used to organize data and video files.
-            execution_date (str): The date of the pipeline execution, used to create a unique directory name.
-            video_metadata_file (str): The name of the CSV file containing video metadata.
-                                       This file should be located in the project's data folder.
-    s
-        Raises:
-            FileNotFoundError: If the specified video metadata file does not exist.
+    Args:
+        project_name (str): The name of the project. Used to organize data and video files.
+        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
+        video_metadata_file (str): The name of the CSV file containing video metadata.
+                                   This file should be located in the project's data folder.
+
+    Raises:
+        FileNotFoundError: If the specified video metadata file does not exist.
     """
     # Create the video downloads folder for project if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1363,7 +1523,9 @@ def perform_video_transcription(
         video_metadata = pd.read_csv(video_metadata_path)
 
     if "video_transcript" not in video_metadata.columns:
-        video_metadata.dropna(subset=["post_id"], inplace=True)
+        video_metadata = video_metadata.dropna(
+            subset=["post_id"], inplace=False
+        ).reset_index(drop=True)
         video_metadata["post_id"] = video_metadata["post_id"].astype(str)
         video_metadata["video_filename"] = video_metadata["post_id"].apply(
             lambda x: x + ".mp4"
@@ -1384,25 +1546,23 @@ def perform_video_transcription(
         video_metadata_without_transcript["post_id"].apply(lambda x: x + ".mp4")
     )
 
-    # Download videos that have not been transcribed and perform transcription
+    # Download videos that have not been transcribed
     video_metadata_without_transcript.progress_apply(
         download_video, args=(project_name, execution_date), axis=1
     )
-    video_metadata_without_transcript["video_transcript"] = (
-        video_metadata_without_transcript.progress_apply(
-            transcribe_videos, args=(project_name, execution_date), axis=1
-        )
-    )
 
-    # Merge newly transcribed videos with existing video metadata
-    video_metadata_with_transcript = video_metadata[
-        ~video_metadata["video_transcript"].isnull()
-    ].reset_index(drop=True)
-    video_metadata = pd.concat(
-        [video_metadata_with_transcript, video_metadata_without_transcript],
-        ignore_index=True,
-    )
-    video_metadata.to_csv(video_metadata_path, index=False)
+    # Perform transcription on downloaded videos and save transcripts along the way
+    for i in tqdm(range(len(video_metadata))):
+        if video_metadata.loc[i, "video_transcript"] is None or pd.isna(
+            video_metadata.loc[i, "video_transcript"]
+        ):
+            video_metadata.loc[i, "video_transcript"] = transcribe_videos(
+                video_metadata.loc[i, :], project_name, execution_date
+            )
+            video_metadata.to_csv(video_metadata_path, index=False)
+
+        else:
+            continue
 
     # Clean up downloaded videos to save disk space
     for file in os.listdir(video_download_folder_path):
@@ -1417,6 +1577,7 @@ def update_verified_profile_pool(
     input_file: str,
     verified_profile_pool: str,
     prediction_threshold: float,
+    filter_by_stock_recommendation: bool = True,
 ) -> None:
     """
     Updates the verified profile pool by adding new financial influencers identified from the onboarding interview data.
@@ -1429,6 +1590,7 @@ def update_verified_profile_pool(
         input_file (str): Relative path to the CSV file containing interviewed profiles.
         verified_profile_pool (str): Filename of the verified profile pool CSV.
         prediction_threshold (float): Minimum likelihood score to consider a profile as a financial influencer.
+        filter_by_stock_recommendation (bool): Whether to filter profiles by the presence of stock recommendations.
 
     Returns:
         None
@@ -1450,10 +1612,11 @@ def update_verified_profile_pool(
     ].reset_index(drop=True)
 
     # Filter out financial influencers that had a stock recommendation
-    finfluencer_profiles = finfluencer_profiles[
-        finfluencer_profiles["stock_mentions"].notna()
-        & (finfluencer_profiles["stock_mentions"] != "")
-    ].reset_index(drop=True)
+    if filter_by_stock_recommendation:
+        finfluencer_profiles = finfluencer_profiles[
+            finfluencer_profiles["stock_mentions"].notna()
+            & (finfluencer_profiles["stock_mentions"] != "")
+        ].reset_index(drop=True)
 
     # Add new financial influencers to the verified profile pool
     if not finfluencer_profiles.empty:
@@ -1724,20 +1887,40 @@ def perform_tiktok_keyword_search(
 
     # Retrieve keyword search results
     response_json = {"status": "running"}
-    while isinstance(response_json, dict) and response_json.get("status") == "running":
+    while response_json.get("status") != "ready":
         time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
         response = requests.get(
-            f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+            f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
             headers={
                 "Authorization": f"Bearer {BRIGHTDATA_API}",
-            },
-            params={
-                "format": "json",
             },
         )
         response_json = response.json()
 
-    keyword_search_results = pd.DataFrame(response_json)
+    retries = 0
+    while True:
+        try:
+            response = requests.get(
+                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                headers={
+                    "Authorization": f"Bearer {BRIGHTDATA_API}",
+                },
+                params={
+                    "format": "json",
+                },
+            )
+            response_json = response.json()
+            keyword_search_results = pd.DataFrame(response_json)
+            break
+
+        except (requests.RequestException, ValueError, json.JSONDecodeError) as err:
+            retries += 1
+            if retries > MAX_RETRIES:
+                raise RuntimeError(
+                    f"Failed to retrieve snapshot after {MAX_RETRIES} attempts: {err}"
+                )
+            time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+
     if "warning_code" in keyword_search_results.columns:
         keyword_search_results = keyword_search_results[
             keyword_search_results["warning_code"] != "dead_page"
@@ -1792,6 +1975,8 @@ def perform_tiktok_profile_search(
             }
             for profile in profile_list
         ]
+
+        # Initialise profile search job
         response = requests.post(
             "https://api.brightdata.com/datasets/v3/trigger",
             headers={
@@ -1810,22 +1995,40 @@ def perform_tiktok_profile_search(
 
         # Retrieve profile search results
         response_json = {"status": "running"}
-        while (
-            isinstance(response_json, dict) and response_json.get("status") == "running"
-        ):
+        while response_json.get("status") != "ready":
             time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
             response = requests.get(
-                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
                 headers={
                     "Authorization": f"Bearer {BRIGHTDATA_API}",
-                },
-                params={
-                    "format": "json",
                 },
             )
             response_json = response.json()
 
-        profile_search_results = pd.DataFrame(response_json)
+        retries = 0
+        while True:
+            try:
+                response = requests.get(
+                    f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                    headers={
+                        "Authorization": f"Bearer {BRIGHTDATA_API}",
+                    },
+                    params={
+                        "format": "json",
+                    },
+                )
+                response_json = response.json()
+                profile_search_results = pd.DataFrame(response_json)
+                break
+
+            except (requests.RequestException, ValueError, json.JSONDecodeError) as err:
+                retries += 1
+                if retries > MAX_RETRIES:
+                    raise RuntimeError(
+                        f"Failed to retrieve snapshot after {MAX_RETRIES} attempts: {err}"
+                    )
+                time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+
         if "warning_code" in profile_search_results.columns:
             profile_search_results = profile_search_results[
                 profile_search_results["warning_code"] != "dead_page"
@@ -1921,22 +2124,40 @@ def perform_tiktok_profile_metadata_search(
 
         # Retrieve profile metadata search results
         response_json = {"status": "running"}
-        while (
-            isinstance(response_json, dict) or response_json.get("status") == "running"
-        ):
+        while response_json.get("status") != "ready":
             time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
             response = requests.get(
-                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
                 headers={
                     "Authorization": f"Bearer {BRIGHTDATA_API}",
-                },
-                params={
-                    "format": "json",
                 },
             )
             response_json = response.json()
 
-        profile_metadata = pd.DataFrame(response_json)
+        retries = 0
+        while True:
+            try:
+                response = requests.get(
+                    f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                    headers={
+                        "Authorization": f"Bearer {BRIGHTDATA_API}",
+                    },
+                    params={
+                        "format": "json",
+                    },
+                )
+                response_json = response.json()
+                profile_metadata = pd.DataFrame(response_json)
+                break
+
+            except (requests.RequestException, ValueError, json.JSONDecodeError) as err:
+                retries += 1
+                if retries > MAX_RETRIES:
+                    raise RuntimeError(
+                        f"Failed to retrieve snapshot after {MAX_RETRIES} attempts: {err}"
+                    )
+                time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+
         if "warning_code" in profile_metadata.columns:
             profile_metadata = profile_metadata[
                 profile_metadata["warning_code"] != "dead_page"
@@ -1980,14 +2201,14 @@ def perform_x_keyword_search(
         os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
     )
 
-    # Perform keyword search in batches of 5 (due to limitations of API call)
+    # Perform keyword search in batches of 1 (due to limitations of API call)
     all_search_results = []
-    for batch_terms in batched(search_terms, 5):
+    for batch_terms in batched(search_terms, 1):
         response = requests.get(
             "https://abundance.it.com/get_tweets_by_search_term",
             params={
                 "search_term": batch_terms,
-                "or_operator": 0,
+                "or_operator": 1,
                 "max_tweets": num_posts_per_keyword * len(batch_terms),
             },
             auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
@@ -2024,6 +2245,7 @@ def perform_x_profile_search(
     end_date: str,
     num_posts_per_profile: int,
     local_file: str = None,
+    historical_post_file: str = None,
 ) -> pd.DataFrame:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -2047,10 +2269,12 @@ def perform_x_profile_search(
                 params={
                     "user": profile,
                     "max_tweets_per_user": num_posts_per_profile,
+                    "cut_off_time": f"{start_date}T00:00:00",  # YYYY-MM-DDTHH:MM:SS
                 },
                 auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
             )
             response_list += response.json()[0]
+            time.sleep(3)
 
         profile_search_results = pd.DataFrame([r for r in response_list if r])
         profile_search_results["account_id"] = profile_search_results["author"].apply(
@@ -2108,6 +2332,21 @@ def perform_x_profile_search(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,
     )
+
+    if historical_post_file:
+        historical_post_file_path = os.path.join(
+            base_dir, "../data", project_name, execution_date, historical_post_file
+        )
+        historical_posts = pd.read_csv(historical_post_file_path)
+        historical_posts = (
+            pd.concat(
+                [historical_posts, profile_search_results],
+                ignore_index=True,
+            )
+            .drop_duplicates(subset="id", keep="last")
+            .reset_index(drop=True)
+        )
+        historical_posts.to_csv(historical_post_file_path, index=False)
 
     return profile_search_results
 

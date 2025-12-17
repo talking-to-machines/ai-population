@@ -26,10 +26,13 @@ from ai_population.config.market_signals_config import (
     FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
     ONBOARDING_INTERVIEW_REGEX_PATTERNS,
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
+    FINFLUENCER_DAILY_STOCK_PICK_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
     PREDICTION_THRESHOLD_X,
     FILTER_ORIGINAL_PROFILES_X,
     ORIGINAL_PROFILES_X,
+    FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
+    FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -60,6 +63,7 @@ from ai_population.prompts.prompt_template import (
     x_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
     stock_recommendation_interview_user_prompt,
+    daily_stock_pick_user_prompts,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +101,7 @@ def perform_x_onboarding_interview(
         user_prompt_template=x_finfluencer_onboarding_user_prompt,
         llm_response_field="onboarding_llm_response",
         interview_type="x_finfluencer_onboarding",
+        enable_web_search=True,
     )
 
     # Preprocess onboarding results
@@ -164,6 +169,7 @@ def generate_expert_reflections(
         user_prompt_template=user_prompt_template,
         llm_response_field=llm_response_field,
         interview_type=interview_type,
+        enable_web_search=True,
     )
 
 
@@ -208,6 +214,7 @@ def perform_x_finfluencer_interview(
         user_prompt_template=finfluencer_interview_user_prompt,
         llm_response_field="x_finfluencer_interview",
         interview_type="x_finfluencer_interview",
+        enable_web_search=True,
     )
 
     # Preprocess post interview results
@@ -227,6 +234,11 @@ def perform_x_finfluencer_interview(
 
     # Include LLM model information
     post_interview_results["model"] = GPT_MODEL
+
+    # Include timestamp information for when the interview was conducted
+    post_interview_results["finfluencer_interview_datetime"] = (
+        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    )
 
     # Save formatted interview results
     if filter_original_profiles:
@@ -345,6 +357,7 @@ def perform_x_stock_recommendation_interview(
         user_prompt_template=stock_recommendation_interview_user_prompt,
         llm_response_field="x_finfluencer_stock_recommendation",
         interview_type="x_finfluencer_stock_recommendation",
+        enable_web_search=True,
     )
 
     stock_recommendations = pd.read_csv(
@@ -375,6 +388,11 @@ def perform_x_stock_recommendation_interview(
     # Include LLM model information
     valid_stock_recommendations["model"] = GPT_MODEL
 
+    # Include timestamp information for when the interview was conducted
+    valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
+        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    )
+
     # Save verified stock recommendations
     if filter_original_profiles:
         filtered_stock_recommendations = valid_stock_recommendations[
@@ -388,6 +406,92 @@ def perform_x_stock_recommendation_interview(
         )
 
     valid_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
+        index=False,
+    )
+
+
+def perform_x_daily_stock_pick_interview(
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    post_file: str,
+    output_file: str,
+    filter_original_profiles: bool = False,
+) -> None:
+
+    for idx, user_prompt in enumerate(daily_stock_pick_user_prompts):
+        perform_profile_interview(
+            project_name=project_name,
+            execution_date=execution_date,
+            gpt_model=GPT_MODEL,
+            profile_metadata_file=profile_metadata_file,
+            post_file=post_file,
+            output_file=output_file[:-4] + f"_{idx+1}.csv",
+            system_prompt_template=x_finfluencer_interview_system_prompt,
+            user_prompt_template=user_prompt,
+            llm_response_field="x_finfluencer_daily_stock_pick",
+            interview_type="x_finfluencer_daily_stock_pick",
+            enable_web_search=True,
+        )
+
+    # Preprocess daily stock pick results
+    extracted_responses_list = []
+    for idx in tqdm(range(len(daily_stock_pick_user_prompts))):
+        daily_stock_pick_chunk = pd.read_csv(
+            os.path.join(
+                base_dir,
+                "../data",
+                project_name,
+                execution_date,
+                output_file[:-4] + f"_{idx+1}.csv",
+            )
+        )
+        extracted_responses = daily_stock_pick_chunk[
+            "x_finfluencer_daily_stock_pick"
+        ].apply(extract_llm_responses)
+        extracted_responses[f"x_finfluencer_daily_stock_pick_{idx+1}"] = (
+            daily_stock_pick_chunk["x_finfluencer_daily_stock_pick"]
+        )
+        extracted_responses_list.append(extracted_responses)
+
+    daily_stock_pick_results = pd.concat(
+        [daily_stock_pick_chunk.drop(columns=["x_finfluencer_daily_stock_pick"])]
+        + extracted_responses_list,
+        axis=1,
+    )
+    # Merge identical columns from interview response
+    daily_stock_pick_results = coalesce_columns_by_regex(
+        daily_stock_pick_results, FINFLUENCER_DAILY_STOCK_PICK_REGEX_PATTERNS
+    )
+
+    # Include LLM model information
+    daily_stock_pick_results["model"] = GPT_MODEL
+
+    # Include timestamp information for when the interview was conducted
+    daily_stock_pick_results["daily_stock_pick_interview_datetime"] = (
+        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    )
+
+    # Save formatted interview results
+    if filter_original_profiles:
+        filtered_daily_stock_pick_results = daily_stock_pick_results[
+            daily_stock_pick_results["account_id"].isin(ORIGINAL_PROFILES_X)
+        ].reset_index(drop=True)
+        filtered_daily_stock_pick_results.to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
+    daily_stock_pick_results.to_csv(
         os.path.join(
             base_dir,
             "../data",
@@ -601,6 +705,7 @@ if __name__ == "__main__":
         start_date=PROFILE_SEARCH_START_DATE,
         end_date=PROFILE_SEARCH_END_DATE,
         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+        historical_post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
     )
     extract_stock_mentions(
         project_name=PROJECT_NAME_X,
@@ -611,19 +716,19 @@ if __name__ == "__main__":
         interview_type="x_stock_mention",
     )
 
-    # Step 7: Conduct interview on financial markets
-    print("7. Conduct digital interview on financial markets...")
+    # Step 7: Conduct finfluencer interview on financial markets
+    print("7. Conduct finfluencer interview on financial markets...")
     perform_x_finfluencer_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+        post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
         output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
     )
 
-    # Step 8: Conduct interview on stock recommendations
-    print("8. Conduct digital interview on stock recommendations...")
+    # Step 8: Conduct stock recommendations interview
+    print("8. Conduct stock recommendations interview...")
     perform_x_stock_recommendation_interview(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -631,5 +736,16 @@ if __name__ == "__main__":
         post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
         finfluencer_pool=FINFLUENCER_POOL_FILE_X,
         output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
+        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+    )
+
+    # # Step 9: Conduct daily stock pick interview
+    print("9. Conduct daily stock pick interview...")
+    perform_x_daily_stock_pick_interview(
+        project_name=PROJECT_NAME_X,
+        execution_date=PIPELINE_EXECUTION_DATE,
+        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+        post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+        output_file=FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
     )

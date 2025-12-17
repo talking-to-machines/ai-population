@@ -224,6 +224,11 @@ def perform_tiktok_finfluencer_interview(
     # Include LLM model information
     post_interview_results["model"] = GPT_MODEL
 
+    # Include timestamp information for when the interview was conducted
+    post_interview_results["finfluencer_interview_datetime"] = (
+        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    )
+
     # Save formatted interview results
     if filter_original_profiles:
         filtered_post_interview_results = post_interview_results[
@@ -366,6 +371,11 @@ def perform_tiktok_stock_recommendation_interview(
 
     # Include LLM model information
     valid_stock_recommendations["model"] = GPT_MODEL
+
+    # Include timestamp information for when the interview was conducted
+    valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
+        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    )
 
     # Save verified stock recommendations
     if filter_original_profiles:
@@ -560,8 +570,8 @@ if __name__ == "__main__":
         interview_type="tiktok_stock_mention",
     )
 
-    # Step 7: Conduct interview on financial markets
-    print("7. Conduct digital interview on financial markets...")
+    # Step 7: Conduct finfluencer interview on financial markets
+    print("7. Conduct finfluencer interview on financial markets...")
     perform_tiktok_finfluencer_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
@@ -571,8 +581,8 @@ if __name__ == "__main__":
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
     )
 
-    # Step 8: Conduct interview on stock recommendations
-    print("8. Conduct digital interview on stock recommendations...")
+    # Step 9: Conduct stock recommendations interview
+    print("9. Conduct stock recommendations interview...")
     perform_tiktok_stock_recommendation_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
