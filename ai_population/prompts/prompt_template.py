@@ -2475,7 +2475,7 @@ daily_stock_pick_user_prompt_top_conviction = """**question: Please indicate you
 
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
-Question 1: Please indicate your top-conviction BUY stock pick for today by selecting a ticker from the Russell 4000 list (e.g., {russell_4000_tickers}).
+Question 1: Please indicate your top-conviction BUY stock pick for today by selecting a ticker from the Russell 4000 list (e.g., {no}).
  
 Question 2: Please indicate your top-conviction SELL or SHORT stock pick for today by selecting a ticker from the Russell 4000 list (e.g., {russell_4000_tickers}).
 """

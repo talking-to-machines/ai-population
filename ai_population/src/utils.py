@@ -1,4 +1,4 @@
-import os, ast, yt_dlp, time, json, re, requests
+import os, ast, yt_dlp, time, json, re, requests, warnings
 import pandas as pd
 
 pd.set_option("future.no_silent_downcasting", True)
@@ -716,6 +716,20 @@ def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
     conflicts_pattern = r"\*\*conflicts: (.*?)\*\*"
 
     # Extract the relevant fields from the stock recommendation string
+    if pd.isna(stock_recommendation_str) or str(stock_recommendation_str).strip() == "":
+        return pd.Series(
+            {
+                "mentioned_by_finfluencer": None,
+                "recommendation": None,
+                "explanation": None,
+                "confidence": None,
+                "virality": None,
+                "risks": None,
+                "horizon": None,
+                "conflicts": None,
+            }
+        )
+
     mentioned_by_finfluencer = re.search(
         mentioned_by_finfluencer_pattern, stock_recommendation_str, re.DOTALL
     )
@@ -1298,7 +1312,8 @@ def perform_profile_interview(
         )
     )
     post_metadata = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, post_file)
+        os.path.join(base_dir, "../data", project_name, execution_date, post_file),
+        on_bad_lines="skip",
     )
     if "warning_code" in post_metadata.columns:
         post_metadata = post_metadata[
@@ -1603,7 +1618,7 @@ def update_verified_profile_pool(
     )
 
     # Filter out financial influencers identified during onboarding interview
-    finfluencer_likelihood_col = "Indicate on a scale of 0 to 100, how likely this creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)? - value"
+    finfluencer_likelihood_col = "Indicate on a scale of 0 to 100, how likely this content creator is a finfluencer (0 means most definitely not a finfluencer and 100 means most definitely a finfluencer)? - value"
     interviewed_profiles[finfluencer_likelihood_col] = interviewed_profiles[
         finfluencer_likelihood_col
     ].astype(float)
@@ -1628,7 +1643,7 @@ def update_verified_profile_pool(
                         "account_id": finfluencer_profiles["account_id"].tolist(),
                         "inclusion_date": execution_date,
                         "influence": finfluencer_profiles[
-                            "Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? - value"
+                            "Indicate on a scale of 0 to 100, how influential this influencer is (0 means not at all influential and 100 means very influential with millions of followers and mainstream recognition)? Please consider quantitative thresholds such as follower count and engagement rate when answering this question. For example, a micro-influencer will be in the 20-40 range, whereas an account with hundreds of thousands of followers and high engagement might rate 80+. - value"
                         ].tolist(),
                         "credibility": finfluencer_profiles[
                             "Indicate on a scale of 0 to 100, how credible or authoritative this influencer is (0 means not at all credible or authoritative and 100 means very credible and authoritative)? - value"
@@ -2204,16 +2219,23 @@ def perform_x_keyword_search(
     # Perform keyword search in batches of 1 (due to limitations of API call)
     all_search_results = []
     for batch_terms in batched(search_terms, 1):
-        response = requests.get(
-            "https://abundance.it.com/get_tweets_by_search_term",
-            params={
-                "search_term": batch_terms,
-                "or_operator": 1,
-                "max_tweets": num_posts_per_keyword * len(batch_terms),
-            },
-            auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-        )
-        all_search_results += response.json()
+        print(batch_terms)
+        try:
+            response = requests.get(
+                "https://abundance.it.com/get_tweets_by_search_term",
+                params={
+                    "search_term": batch_terms,
+                    "or_operator": 1,
+                    "max_tweets": num_posts_per_keyword * len(batch_terms),
+                },
+                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+            )
+            all_search_results += response.json()
+        except requests.exceptions.JSONDecodeError:
+            warnings.warn(
+                f"JSONDecodeError encountered for search terms: {batch_terms}. Skipping these terms."
+            )
+            continue
 
     keyword_search_results = pd.DataFrame(all_search_results)
     keyword_search_results = keyword_search_results.drop_duplicates(
@@ -2264,17 +2286,50 @@ def perform_x_profile_search(
     if local_file is None:  # Perform API search
         response_list = []
         for profile in tqdm(profile_list):
-            response = requests.get(
-                "https://abundance.it.com/get_tweets",
-                params={
-                    "user": profile,
-                    "max_tweets_per_user": num_posts_per_profile,
-                    "cut_off_time": f"{start_date}T00:00:00",  # YYYY-MM-DDTHH:MM:SS
-                },
-                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-            )
-            response_list += response.json()[0]
-            time.sleep(3)
+            attempt = 0
+
+            while attempt < MAX_RETRIES:
+                attempt += 1
+                try:
+                    response = requests.get(
+                        "https://abundance.it.com/get_tweets",
+                        params={
+                            "user": profile,
+                            "max_tweets_per_user": num_posts_per_profile,
+                            "cut_off_time": f"{start_date}T00:00:00",  # YYYY-MM-DDTHH:MM:SS
+                        },
+                        auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+                    )
+                    response_list += response.json()[0]
+                    time.sleep(3)
+                    break
+
+                except requests.exceptions.JSONDecodeError:
+                    warnings.warn(
+                        f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.ReadTimeout:
+                    warnings.warn(
+                        f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.ConnectTimeout:
+                    warnings.warn(
+                        f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.HTTPError as e:
+                    warnings.warn(
+                        f"HTTP error for profile {profile}: {e}. Skipping profile."
+                    )
+                    break
+                except requests.exceptions.RequestException as e:
+                    warnings.warn(
+                        f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
+                    )
+
+            else:
+                warnings.warn(
+                    f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
+                )
 
         profile_search_results = pd.DataFrame([r for r in response_list if r])
         profile_search_results["account_id"] = profile_search_results["author"].apply(
@@ -2337,7 +2392,7 @@ def perform_x_profile_search(
         historical_post_file_path = os.path.join(
             base_dir, "../data", project_name, execution_date, historical_post_file
         )
-        historical_posts = pd.read_csv(historical_post_file_path)
+        historical_posts = pd.read_csv(historical_post_file_path, on_bad_lines="skip")
         historical_posts = (
             pd.concat(
                 [historical_posts, profile_search_results],
@@ -2379,14 +2434,48 @@ def perform_x_profile_metadata_search(
         # Perform profile metadata search
         response_list = []
         for profile in tqdm(profile_list):
-            response = requests.get(
-                "https://abundance.it.com/get_user_info",
-                params={
-                    "user": profile,
-                },
-                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-            )
-            response_list += response.json()
+            attempt = 0
+
+            while attempt < MAX_RETRIES:
+                attempt += 1
+                try:
+                    response = requests.get(
+                        "https://abundance.it.com/get_user_info",
+                        params={
+                            "user": profile,
+                        },
+                        auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+                    )
+                    response_list += response.json()
+                    time.sleep(3)
+                    break
+
+                except requests.exceptions.JSONDecodeError:
+                    warnings.warn(
+                        f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.ReadTimeout:
+                    warnings.warn(
+                        f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.ConnectTimeout:
+                    warnings.warn(
+                        f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                    )
+                except requests.exceptions.HTTPError as e:
+                    warnings.warn(
+                        f"HTTP error for profile {profile}: {e}. Skipping profile."
+                    )
+                    break
+                except requests.exceptions.RequestException as e:
+                    warnings.warn(
+                        f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
+                    )
+
+            else:
+                warnings.warn(
+                    f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
+                )
 
         profile_metadata = pd.DataFrame([r for r in response_list if r])
         profile_metadata.rename(columns={"userName": "account_id"}, inplace=True)

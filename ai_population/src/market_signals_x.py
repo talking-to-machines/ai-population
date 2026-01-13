@@ -590,6 +590,16 @@ def filter_x_profiles(
 
     # Filter profiles based on criteria
     verified_profiles = verified_profile_pool["account_id"].tolist()
+    profile_metadata["followers"] = (
+        pd.to_numeric(profile_metadata["followers"], errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
+    profile_metadata["statusesCount"] = (
+        pd.to_numeric(profile_metadata["statusesCount"], errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
     filtered_profiles = profile_metadata[
         (profile_metadata["followers"] >= MIN_FOLLOWER_COUNT)  # Minimum followers
         & (
@@ -739,7 +749,7 @@ if __name__ == "__main__":
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
     )
 
-    # # Step 9: Conduct daily stock pick interview
+    # Step 9: Conduct daily stock pick interview
     print("9. Conduct daily stock pick interview...")
     perform_x_daily_stock_pick_interview(
         project_name=PROJECT_NAME_X,
