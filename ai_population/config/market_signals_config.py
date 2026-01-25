@@ -8,17 +8,18 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
 PIPELINE_EXECUTION_DATE = (
-    "11-01-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
+    "25-01-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
 )
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
 MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 100
 NUM_POSTS_PER_PROFILE = 20
-PROFILE_SEARCH_START_DATE = "01-11-2026"  # MM-DD-YYYY  (Inclusive)
-PROFILE_SEARCH_END_DATE = "01-12-2026"  # MM-DD-YYYY format  (Exclusive)
+PROFILE_SEARCH_START_DATE = "01-25-2026"  # MM-DD-YYYY  (Inclusive)
+PROFILE_SEARCH_END_DATE = "01-26-2026"  # MM-DD-YYYY format  (Exclusive)
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 SP_500_STOCK_TICKER_FILE = "sp500_stock_tickers_shorten.csv"
+NASDAQ_100_STOCK_TICKER_FILE = "nasdaq100_stock_tickers_shorten.csv"
 ONBOARDING_INTERVIEW_REGEX_PATTERNS = [
     r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*explanation$",
     r"^Indicate on a scale of 0 to 100, how likely this creator is a finfluencer.*\-\s*speculation$",
@@ -285,7 +286,7 @@ ORIGINAL_PROFILES_TIKTOK = [
 PROJECT_NAME_X = "market-signals-x"
 KEYWORD_SEARCH_FILE_X = f"x_keyword_search_{PIPELINE_EXECUTION_DATE}.csv"
 PROFILE_METADATA_SEARCH_FILE_X = f"x_profile_metadata_{PIPELINE_EXECUTION_DATE}.csv"
-FINFLUENCER_POOL_FILE_X = "x_verified_finfluencer_profiles.csv"
+FINFLUENCER_POOL_FILE_X = "x_verified_finfluencer_profiles_sample.csv"
 ONBOARDING_RESULTS_FILE_X = f"x_onboarding_results_{PIPELINE_EXECUTION_DATE}.csv"
 EXPERT_REFLECTION_FILE_X = f"x_expert_reflection_{PIPELINE_EXECUTION_DATE}.csv"
 FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X = (
@@ -426,4 +427,106 @@ ORIGINAL_PROFILES_X = [
     "vsourbh",
     "ZacksResearch",
     "zerohedge",
+]
+DAILY_STOCK_PICK_PROFILES_X = [
+    "Tickeron",
+    "strengthPlan",
+    "ClassicRoy",
+    "StockMarketMcro",
+    "Michael34952",
+    "BestTrader01",
+    "DollarCostAvg",
+    "GrindeOptions",
+    "ValueSense_io",
+    "SteveDJacobs",
+    "BullMarketBoss",
+    "twinsight_x",
+    "WealthCoachMak",
+    "WOLF_Financial",
+    "MikeLongTerm",
+    "solidintel_x",
+    "King0ftheCharts",
+    "israil_4life",
+    "ChartingProdigy",
+    "QualityInvest5",
+    "EBUYUKARSLAN",
+    "danshep55",
+    "InvestmentGuru_",
+    "TerpsTrader1",
+    "TopStockAlerts1",
+    "wallstengine",
+    "DividendDynasty",
+    "OpenOutcrier",
+    "AnthonySandford",
+    "CuriousPejjy",
+    "BradMunchen",
+    "MentoviaX",
+    "tradealgo_",
+    "spluscollective",
+    "iamtomnash",
+    "C_S_Skeptic",
+    "Mr_Derivatives",
+    "yasutaketin",
+    "BenBSP",
+    "commonsenseplay",
+    "TraderJonesy",
+    "Pharmdca",
+    "TradingOutpost",
+    "SchwabNetwork",
+    "ChartMill",
+    "EliteOptions2",
+    "marketwirenews",
+    "StockSavvyShay",
+    "HedgieMarkets",
+    "TheTranscript_",
+    "DrStoxx",
+    "TalkMarkets",
+    "TheValueist",
+    "dewmboom",
+    "SpartanTrading",
+    "alshfaw",
+    "nikoliasgoninus",
+    "epictrades1",
+    "EdwardCoronaUSA",
+    "SebastinPatron3",
+    "CenterPointSec",
+    "Options_Sandy",
+    "YahooFinance",
+    "sspencer_smb",
+    "GDXTrader",
+    "amitisinvesting",
+    "YodaStockInvest",
+    "thexcapitalist",
+    "Street_Insider",
+    "FinancewithIzzy",
+    "Corgi4joy",
+    "WallStDiaries",
+    "equitydd",
+    "CNBC",
+    "KobeissiLetter",
+    "BrandonVanZee",
+    "BluthCapital",
+    "SoJustFollowMe",
+    "CarolKentSpeaks",
+    "CNBCi",
+    "cfromhertz",
+    "danielisdizzy",
+    "Benzinga",
+    "tradertvneal",
+    "SpecialSitsNews",
+    "Akaletico",
+    "wealthmatica",
+    "momoblog0214",
+    "MarcJacksonLA",
+    "TheWuhanClan",
+    "M44_1RJ",
+    "neilksethi",
+    "CNBCtech",
+    "niccruzpatane",
+    "Investingcom",
+    "techradar",
+    "marketsday",
+    "samsolid57",
+    "investwithsheng",
+    "NolanGouveiapG",
 ]

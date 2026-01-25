@@ -1296,6 +1296,7 @@ def perform_profile_interview(
     vector_store_ids: list = [],
     use_row_query: bool = False,
     enable_web_search: bool = False,
+    response_timestamp_col: str = "",
 ) -> None:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1385,10 +1386,14 @@ def perform_profile_interview(
 
         def run_row_query(row):
             # row_query(row, args=(...)) matches your previous progress_apply usage
-            return row_query(
+            response_timestamp = (
+                pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            )
+            response = row_query(
                 row,
                 args=(row_query_args,),
             )
+            return {"response": response, "response_timestamp": response_timestamp}
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             results = list(
@@ -1396,7 +1401,12 @@ def perform_profile_interview(
             )
 
         # Assign results back to the DataFrame in the same order
-        profile_metadata_with_responses[llm_response_field] = results
+        profile_metadata_with_responses[llm_response_field] = [
+            r["response"] for r in results
+        ]
+        profile_metadata_with_responses[response_timestamp_col] = [
+            r["response_timestamp"] for r in results
+        ]
 
     else:  # Perform batch queries to save cost
         # Perform batch query for survey questions
@@ -2219,7 +2229,6 @@ def perform_x_keyword_search(
     # Perform keyword search in batches of 1 (due to limitations of API call)
     all_search_results = []
     for batch_terms in batched(search_terms, 1):
-        print(batch_terms)
         try:
             response = requests.get(
                 "https://abundance.it.com/get_tweets_by_search_term",

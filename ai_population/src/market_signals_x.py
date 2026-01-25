@@ -31,6 +31,7 @@ from ai_population.config.market_signals_config import (
     PREDICTION_THRESHOLD_X,
     FILTER_ORIGINAL_PROFILES_X,
     ORIGINAL_PROFILES_X,
+    DAILY_STOCK_PICK_PROFILES_X,
     FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
     FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
 )
@@ -215,6 +216,7 @@ def perform_x_finfluencer_interview(
         llm_response_field="x_finfluencer_interview",
         interview_type="x_finfluencer_interview",
         enable_web_search=True,
+        response_timestamp_col="finfluencer_interview_datetime",
     )
 
     # Preprocess post interview results
@@ -236,9 +238,10 @@ def perform_x_finfluencer_interview(
     post_interview_results["model"] = GPT_MODEL
 
     # Include timestamp information for when the interview was conducted
-    post_interview_results["finfluencer_interview_datetime"] = (
-        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    )
+    if "finfluencer_interview_datetime" not in post_interview_results.columns:
+        post_interview_results["finfluencer_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
 
     # Save formatted interview results
     if filter_original_profiles:
@@ -358,6 +361,7 @@ def perform_x_stock_recommendation_interview(
         llm_response_field="x_finfluencer_stock_recommendation",
         interview_type="x_finfluencer_stock_recommendation",
         enable_web_search=True,
+        response_timestamp_col="stock_recommendation_interview_datetime",
     )
 
     stock_recommendations = pd.read_csv(
@@ -389,9 +393,13 @@ def perform_x_stock_recommendation_interview(
     valid_stock_recommendations["model"] = GPT_MODEL
 
     # Include timestamp information for when the interview was conducted
-    valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
-        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    )
+    if (
+        "stock_recommendation_interview_datetime"
+        not in valid_stock_recommendations.columns
+    ):
+        valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
 
     # Save verified stock recommendations
     if filter_original_profiles:
@@ -426,12 +434,33 @@ def perform_x_daily_stock_pick_interview(
     filter_original_profiles: bool = False,
 ) -> None:
 
+    profile_metadata = pd.read_csv(
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
+    )
+    sampled_profile_metadata = profile_metadata[
+        profile_metadata["account_id"].isin(
+            DAILY_STOCK_PICK_PROFILES_X + ORIGINAL_PROFILES_X
+        )
+    ].reset_index(drop=True)
+    sampled_profile_metadata.to_csv(
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            f"x_finfluencer_sampled_profiles_{execution_date}.csv",
+        ),
+        index=False,
+    )
+
     for idx, user_prompt in enumerate(daily_stock_pick_user_prompts):
         perform_profile_interview(
             project_name=project_name,
             execution_date=execution_date,
             gpt_model=GPT_MODEL,
-            profile_metadata_file=profile_metadata_file,
+            profile_metadata_file=f"x_finfluencer_sampled_profiles_{execution_date}.csv",
             post_file=post_file,
             output_file=output_file[:-4] + f"_{idx+1}.csv",
             system_prompt_template=x_finfluencer_interview_system_prompt,
@@ -439,6 +468,7 @@ def perform_x_daily_stock_pick_interview(
             llm_response_field="x_finfluencer_daily_stock_pick",
             interview_type="x_finfluencer_daily_stock_pick",
             enable_web_search=True,
+            response_timestamp_col="daily_stock_pick_interview_datetime",
         )
 
     # Preprocess daily stock pick results
@@ -475,9 +505,10 @@ def perform_x_daily_stock_pick_interview(
     daily_stock_pick_results["model"] = GPT_MODEL
 
     # Include timestamp information for when the interview was conducted
-    daily_stock_pick_results["daily_stock_pick_interview_datetime"] = (
-        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    )
+    if "daily_stock_pick_interview_datetime" not in daily_stock_pick_results.columns:
+        daily_stock_pick_results["daily_stock_pick_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
 
     # Save formatted interview results
     if filter_original_profiles:
@@ -630,72 +661,72 @@ def filter_x_profiles(
 
 
 if __name__ == "__main__":
-    # Step 1: Perform search using predefined list of search terms
-    print("1. Perform keyword search using predefined list of search terms...")
-    perform_x_keyword_search(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        search_terms=SEARCH_TERMS_X,
-        output_file=KEYWORD_SEARCH_FILE_X,
-        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
-    )
+    # # Step 1: Perform search using predefined list of search terms
+    # print("1. Perform keyword search using predefined list of search terms...")
+    # perform_x_keyword_search(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     search_terms=SEARCH_TERMS_X,
+    #     output_file=KEYWORD_SEARCH_FILE_X,
+    #     num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
+    # )
 
-    # Step 2: Extract profile metadata for search results
-    print("2. Perform profile metadata search for keyword search results...")
-    perform_x_profile_metadata_search(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=os.path.join(PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_X),
-        output_file=PROFILE_METADATA_SEARCH_FILE_X,
-    )
+    # # Step 2: Extract profile metadata for search results
+    # print("2. Perform profile metadata search for keyword search results...")
+    # perform_x_profile_metadata_search(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     input_file=os.path.join(PIPELINE_EXECUTION_DATE, KEYWORD_SEARCH_FILE_X),
+    #     output_file=PROFILE_METADATA_SEARCH_FILE_X,
+    # )
 
-    # Step 3: Filter profiles that do not meet filtering criteria
-    print(
-        "3. Filter X profiles based on follower count, post count, and verified finfluencer list..."
-    )
-    filter_x_profiles(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        verified_profile_pool=FINFLUENCER_POOL_FILE_X,
-    )
+    # # Step 3: Filter profiles that do not meet filtering criteria
+    # print(
+    #     "3. Filter X profiles based on follower count, post count, and verified finfluencer list..."
+    # )
+    # filter_x_profiles(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
+    #     post_file=KEYWORD_SEARCH_FILE_X,
+    #     verified_profile_pool=FINFLUENCER_POOL_FILE_X,
+    # )
 
-    # Step 4: Generate expert reflections
-    print("4. Generate expert reflections of potential influencers...")
-    generate_expert_reflections(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        role="investment_advisor",
-        profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=EXPERT_REFLECTION_FILE_X,
-    )
+    # # Step 4: Generate expert reflections
+    # print("4. Generate expert reflections of potential influencers...")
+    # generate_expert_reflections(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     role="investment_advisor",
+    #     profile_metadata_file=PROFILE_METADATA_SEARCH_FILE_X,
+    #     post_file=KEYWORD_SEARCH_FILE_X,
+    #     output_file=EXPERT_REFLECTION_FILE_X,
+    # )
 
-    # Step 5: Conduct onboarding interview to identify financial influencers and add to influencer pool
-    print("5. Perform onboarding interview to identify financial influencers...")
-    perform_x_onboarding_interview(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=EXPERT_REFLECTION_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=ONBOARDING_RESULTS_FILE_X,
-    )
-    extract_stock_mentions(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=ONBOARDING_RESULTS_FILE_X,
-        post_file=KEYWORD_SEARCH_FILE_X,
-        output_file=ONBOARDING_RESULTS_FILE_X,
-        interview_type="x_stock_mention",
-    )
-    update_verified_profile_pool(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=ONBOARDING_RESULTS_FILE_X,
-        verified_profile_pool=FINFLUENCER_POOL_FILE_X,
-        prediction_threshold=PREDICTION_THRESHOLD_X,
-    )
+    # # Step 5: Conduct onboarding interview to identify financial influencers and add to influencer pool
+    # print("5. Perform onboarding interview to identify financial influencers...")
+    # perform_x_onboarding_interview(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=EXPERT_REFLECTION_FILE_X,
+    #     post_file=KEYWORD_SEARCH_FILE_X,
+    #     output_file=ONBOARDING_RESULTS_FILE_X,
+    # )
+    # extract_stock_mentions(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=ONBOARDING_RESULTS_FILE_X,
+    #     post_file=KEYWORD_SEARCH_FILE_X,
+    #     output_file=ONBOARDING_RESULTS_FILE_X,
+    #     interview_type="x_stock_mention",
+    # )
+    # update_verified_profile_pool(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     input_file=ONBOARDING_RESULTS_FILE_X,
+    #     verified_profile_pool=FINFLUENCER_POOL_FILE_X,
+    #     prediction_threshold=PREDICTION_THRESHOLD_X,
+    # )
 
     # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
     print(
