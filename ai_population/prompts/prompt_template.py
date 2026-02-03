@@ -2378,6 +2378,45 @@ Required format: Enclose each line of your response between two asterisks (**) a
 **value: [Value selected]**
 **speculation: [Speculation score selected]**
 
+**question: Compared to the most recently released U.S. unemployment rate, do you expect the next unemployment rate release to be higher, lower, or about the same.**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: What do you expect the next U.S. unemployment rate to be.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Compared to the most recently released U.S. inflation number, do you expect the next inflation release to be higher, lower, or about the same.**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: What do you expect the next U.S. annual inflation number to be.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: At the next Federal Open Market Committee (FOMC) meeting, do you expect the Federal Reserve to lower interest rates, raise them, or leave them unchanged.**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: What do you expect the target interest rate to be immediately after the next Federal Open Market Committee (FOMC) meeting.**
+**explanation: [Detailed explanation for selected response]**
+**value: [Value selected]**
+**speculation: [Speculation score selected]**
+
+**question: Over the next five trading days, relative to today, do you expect the S&P 500 to be higher, lower, or about the same.**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
 YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
 Question 1: What is your best estimate of the probability that the U.S. economy will enter a recession in the next 12 months?
@@ -2438,6 +2477,32 @@ Question 8i) Based on your general knowledge, please indicate on a scale of 0 to
 Question 8j) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Utilities industry (Electric Utilities; Gas Utilities; Multi‑Utilities; Water Utilities; Independent Power & Renewable Electricity Producers) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
 
 Question 8k) Based on your general knowledge, please indicate on a scale of 0 to 100 how you expect the Real Estate industry (Equity REITs; Real Estate Management & Development) to perform over the next 6 months – where 0 means underperform, 50 means stay stable (market-perform), and 100 means overperform (outperform). Please also name the primary driver (e.g., valuation, rates, policy, earnings, positioning, commodities, FX) for your response in the explanation field.
+
+Question 9a) Compared to the most recently released U.S. unemployment rate, do you expect the next unemployment rate release to be higher, lower, or about the same?
+H1) Higher
+H2) Lower
+H3) About The Same
+
+Question 9b) What do you expect the next U.S. unemployment rate to be? Please provide a specific percentage value (e.g., 4.1%).
+
+Question 10a) Compared to the most recently released U.S. inflation number, do you expect the next inflation release to be higher, lower, or about the same?
+I1) Higher
+I2) Lower
+I3) About the same
+
+Question 10b) What do you expect the next U.S. annual inflation number to be? Please provide a specific percentage value (e.g., 3.2%).
+
+Question 11a) At the next Federal Open Market Committee (FOMC) meeting, do you expect the Federal Reserve to lower interest rates, raise them, or leave them unchanged?
+J1) Lower Interest Rates
+J2) Leave Interest Rates Unchanged
+J3) Raise Interest Rates
+
+Question 11b) What do you expect the target interest rate to be immediately after the next Federal Open Market Committee (FOMC) meeting? Please provide the target interest rate as a percentage value (e.g., 5.25%).
+
+Question 12) Over the next five trading days, relative to today, do you expect the S&P 500 to be higher, lower, or about the same?
+K1) Higher
+K2) Lower
+K3) About The Same
 """
 
 daily_stock_pick_user_prompt_prefix = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).

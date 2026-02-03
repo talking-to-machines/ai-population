@@ -34,6 +34,7 @@ from ai_population.config.market_signals_config import (
     DAILY_STOCK_PICK_PROFILES_X,
     FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
     FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+    LATEST_K_POSTS_PER_PROFILE,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -217,6 +218,7 @@ def perform_x_finfluencer_interview(
         interview_type="x_finfluencer_interview",
         enable_web_search=True,
         response_timestamp_col="finfluencer_interview_datetime",
+        latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
     )
 
     # Preprocess post interview results
@@ -456,6 +458,8 @@ def perform_x_daily_stock_pick_interview(
     )
 
     for idx, user_prompt in enumerate(daily_stock_pick_user_prompts):
+        # if idx <= 0:
+        #     continue
         perform_profile_interview(
             project_name=project_name,
             execution_date=execution_date,
@@ -469,6 +473,7 @@ def perform_x_daily_stock_pick_interview(
             interview_type="x_finfluencer_daily_stock_pick",
             enable_web_search=True,
             response_timestamp_col="daily_stock_pick_interview_datetime",
+            latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
         )
 
     # Preprocess daily stock pick results

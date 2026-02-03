@@ -1160,7 +1160,9 @@ def extract_video_transcripts(profile_id: str, video_metadata: pd.DataFrame) -> 
     return "\n".join(video_transcripts_list)
 
 
-def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
+def extract_tweets(
+    profile_id: str, tweet_metadata: pd.DataFrame, latest_k_posts: int = None
+) -> str:
     # Filter the rows where profile_id matches
     filtered_tweets = tweet_metadata[tweet_metadata["account_id"] == profile_id].copy()
 
@@ -1168,6 +1170,11 @@ def extract_tweets(profile_id: str, tweet_metadata: pd.DataFrame) -> str:
     filtered_tweets = filtered_tweets.sort_values(
         by="createdAt", ascending=False
     ).reset_index(drop=True)
+
+    # If latest_k_posts is provided, limit to the latest k posts
+    if latest_k_posts is not None:
+        filtered_tweets = filtered_tweets.head(latest_k_posts)
+        assert len(filtered_tweets) <= latest_k_posts
 
     # Join the list of tweets into a single string, separated by newlines
     tweets_list = []
@@ -1297,6 +1304,7 @@ def perform_profile_interview(
     use_row_query: bool = False,
     enable_web_search: bool = False,
     response_timestamp_col: str = "",
+    latest_k_posts: int = None,
 ) -> None:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1339,7 +1347,7 @@ def perform_profile_interview(
         except ValueError:
             post_metadata["createdAt"] = pd.to_datetime(post_metadata["createdAt"])
         profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
-            extract_tweets, args=(post_metadata,)
+            extract_tweets, args=(post_metadata, latest_k_posts)
         )
     else:
         raise ValueError(f"Interview type: {interview_type} not supported.")
