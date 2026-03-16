@@ -400,6 +400,53 @@ def construct_system_prompt(
             "tweets": row.get("posts_combined", ""),
         }
 
+    elif interview_type in [
+        "jointllm_politician_demographic_interview",
+        "jointllm_politician_voting_interview",
+    ]:
+        profile_args = {
+            # For TikTok
+            "profile_image": row.get("profile_pic_url", ""),
+            "profile_name": row.get("account_id", ""),
+            "profile_nickname": row.get("nickname", ""),
+            "profile_biography": row.get("biography", ""),
+            "profile_signature": row.get("signature", ""),
+            "profile_bio_link": row.get("bio_link", ""),
+            "profile_url": row.get("url_tiktok", ""),
+            "profile_lang": row.get("predicted_lang", ""),
+            "profile_creation": row.get("create_time", ""),
+            "verified_status": row.get("is_verified", ""),
+            "num_followers": row.get("followers_tiktok", ""),
+            "num_following": row.get("following_tiktok", ""),
+            "num_likes": row.get("likes", ""),
+            "num_videos": row.get("videos_count", ""),
+            "num_digg": row.get("digg_count", ""),
+            "private_account": row.get("is_private", ""),
+            "region": row.get("region", ""),
+            "tiktok_seller": row.get("is_commerce_user", ""),
+            "awg_engagement_rate": row.get("awg_engagement_rate", ""),
+            "comment_engagement_rate": row.get("comment_engagement_rate", ""),
+            "like_engagement_rate": row.get("like_engagement_rate", ""),
+            "video_transcripts": row.get("posts_combined_tiktok", ""),
+            # For X (formerly Twitter)
+            "profile_picture": row.get("profilePicture", ""),
+            "name": row.get("name", ""),
+            "account_id": row.get("account_id", ""),
+            "location": row.get("location", ""),
+            "description": row.get("description", ""),
+            "url": row.get("url_x", ""),
+            "created_at": row.get("createdAt", ""),
+            "is_verified": row.get("isVerified", ""),
+            "is_blue_verified": row.get("isBlueVerified", ""),
+            "protected": row.get("protected", ""),
+            "followers": row.get("followers_x", ""),
+            "following": row.get("following_x", ""),
+            "statuses_count": row.get("statusesCount", ""),
+            "favourites_count": row.get("favouritesCount", ""),
+            "media_count": row.get("mediaCount", ""),
+            "tweets": row.get("posts_combined_x", ""),
+        }
+
     else:
         profile_args = {}
 
@@ -1446,6 +1493,214 @@ def perform_profile_interview(
         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
         profile_metadata_with_responses = pd.merge(
             left=profile_metadata,
+            right=llm_responses[["custom_id", llm_response_field]],
+            on="custom_id",
+        )
+
+    # Save profile metadata after analysis into CSV file
+    profile_metadata_with_responses.to_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
+        index=False,
+    )
+
+
+def perform_profile_interview_x_tiktok(
+    project_name: str,
+    execution_date: str,
+    gpt_model: str,
+    x_profile_metadata_file: str,
+    x_post_file: str,
+    tiktok_profile_metadata_file: str,
+    tiktok_post_file: str,
+    output_file: str,
+    system_prompt_template: str,
+    user_prompt_template: str,
+    llm_response_field: str,
+    interview_type: str,
+    history_field: str = None,
+    vector_store_ids: list = [],
+    use_row_query: bool = False,
+    enable_web_search: bool = False,
+    response_timestamp_col: str = "",
+    latest_k_posts: int = None,
+) -> None:
+    # Create the project subfolder within the data folder if it does not exist
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
+    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
+    )
+
+    # Load profile and post metadata (for X)
+    x_profile_metadata = pd.read_csv(
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, x_profile_metadata_file
+        )
+    )
+    x_post_metadata = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, x_post_file),
+        on_bad_lines="skip",
+    )
+    if "warning_code" in x_post_metadata.columns:
+        x_post_metadata = x_post_metadata[
+            x_post_metadata["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in x_post_metadata.columns:
+        x_post_metadata = x_post_metadata[
+            x_post_metadata["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
+    # Load profile and post metadata (for TikTok)
+    tiktok_profile_metadata = pd.read_csv(
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            tiktok_profile_metadata_file,
+        )
+    )
+    tiktok_post_metadata = pd.read_csv(
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, tiktok_post_file
+        ),
+        on_bad_lines="skip",
+    )
+    if "warning_code" in tiktok_post_metadata.columns:
+        tiktok_post_metadata = tiktok_post_metadata[
+            tiktok_post_metadata["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in tiktok_post_metadata.columns:
+        tiktok_post_metadata = tiktok_post_metadata[
+            tiktok_post_metadata["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
+    # Generate system and user prompts
+    tiktok_post_metadata["create_time"] = pd.to_datetime(
+        tiktok_post_metadata["create_time"]
+    )
+    tiktok_profile_metadata["posts_combined"] = tiktok_profile_metadata[
+        "account_id"
+    ].apply(extract_video_transcripts, args=(tiktok_post_metadata,))
+
+    try:
+        x_post_metadata["createdAt"] = pd.to_datetime(
+            x_post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
+        )
+    except ValueError:
+        x_post_metadata["createdAt"] = pd.to_datetime(x_post_metadata["createdAt"])
+    x_profile_metadata["posts_combined"] = x_profile_metadata["account_id"].apply(
+        extract_tweets, args=(x_post_metadata, latest_k_posts)
+    )
+
+    profile_metadata_combined = pd.merge(
+        left=tiktok_profile_metadata,
+        right=x_profile_metadata,
+        on="account_id",
+        suffixes=("_tiktok", "_x"),
+    )
+
+    if system_prompt_template:
+        profile_metadata_combined[f"{interview_type}_system_prompt"] = (
+            profile_metadata_combined.apply(
+                construct_system_prompt,
+                args=(system_prompt_template, interview_type),
+                axis=1,
+            )
+        )
+    profile_metadata_combined[f"{interview_type}_user_prompt"] = (
+        profile_metadata_combined.apply(
+            construct_user_prompt, args=(user_prompt_template, interview_type), axis=1
+        )
+    )
+
+    # Generate custom ids
+    if "custom_id" in profile_metadata_combined.columns:
+        profile_metadata_combined.drop(columns="custom_id", inplace=True)
+
+    profile_metadata_combined = profile_metadata_combined.reset_index(drop=False)
+    profile_metadata_combined.rename(columns={"index": "custom_id"}, inplace=True)
+
+    # Create folder to contain batch files
+    os.makedirs(
+        os.path.join(base_dir, "../data", project_name, execution_date, "batch-files"),
+        exist_ok=True,
+    )
+
+    if (
+        use_row_query or enable_web_search
+    ):  # When performing row-wise queries or enabling web search
+        profile_metadata_with_responses = profile_metadata_combined.copy()
+        row_query_args = [
+            f"{interview_type}_system_prompt",
+            f"{interview_type}_user_prompt",
+            gpt_model,
+            enable_web_search,
+        ]
+
+        # Choose how many parallel calls you want (tune for your rate limits)
+        max_workers = NUM_PARALLEL_PROCESSES
+
+        # Prepare rows in order so results line up with the DataFrame
+        rows = [row for _, row in profile_metadata_combined.iterrows()]
+
+        def run_row_query(row):
+            # row_query(row, args=(...)) matches your previous progress_apply usage
+            response_timestamp = (
+                pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            )
+            response = row_query(
+                row,
+                args=(row_query_args,),
+            )
+            return {"response": response, "response_timestamp": response_timestamp}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(
+                tqdm_auto(executor.map(run_row_query, rows), total=len(rows))
+            )
+
+        # Assign results back to the DataFrame in the same order
+        profile_metadata_with_responses[llm_response_field] = [
+            r["response"] for r in results
+        ]
+        profile_metadata_with_responses[response_timestamp_col] = [
+            r["response_timestamp"] for r in results
+        ]
+
+    else:  # Perform batch queries to save cost
+        # Perform batch query for survey questions
+        create_batch_file(
+            profile_metadata_combined,
+            project_name=project_name,
+            execution_date=execution_date,
+            gpt_model=gpt_model,
+            system_prompt_field=f"{interview_type}_system_prompt",
+            user_prompt_field=f"{interview_type}_user_prompt",
+            history_field=history_field,
+            batch_file_name="batch_input.jsonl",
+            vector_store_ids=vector_store_ids,
+        )
+
+        llm_responses = batch_query(
+            project_name=project_name,
+            execution_date=execution_date,
+            batch_input_file_dir="batch_input.jsonl",
+            batch_output_file_dir="batch_output.jsonl",
+            vector_store_ids=vector_store_ids,
+        )
+        llm_responses.rename(
+            columns={"query_response": llm_response_field}, inplace=True
+        )
+
+        # Merge LLM response with original dataset
+        profile_metadata_combined["custom_id"] = profile_metadata_combined[
+            "custom_id"
+        ].astype("int64")
+        llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+        profile_metadata_with_responses = pd.merge(
+            left=profile_metadata_combined,
             right=llm_responses[["custom_id", llm_response_field]],
             on="custom_id",
         )

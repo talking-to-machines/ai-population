@@ -458,7 +458,7 @@ def perform_x_daily_stock_pick_interview(
     )
 
     for idx, user_prompt in enumerate(daily_stock_pick_user_prompts):
-        # if idx <= 0:
+        # if idx <= 5:
         #     continue
         perform_profile_interview(
             project_name=project_name,

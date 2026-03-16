@@ -170,3 +170,4 @@ archive/
 video-downloads/
 __pycache__/
 *-2025/
+data/
