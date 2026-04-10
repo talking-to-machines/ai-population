@@ -200,115 +200,120 @@ def conduct_digital_polling(
 
 
 if __name__ == "__main__":
-    # Step 1: Perform profile search of identified politicians with a X profile (profile metadata and posts) during search period
-    print(
-        "1. Perform profile search of identified politicians with a X profile (profile metadata and recent posts) during search period"
-    )
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH):
-        perform_x_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-            local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH,
-        )
-    else:
-        perform_x_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X,
-        )
-
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH):
-        perform_x_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-            local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH,
-        )
-    else:
-        perform_x_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-        )
-
-    # Step 2: Perform profile search of identified politicians with a Tiktok profile (profile metadata and posts) during search period
-    print(
-        "2. Perform profile search of identified politicians with a Tiktok profile (profile metadata and recent posts) during search period"
-    )
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH):
-        perform_tiktok_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-            local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH,
-        )
-    else:
-        perform_tiktok_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK,
-        )
-
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH):
-        perform_tiktok_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-            local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH,
-        )
-    else:
-        perform_tiktok_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-        )
-        perform_video_transcription(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
-        )
-
-    # Step 3: Perform demographic interview to infer demographic information
-    print("3. Perform demographic interview to infer demographic information")
-    conduct_demographic_interview(
+    perform_video_transcription(
         project_name=PROJECT_NAME,
         execution_date=POLITICIAN_PIPELINE,
-        x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-        x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-        tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-        output_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
+        video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
     )
+    # # Step 1: Perform profile search of identified politicians with a X profile (profile metadata and posts) during search period
+    # print(
+    #     "1. Perform profile search of identified politicians with a X profile (profile metadata and recent posts) during search period"
+    # )
+    # if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH):
+    #     perform_x_profile_metadata_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_X,
+    #         output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+    #         local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH,
+    #     )
+    # else:
+    #     perform_x_profile_metadata_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_X,
+    #         output_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X,
+    #     )
 
-    # Step 4: Perform digital polling to infer election polling preferences
-    print("4. Perform digital polling to infer election polling preferences")
-    conduct_digital_polling(
-        project_name=PROJECT_NAME,
-        execution_date=POLITICIAN_PIPELINE,
-        x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-        x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-        tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-        output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
-    )
+    # if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH):
+    #     perform_x_profile_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_X,
+    #         output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+    #         start_date=PROFILE_SEARCH_START_DATE,
+    #         end_date=PROFILE_SEARCH_END_DATE,
+    #         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+    #         local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH,
+    #     )
+    # else:
+    #     perform_x_profile_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_X,
+    #         output_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X,
+    #         start_date=PROFILE_SEARCH_START_DATE,
+    #         end_date=PROFILE_SEARCH_END_DATE,
+    #         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+    #     )
+
+    # # Step 2: Perform profile search of identified politicians with a Tiktok profile (profile metadata and posts) during search period
+    # print(
+    #     "2. Perform profile search of identified politicians with a Tiktok profile (profile metadata and recent posts) during search period"
+    # )
+    # if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH):
+    #     perform_tiktok_profile_metadata_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_TIKTOK,
+    #         output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    #         local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH,
+    #     )
+    # else:
+    #     perform_tiktok_profile_metadata_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_TIKTOK,
+    #         output_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK,
+    #     )
+
+    # if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH):
+    #     perform_tiktok_profile_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_TIKTOK,
+    #         output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+    #         start_date=PROFILE_SEARCH_START_DATE,
+    #         end_date=PROFILE_SEARCH_END_DATE,
+    #         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+    #         local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH,
+    #     )
+    # else:
+    #     perform_tiktok_profile_search(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         input_file=POLITICIAN_POOL_FILE_TIKTOK,
+    #         output_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
+    #         start_date=PROFILE_SEARCH_START_DATE,
+    #         end_date=PROFILE_SEARCH_END_DATE,
+    #         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+    #     )
+    #     perform_video_transcription(
+    #         project_name=PROJECT_NAME,
+    #         execution_date=POLITICIAN_PIPELINE,
+    #         video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
+    #     )
+
+    # # Step 3: Perform demographic interview to infer demographic information
+    # print("3. Perform demographic interview to infer demographic information")
+    # conduct_demographic_interview(
+    #     project_name=PROJECT_NAME,
+    #     execution_date=POLITICIAN_PIPELINE,
+    #     x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+    #     x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+    #     tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    #     tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+    #     output_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
+    # )
+
+    # # Step 4: Perform digital polling to infer election polling preferences
+    # print("4. Perform digital polling to infer election polling preferences")
+    # conduct_digital_polling(
+    #     project_name=PROJECT_NAME,
+    #     execution_date=POLITICIAN_PIPELINE,
+    #     x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+    #     x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+    #     tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+    #     tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+    #     output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
+    # )
