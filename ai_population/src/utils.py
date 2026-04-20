@@ -477,10 +477,9 @@ def construct_system_prompt(
 def construct_user_prompt(
     row: pd.Series, user_prompt_template: str, interview_type: str
 ) -> str:
-    if interview_type in [
-        "tiktok_finfluencer_daily_stock_pick",
-        "x_finfluencer_daily_stock_pick",
-    ]:
+    if interview_type.startswith(
+        "tiktok_finfluencer_daily_stock_pick"
+    ) or interview_type.startswith("x_finfluencer_daily_stock_pick"):
         # Load Russell 4000 stock tickers
         russell4000_stock_tickers = pd.read_csv(
             os.path.join(base_dir, "../config", RUSSELL_4000_STOCK_TICKER_FILE)
@@ -551,6 +550,15 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
     confidence_list = []
     expected_holding_period_list = []
     primary_catalyst_type_list = []
+    resolution_list = []
+    contract_id_list = []
+    current_target_rate_list = []
+    cpi_yoy_list = []
+    latest_unemployment_rate_list = []
+    gdp_growth_rate_list = []
+    polymarket_implied_probability_list = []
+    polymarket_total_contract_value_list = []
+    probability_list = []
 
     # Define regex patterns for each field
     question_pattern = r"\*\*question: (.*?)\*\*"
@@ -565,6 +573,19 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
     confidence_pattern = r"\*\*confidence: (.*?)\*\*"
     expected_holding_period_pattern = r"\*\*expected holding period: (.*?)\*\*"
     primary_catalyst_type_pattern = r"\*\*primary catalyst type: (.*?)\*\*"
+    resolution_pattern = r"\*\*resolution: (.*?)\*\*"
+    contract_id_pattern = r"\*\*contract id: (.*?)\*\*"
+    current_target_rate_pattern = r"\*\*current target rate: (.*?)\*\*"
+    cpi_yoy_pattern = r"\*\*cpi yoy: (.*?)\*\*"
+    latest_unemployment_rate_pattern = r"\*\*latest unemployment rate: (.*?)\*\*"
+    gdp_growth_rate_pattern = r"\*\*gdp growth rate: (.*?)\*\*"
+    polymarket_implied_probability_pattern = (
+        r"\*\*polymarket implied probability: (.*?)\*\*"
+    )
+    polymarket_total_contract_value_pattern = (
+        r"\*\*polymarket total contract value: (.*?)\*\*"
+    )
+    probability_pattern = r"\*\*probability: (.*?)\*\*"
 
     # Iterate through each question block and extract the fields
     for block in questions_blocks:
@@ -586,6 +607,21 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         primary_catalyst_type = re.search(
             primary_catalyst_type_pattern, block, re.DOTALL
         )
+        resolution = re.search(resolution_pattern, block, re.DOTALL)
+        contract_id = re.search(contract_id_pattern, block, re.DOTALL)
+        current_target_rate = re.search(current_target_rate_pattern, block, re.DOTALL)
+        cpi_yoy = re.search(cpi_yoy_pattern, block, re.DOTALL)
+        latest_unemployment_rate = re.search(
+            latest_unemployment_rate_pattern, block, re.DOTALL
+        )
+        gdp_growth_rate = re.search(gdp_growth_rate_pattern, block, re.DOTALL)
+        polymarket_implied_probability = re.search(
+            polymarket_implied_probability_pattern, block, re.DOTALL
+        )
+        polymarket_total_contract_value = re.search(
+            polymarket_total_contract_value_pattern, block, re.DOTALL
+        )
+        probability = re.search(probability_pattern, block, re.DOTALL)
 
         questions_list.append(question.group(1).replace("”", "") if question else None)
         explanations_list.append(explanation.group(1) if explanation else None)
@@ -603,6 +639,29 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         primary_catalyst_type_list.append(
             primary_catalyst_type.group(1) if primary_catalyst_type else None
         )
+        resolution_list.append(resolution.group(1) if resolution else None)
+        contract_id_list.append(contract_id.group(1) if contract_id else None)
+        current_target_rate_list.append(
+            current_target_rate.group(1) if current_target_rate else None
+        )
+        cpi_yoy_list.append(cpi_yoy.group(1) if cpi_yoy else None)
+        latest_unemployment_rate_list.append(
+            latest_unemployment_rate.group(1) if latest_unemployment_rate else None
+        )
+        gdp_growth_rate_list.append(
+            gdp_growth_rate.group(1) if gdp_growth_rate else None
+        )
+        polymarket_implied_probability_list.append(
+            polymarket_implied_probability.group(1)
+            if polymarket_implied_probability
+            else None
+        )
+        polymarket_total_contract_value_list.append(
+            polymarket_total_contract_value.group(1)
+            if polymarket_total_contract_value
+            else None
+        )
+        probability_list.append(probability.group(1) if probability else None)
 
     # Create a DataFrame
     data = {
@@ -618,6 +677,15 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
         "confidence": confidence_list,
         "expected_holding_period": expected_holding_period_list,
         "primary_catalyst_type": primary_catalyst_type_list,
+        "resolution": resolution_list,
+        "contract_id": contract_id_list,
+        "current_target_rate": current_target_rate_list,
+        "cpi_yoy": cpi_yoy_list,
+        "latest_unemployment_rate": latest_unemployment_rate_list,
+        "gdp_growth_rate": gdp_growth_rate_list,
+        "polymarket_implied_probability": polymarket_implied_probability_list,
+        "polymarket_total_contract_value": polymarket_total_contract_value_list,
+        "probability": probability_list,
     }
     df = pd.DataFrame(data)
 
@@ -653,6 +721,34 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
             flattened_series[f"{question_prefix} - primary catalyst type"] = row[
                 "primary_catalyst_type"
             ]
+        if row["resolution"]:
+            flattened_series[f"{question_prefix} - resolution"] = row["resolution"]
+        if row["contract_id"]:
+            flattened_series[f"{question_prefix} - contract id"] = row["contract_id"]
+        if row["current_target_rate"]:
+            flattened_series[f"{question_prefix} - current target rate"] = row[
+                "current_target_rate"
+            ]
+        if row["cpi_yoy"]:
+            flattened_series[f"{question_prefix} - cpi yoy"] = row["cpi_yoy"]
+        if row["latest_unemployment_rate"]:
+            flattened_series[f"{question_prefix} - latest unemployment rate"] = row[
+                "latest_unemployment_rate"
+            ]
+        if row["gdp_growth_rate"]:
+            flattened_series[f"{question_prefix} - gdp growth rate"] = row[
+                "gdp_growth_rate"
+            ]
+        if row["polymarket_implied_probability"]:
+            flattened_series[f"{question_prefix} - polymarket implied probability"] = (
+                row["polymarket_implied_probability"]
+            )
+        if row["polymarket_total_contract_value"]:
+            flattened_series[f"{question_prefix} - polymarket total contract value"] = (
+                row["polymarket_total_contract_value"]
+            )
+        if row["probability"]:
+            flattened_series[f"{question_prefix} - probability"] = row["probability"]
 
     return flattened_series
 
@@ -845,6 +941,7 @@ def create_batch_file(
     history_field: str = None,
     batch_file_name: str = "batch_input.jsonl",
     vector_store_ids: list = [],
+    enable_web_search: bool = False,
 ) -> str:
     # Creating an array of json tasks
     tasks = []
@@ -881,67 +978,51 @@ def create_batch_file(
 
         messages.append({"role": "user", "content": user_txt})
 
-        if gpt_model.startswith("gpt-4"):
-            if vector_store_ids:
-                task = {
-                    "custom_id": custom_id,
-                    "method": "POST",
-                    "url": "/v1/responses",
-                    "body": {
-                        "model": gpt_model,
-                        "temperature": 0,
-                        "input": messages_to_input(messages),
-                        "tools": [
-                            {
-                                "type": "file_search",
-                                "vector_store_ids": vector_store_ids,
-                            }
-                        ],
-                    },
-                }
-
-            else:
-                task = {
-                    "custom_id": custom_id,
-                    "method": "POST",
-                    "url": "/v1/chat/completions",
-                    "body": {
-                        "model": gpt_model,
-                        "temperature": 0,
-                        "messages": messages,
-                    },
-                }
-
-        elif gpt_model.startswith("gpt-5"):
-            if vector_store_ids:
-                task = {
-                    "custom_id": custom_id,
-                    "method": "POST",
-                    "url": "/v1/responses",
-                    "body": {
-                        "model": gpt_model,
-                        "input": messages_to_input(messages),
-                        "tools": [
-                            {
-                                "type": "file_search",
-                                "vector_store_ids": vector_store_ids,
-                            }
-                        ],
-                    },
-                }
-
-            else:
-                task = {
-                    "custom_id": custom_id,
-                    "method": "POST",
-                    "url": "/v1/chat/completions",
-                    "body": {
-                        "model": gpt_model,
-                        "messages": messages,
-                    },
-                }
-        else:
+        if not gpt_model.startswith(("gpt-4", "gpt-5")):
             raise ValueError(f"Unsupported GPT model: {gpt_model}")
+
+        # Build tools list based on enabled features
+        tools = []
+        if vector_store_ids:
+            tools.append({"type": "file_search", "vector_store_ids": vector_store_ids})
+        if enable_web_search:
+            tools.append(
+                {
+                    "type": "web_search",
+                    "search_context_size": "medium",
+                    "user_location": {"type": "approximate", "country": "US"},
+                }
+            )
+
+        if tools:
+            # Use /v1/responses endpoint when tools are required
+            body = {
+                "model": gpt_model,
+                "input": messages_to_input(messages),
+                "tools": tools,
+            }
+            if gpt_model.startswith("gpt-4"):
+                body["temperature"] = 0
+            task = {
+                "custom_id": custom_id,
+                "method": "POST",
+                "url": "/v1/responses",
+                "body": body,
+            }
+        else:
+            # Use /v1/chat/completions endpoint when no tools are needed
+            body = {
+                "model": gpt_model,
+                "messages": messages,
+            }
+            if gpt_model.startswith("gpt-4"):
+                body["temperature"] = 0
+            task = {
+                "custom_id": custom_id,
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": body,
+            }
 
         tasks.append(task)
 
@@ -962,6 +1043,7 @@ def batch_query(
     batch_input_file_dir: str,
     batch_output_file_dir: str,
     vector_store_ids: list = [],
+    enable_web_search: bool = False,
 ) -> pd.DataFrame:
     # Upload batch input file
     batch_file = openai_client.files.create(
@@ -973,7 +1055,8 @@ def batch_query(
     )
 
     # Create batch job
-    if vector_store_ids:
+    use_responses_api = bool(vector_store_ids) or enable_web_search
+    if use_responses_api:
         batch_job = openai_client.batches.create(
             input_file_id=batch_file.id,
             endpoint="/v1/responses",
@@ -1019,27 +1102,22 @@ def batch_query(
             # Parsing the JSON result string into a dict
             result = json.loads(line.strip())
 
-            if vector_store_ids:
-                try:
-                    response_list.append(
-                        {
-                            "custom_id": f'{result["custom_id"]}',
-                            "query_response": result["response"]["body"]["output"][1][
-                                "content"
-                            ][0]["text"],
-                        }
+            if use_responses_api:
+                output_items = result["response"]["body"]["output"]
+                message_item = next(
+                    (item for item in output_items if item.get("type") == "message"),
+                    None,
+                )
+                if message_item is None:
+                    raise ValueError(
+                        f"No message item found in output for custom_id={result['custom_id']}"
                     )
-                except IndexError:
-                    response_list.append(
-                        {
-                            "custom_id": f'{result["custom_id"]}',
-                            "query_response": result["response"]["body"]["output"][0][
-                                "content"
-                            ][0]["text"],
-                        }
-                    )
-                except:
-                    raise
+                response_list.append(
+                    {
+                        "custom_id": f'{result["custom_id"]}',
+                        "query_response": message_item["content"][0]["text"],
+                    }
+                )
 
             else:
                 response_list.append(
@@ -1422,9 +1500,7 @@ def perform_profile_interview(
         exist_ok=True,
     )
 
-    if (
-        use_row_query or enable_web_search
-    ):  # When performing row-wise queries or enabling web search
+    if use_row_query:  # When performing row-wise queries
         profile_metadata_with_responses = profile_metadata.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
@@ -1465,6 +1541,9 @@ def perform_profile_interview(
 
     else:  # Perform batch queries to save cost
         # Perform batch query for survey questions
+        batch_input_file = f"{interview_type}_batch_input.jsonl"
+        batch_output_file = f"{interview_type}_batch_output.jsonl"
+
         create_batch_file(
             profile_metadata,
             project_name=project_name,
@@ -1473,16 +1552,18 @@ def perform_profile_interview(
             system_prompt_field=f"{interview_type}_system_prompt",
             user_prompt_field=f"{interview_type}_user_prompt",
             history_field=history_field,
-            batch_file_name="batch_input.jsonl",
+            batch_file_name=batch_input_file,
             vector_store_ids=vector_store_ids,
+            enable_web_search=enable_web_search,
         )
 
         llm_responses = batch_query(
             project_name=project_name,
             execution_date=execution_date,
-            batch_input_file_dir="batch_input.jsonl",
-            batch_output_file_dir="batch_output.jsonl",
+            batch_input_file_dir=batch_input_file,
+            batch_output_file_dir=batch_output_file,
             vector_store_ids=vector_store_ids,
+            enable_web_search=enable_web_search,
         )
         llm_responses.rename(
             columns={"query_response": llm_response_field}, inplace=True
@@ -1628,9 +1709,7 @@ def perform_profile_interview_x_tiktok(
         exist_ok=True,
     )
 
-    if (
-        use_row_query or enable_web_search
-    ):  # When performing row-wise queries or enabling web search
+    if use_row_query:  # When performing row-wise queries
         profile_metadata_with_responses = profile_metadata_combined.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
@@ -1671,6 +1750,9 @@ def perform_profile_interview_x_tiktok(
 
     else:  # Perform batch queries to save cost
         # Perform batch query for survey questions
+        batch_input_file = f"{interview_type}_batch_input.jsonl"
+        batch_output_file = f"{interview_type}_batch_output.jsonl"
+
         create_batch_file(
             profile_metadata_combined,
             project_name=project_name,
@@ -1679,16 +1761,18 @@ def perform_profile_interview_x_tiktok(
             system_prompt_field=f"{interview_type}_system_prompt",
             user_prompt_field=f"{interview_type}_user_prompt",
             history_field=history_field,
-            batch_file_name="batch_input.jsonl",
+            batch_file_name=batch_input_file,
             vector_store_ids=vector_store_ids,
+            enable_web_search=enable_web_search,
         )
 
         llm_responses = batch_query(
             project_name=project_name,
             execution_date=execution_date,
-            batch_input_file_dir="batch_input.jsonl",
-            batch_output_file_dir="batch_output.jsonl",
+            batch_input_file_dir=batch_input_file,
+            batch_output_file_dir=batch_output_file,
             vector_store_ids=vector_store_ids,
+            enable_web_search=enable_web_search,
         )
         llm_responses.rename(
             columns={"query_response": llm_response_field}, inplace=True
