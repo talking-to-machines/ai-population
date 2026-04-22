@@ -3,7 +3,7 @@ import pandas as pd
 
 pd.set_option("future.no_silent_downcasting", True)
 from requests.auth import HTTPBasicAuth
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 from tqdm import tqdm
 from tqdm.auto import tqdm as tqdm_auto
 
@@ -1044,6 +1044,7 @@ def batch_query(
     batch_output_file_dir: str,
     vector_store_ids: list = [],
     enable_web_search: bool = False,
+    timeout_seconds: int = None,
 ) -> pd.DataFrame:
     # Upload batch input file
     batch_file = openai_client.files.create(
@@ -1070,6 +1071,7 @@ def batch_query(
         )
 
     # Check batch status
+    start_time = time.monotonic()
     while True:
         batch_job = openai_client.batches.retrieve(batch_job.id)
         print(f"Batch job status: {batch_job.status}")
@@ -1078,6 +1080,19 @@ def batch_query(
         elif batch_job.status == "failed":
             raise Exception("Batch job failed.")
         else:
+            if (
+                timeout_seconds is not None
+                and (time.monotonic() - start_time) >= timeout_seconds
+            ):
+                try:
+                    openai_client.batches.cancel(batch_job.id)
+                except Exception as cancel_err:
+                    warnings.warn(
+                        f"Failed to cancel batch job {batch_job.id}: {cancel_err}"
+                    )
+                raise TimeoutError(
+                    f"Batch job {batch_job.id} did not complete within {timeout_seconds} seconds."
+                )
             # Wait for 5 minutes before checking again
             time.sleep(300)
 
@@ -1430,6 +1445,7 @@ def perform_profile_interview(
     enable_web_search: bool = False,
     response_timestamp_col: str = "",
     latest_k_posts: int = None,
+    batch_timeout_seconds: int = 7200,
 ) -> None:
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1500,8 +1516,8 @@ def perform_profile_interview(
         exist_ok=True,
     )
 
-    if use_row_query:  # When performing row-wise queries
-        profile_metadata_with_responses = profile_metadata.copy()
+    def _run_row_query():
+        df = profile_metadata.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
             f"{interview_type}_user_prompt",
@@ -1532,15 +1548,11 @@ def perform_profile_interview(
             )
 
         # Assign results back to the DataFrame in the same order
-        profile_metadata_with_responses[llm_response_field] = [
-            r["response"] for r in results
-        ]
-        profile_metadata_with_responses[response_timestamp_col] = [
-            r["response_timestamp"] for r in results
-        ]
+        df[llm_response_field] = [r["response"] for r in results]
+        df[response_timestamp_col] = [r["response_timestamp"] for r in results]
+        return df
 
-    else:  # Perform batch queries to save cost
-        # Perform batch query for survey questions
+    def _run_batch_query():
         batch_input_file = f"{interview_type}_batch_input.jsonl"
         batch_output_file = f"{interview_type}_batch_output.jsonl"
 
@@ -1564,6 +1576,7 @@ def perform_profile_interview(
             batch_output_file_dir=batch_output_file,
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
+            timeout_seconds=batch_timeout_seconds,
         )
         llm_responses.rename(
             columns={"query_response": llm_response_field}, inplace=True
@@ -1572,11 +1585,23 @@ def perform_profile_interview(
         # Merge LLM response with original dataset
         profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-        profile_metadata_with_responses = pd.merge(
+        return pd.merge(
             left=profile_metadata,
             right=llm_responses[["custom_id", llm_response_field]],
             on="custom_id",
         )
+
+    if use_row_query:
+        profile_metadata_with_responses = _run_row_query()
+    else:
+        try:
+            profile_metadata_with_responses = _run_batch_query()
+        except TimeoutError as e:
+            warnings.warn(
+                f"Batch job did not complete within {batch_timeout_seconds} seconds: {e}. "
+                f"Falling back to row-query approach."
+            )
+            profile_metadata_with_responses = _run_row_query()
 
     # Save profile metadata after analysis into CSV file
     profile_metadata_with_responses.to_csv(
@@ -2848,3 +2873,168 @@ def perform_x_profile_metadata_search(
     )
 
     return profile_metadata
+
+
+def fred_get(series_id, observation_start, observation_end, sort_order="desc", limit=1):
+    """Fetch observations from FRED API, return a sorted DataFrame."""
+    api_key = FRED_API_KEY
+    if not api_key:
+        raise EnvironmentError("FRED_API_KEY not set.")
+
+    url = "https://api.stlouisfed.org/fred/series/observations"
+    params = {
+        "series_id": series_id,
+        "observation_start": observation_start.strftime("%Y-%m-%d"),
+        "observation_end": observation_end.strftime("%Y-%m-%d"),
+        "sort_order": sort_order,
+        "limit": limit,
+        "file_type": "json",
+        "api_key": api_key,
+    }
+    r = requests.get(url, params=params)
+    r.raise_for_status()
+    obs = r.json()["observations"]
+    df = pd.DataFrame(obs)[["date", "value"]]
+    df["date"] = pd.to_datetime(df["date"])
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    return df.sort_values("date").reset_index(drop=True)
+
+
+def get_macro_today(gdp_override=None):
+    """Pull latest macro indicators from FRED, return a long-format DataFrame."""
+    today = date.today()
+
+    # Fed Funds Rate (DFF — daily)
+    fed_df = fred_get("DFF", today - timedelta(days=10), today, limit=1)
+    fed_rate = fed_df["value"].iloc[-1]
+
+    # CPI Y/Y (CPIAUCSL — monthly, compute Y/Y)
+    cpi_df = fred_get("CPIAUCSL", today - timedelta(days=400), today, limit=14)
+    cpi_latest = cpi_df.iloc[-1]
+    cutoff = cpi_latest["date"] - pd.DateOffset(months=11)
+    cpi_year_ago = cpi_df[cpi_df["date"] <= cutoff].iloc[-1]
+    cpi_yoy = round(((cpi_latest["value"] / cpi_year_ago["value"]) - 1) * 100, 2)
+
+    # Unemployment Rate (UNRATE — monthly)
+    unemp_df = fred_get("UNRATE", today - timedelta(days=60), today, limit=1)
+    unemp_rate = unemp_df["value"].iloc[-1]
+
+    # Real GDP Growth annualised (GDPC1 — quarterly)
+    if gdp_override is not None:
+        gdp_growth = gdp_override
+    else:
+        gdp_df = fred_get("GDPC1", today - timedelta(days=400), today, limit=2)
+        gdp_growth = round(
+            ((gdp_df["value"].iloc[-1] / gdp_df["value"].iloc[0]) ** 4 - 1) * 100, 2
+        )
+
+    return pd.DataFrame(
+        {
+            "variable": ["fed_rate", "cpi_yoy", "unemp_rate", "gdp_growth"],
+            "description": [
+                "Fed funds effective rate (FRED/DFF)",
+                "CPI year-over-year % (FRED/CPIAUCSL)",
+                "Unemployment rate % (FRED/UNRATE)",
+                "Real GDP growth annualised % (FRED/GDPC1)",
+            ],
+            "contract_id": [None, None, None, None],
+            "value": [fed_rate, cpi_yoy, unemp_rate, gdp_growth],
+        }
+    )
+
+
+def get_market_price_today(market_id, description):
+    """Fetch latest implied probability and contract volume from Polymarket.
+
+    Resolved markets return 0 or 100 depending on NO/YES outcome.
+    """
+    print(f"Downloading: {description}")
+    time.sleep(0.5)
+
+    try:
+        # Market metadata — active first, then closed, then archived
+        market_data = None
+        for extra_params in [
+            {},
+            {"closed": "true"},
+            {"closed": "true", "archived": "true"},
+        ]:
+            r_market = requests.get(
+                "https://gamma-api.polymarket.com/markets",
+                params={"id": market_id, **extra_params},
+            )
+            r_market.raise_for_status()
+            market_list = r_market.json()
+            if market_list:
+                market_data = market_list[0]
+                break
+
+        if market_data is None:
+            raise ValueError(f"No market found for id={market_id}")
+
+        volume_usd = float(market_data["volume"])
+        clob_ids = json.loads(market_data["clobTokenIds"])
+
+        # Try price history first (works for active and recently resolved markets)
+        latest_price = None
+        if clob_ids:
+            r_prices = requests.get(
+                "https://clob.polymarket.com/prices-history",
+                params={"market": clob_ids[0], "interval": "1d", "fidelity": 1},
+            )
+            r_prices.raise_for_status()
+            history = r_prices.json().get("history", [])
+            if history:
+                latest_price = max(history, key=lambda x: x["t"])["p"]
+
+        # Fall back to resolution fields when price history is unavailable
+        if latest_price is None:
+            res = market_data.get("resolutionYes")
+            if res is not None:
+                latest_price = float(res)  # 1.0 → YES (100), 0.0 → NO (0)
+            else:
+                # outcomePrices is a JSON string ["yesPrice","noPrice"]
+                outcome_prices_raw = market_data.get("outcomePrices")
+                if outcome_prices_raw is not None:
+                    latest_price = float(json.loads(outcome_prices_raw)[0])
+                else:
+                    raise ValueError(
+                        f"Cannot determine price for id={market_id}: "
+                        "empty price history, no resolutionYes, no outcomePrices"
+                    )
+
+        return pd.DataFrame(
+            {
+                "variable": ["polymarket_p", "contract_volume"],
+                "description": [description, description],
+                "contract_id": [market_id, market_id],
+                "value": [round(latest_price * 100, 2), volume_usd],
+            }
+        )
+
+    except Exception as e:
+        warnings.warn(f"Error in {description}: {e}")
+        return pd.DataFrame(
+            {
+                "variable": ["polymarket_p", "contract_volume"],
+                "description": [description, description],
+                "contract_id": [market_id, market_id],
+                "value": [None, None],
+            }
+        )
+
+
+def fetch_daily_snapshot(events, gdp_override=None):
+    """Fetch macro indicators + per-contract Polymarket prices. Always live."""
+    print("Downloading: macro indicators")
+    macro_rows = get_macro_today(gdp_override=gdp_override)
+    poly_rows = pd.concat(
+        [
+            get_market_price_today(
+                market_id=e["market_id"], description=e["description"]
+            )
+            for e in events
+        ],
+        ignore_index=True,
+    )
+    return pd.concat([macro_rows, poly_rows], ignore_index=True)

@@ -2476,24 +2476,28 @@ K3) About The Same
 """
 
 ## Prediction Market Prompts
-prediction_market_interview_user_prompt = """You will be presented with a series of prediction market questions.
+prediction_market_interview_user_prompt_preamble = """You will be presented with a series of prediction market questions.
+
 For each question, follow these instructions strictly:
-Provide the most likely response based strictly on the provided profile data. The chosen response must accurately reflect the influencer’s perspective.
-For each response, indicate the level of speculation involved on a scale from 0 (not speculative at all, every single element of the profile data was useful) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation must refer only to the information available in the profile data and not to external sources.
+1) Provide the most likely response based strictly on the provided profile data. The chosen response must accurately reflect the influencer’s perspective.
+2) For each response, indicate the level of speculation involved on a scale from 0 (not speculative at all, every single element of the profile data was useful) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation must refer only to the information available in the profile data and not to external sources.
+
 To ensure consistency, use the following guidelines to determine speculation levels:
 0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
- 21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
- 41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
- 61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
- 81-100 (High speculation): The profile data provides no or almost no relevant information relevant to the question. (e.g., assumptions based on very general information)
-When asked to provide an explanation, please provide a detailed explanation and the data features that contributed to your response.
-When asked to provide a probability estimate, please indicate on a scale of 0 (the event will definitely not occur) to 1 (the event will definitely occur).
-Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
-Format your output as follows (this is just an example; do not focus on the specific explanation, probability or speculation provided. However, you need to retain the exact information provided in the following fields: resolution, contract id, current target rate, cpi yoy, latest unemployment rate, gdp growth rate, polymarket implied probability, polymarket total contract value):
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no relevant information relevant to the question. (e.g., assumptions based on very general information)
 
-**question: The U.S. Federal Reserve will make NO CHANGE to interest rates at its next meeting (April 29, 2026).**
-**resolution: resolves YES if no rate change at the April meeting.**
-**contract id: 669662**
+4) When asked to provide an explanation, please provide a detailed explanation and the data features that contributed to your response.
+5) When asked to provide a probability estimate, please indicate on a scale of 0 (the event will definitely not occur) to 1 (the event will definitely occur).
+6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
+
+Required format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by a colon (:), and end with **. Do not include text outside the asterisks or additional lines. Format your output as follows (this is just an example; do not focus on the specific explanation, probability or speculation provided. However, you need to retain the exact information provided in the following fields: resolution, contract id, current target rate, cpi yoy, latest unemployment rate, gdp growth rate, polymarket implied probability, polymarket total contract value):"""
+
+prediction_market_question_block_template = """**question: {question_text}**
+**resolution: {resolution_text}**
+**contract id: {contract_id}**
 **current target rate: {fed_rate}**
 **cpi yoy: {cpi_yoy}**
 **latest unemployment rate: {unemp_rate}**
@@ -2502,223 +2506,15 @@ Format your output as follows (this is just an example; do not focus on the spec
 **polymarket total contract value: {contract_volume}**
 **explanation: [Detailed explanation for selected response]**
 **probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
+**speculation: [Speculation score selected]**"""
 
-**question: The U.S. Federal Reserve will make NO CHANGE to interest rates at its June 2026 meeting.**
-**resolution: resolves YES if no rate change at the June 17, 2026 meeting.**
-**contract id: 906974**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: The U.S. Federal Reserve will make NO CHANGE to interest rates at its July 2026 meeting.**
-**resolution: resolves YES if no rate change at the July 29, 2026 meeting.**
-**contract id: 1654958**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: There will be NO Federal Reserve rate cuts in 2026.**
-**resolution: resolves YES if the Fed funds rate ends 2026 at {fed_rate} or higher.**
-**contract id: 616902**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. annual CPI inflation will be 2.8% or higher when March 2026 data is released.**
-**resolution: resolves YES if CPI year-over-year ≥ 2.8% for March 2026.**
-**contract id: 1374263**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. annual inflation will exceed 3.0% at some point in 2026.**
-**resolution: resolves YES if any CPI year-over-year in 2026 exceeds 3.0%.**
-**contract id: 680949**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. unemployment rate will reach at least 5.0% at some point in 2026.**
-**resolution: resolves YES if unemployment rate ≥ 5.0% in any 2026 release.**
-**contract id: 1087309**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. unemployment rate will reach at least 5.5% at some point in 2026.**
-**resolution: resolves YES if unemployment rate ≥ 5.5% in any 2026 release.**
-**contract id: 1087310**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. GDP growth in Q1 2026 will exceed 3.5% (annualised).**
-**resolution: resolves YES if the BEA advance estimate of Q1 2026 GDP growth is > 3.5%.**
-**contract id: 1006079**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: The U.S. will experience negative GDP growth in 2026 (recession).**
-**resolution: resolves YES if full-year GDP growth is negative.**
-**contract id: 680601**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: Jerome Powell will leave the Federal Reserve Board by May 30, 2026.**
-**resolution: resolves YES if Powell leaves the Fed Board by May 30, 2026.**
-**contract id: 1115676**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: The Federal Reserve will make an emergency rate cut before the end of 2026.**
-**resolution: resolves YES if the Fed makes an unscheduled emergency rate cut before December 31, 2026.**
-**contract id: 677147**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: Will the 10-year treasury yield hit 4.4% by April 30, 2026?**
-**resolution: resolves YES if the 10-year Treasury yield reaches ≥4.4% by April 30, 2026.**
-**contract id: 1819596**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: Jerome Powell will leave the Federal Reserve Board by December 31, 2026.**
-**resolution: resolves YES if Powell leaves the Fed Board by December 31, 2026.**
-**contract id: 1115677**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. annual inflation will exceed 4% at some point in 2026.**
-**resolution: resolves YES if any CPI year-over-year in 2026 exceeds 4%.**
-**contract id: 680950**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. unemployment rate will reach at least 10.0% at some point in 2026.**
-**resolution: resolves YES if unemployment rate ≥ 10.0% in any 2026 release.**
-**contract id: 1087313**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-**question: U.S. annual inflation will exceed 3.5% at some point in 2026.**
-**resolution: resolves YES if any CPI year-over-year in 2026 exceeds 3.5%.**
-**contract id: 1665896**
-**current target rate: {fed_rate}**
-**cpi yoy: {cpi_yoy}**
-**latest unemployment rate: {unemp_rate}**
-**gdp growth rate: {gdp_growth}**
-**polymarket implied probability: {polymarket_p}**
-**polymarket total contract value: {contract_volume}**
-**explanation: [Detailed explanation for selected response]**
-**probability: [Value between 0 and 1]**
-**speculation: [Speculation score selected]**
-
-YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+prediction_market_interview_user_prompt_suffix = """YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
 
 Question 1) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its next meeting (April 29, 2026)? Please provide a specific value between 0 and 1.
 
 Question 2) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its June 2026 meeting? Please provide a specific value between 0 and 1.
 
-Question 3) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its September 2026 meeting? Please provide a specific value between 0 and 1.
+Question 3) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its July 2026 meeting? Please provide a specific value between 0 and 1.
 
 Question 4) What probability do you assign to the following event: There will be NO Federal Reserve rate cuts in 2026? Please provide a specific value between 0 and 1.
 

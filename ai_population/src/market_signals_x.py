@@ -40,6 +40,8 @@ from ai_population.config.market_signals_config import (
     LATEST_K_POSTS_PER_PROFILE,
     FINFLUENCER_PREDICTION_MARKET_FILE_X,
     PREDICTION_MARKET_INTERVIEW_REGEX_PATTERNS,
+    POLYMARKET_EVENTS,
+    GDP_MANUAL_OVERRIDE,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -61,6 +63,7 @@ from ai_population.src.utils import (
     perform_x_keyword_search,
     perform_x_profile_metadata_search,
     perform_x_profile_search,
+    fetch_daily_snapshot,
 )
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
@@ -69,7 +72,9 @@ from ai_population.prompts.prompt_template import (
     investmentadvisor_reflection_user_prompt,
     x_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
-    prediction_market_interview_user_prompt,
+    prediction_market_interview_user_prompt_preamble,
+    prediction_market_question_block_template,
+    prediction_market_interview_user_prompt_suffix,
     stock_recommendation_interview_user_prompt,
     daily_stock_pick_user_prompts,
 )
@@ -225,6 +230,7 @@ def perform_x_finfluencer_interview(
         enable_web_search=True,
         response_timestamp_col="finfluencer_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+        batch_timeout_seconds=3600,
     )
 
     # Preprocess post interview results
@@ -251,7 +257,7 @@ def perform_x_finfluencer_interview(
             pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         )
 
-    # # Format past conversation #TODO Uncomment when implementation is completed
+    # # Format past conversation
     # post_interview_results["history"] = post_interview_results.apply(
     #     lambda row: json.dumps(
     #         [
@@ -296,7 +302,7 @@ def perform_x_finfluencer_interview(
         index=False,
     )
 
-    # # Conduct prediction market interview #TODO Uncomment when implementation is completed
+    # # Conduct prediction market interview
     # perform_x_prediction_market_interview(
     #     project_name=project_name,
     #     execution_date=execution_date,
@@ -315,6 +321,44 @@ def perform_x_prediction_market_interview(
     output_file: str,
     filter_original_profiles: bool = False,
 ) -> None:
+    snapshot = fetch_daily_snapshot(
+        events=POLYMARKET_EVENTS,
+        gdp_override=GDP_MANUAL_OVERRIDE,
+    )
+    macro = {
+        row["variable"]: row["value"]
+        for _, row in snapshot.iterrows()
+        if row["contract_id"] is None or pd.isna(row["contract_id"])
+    }
+
+    blocks = []
+    for event in POLYMARKET_EVENTS:
+        mid = str(event["market_id"])
+        contract_rows = snapshot[snapshot["contract_id"].astype(str) == mid]
+        poly_p_row = contract_rows[contract_rows["variable"] == "polymarket_p"]["value"]
+        vol_row = contract_rows[contract_rows["variable"] == "contract_volume"]["value"]
+        blocks.append(
+            prediction_market_question_block_template.format(
+                question_text=event["question_text"],
+                resolution_text=event["resolution_text"].format(**macro),
+                contract_id=mid,
+                fed_rate=macro["fed_rate"],
+                cpi_yoy=macro["cpi_yoy"],
+                unemp_rate=macro["unemp_rate"],
+                gdp_growth=macro["gdp_growth"],
+                polymarket_p=poly_p_row.iloc[0] if len(poly_p_row) else "NA",
+                contract_volume=vol_row.iloc[0] if len(vol_row) else "NA",
+            )
+        )
+
+    rendered_prompt = (
+        prediction_market_interview_user_prompt_preamble
+        + "\n\n"
+        + "\n\n".join(blocks)
+        + "\n\n"
+        + prediction_market_interview_user_prompt_suffix
+    )
+
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
@@ -323,13 +367,14 @@ def perform_x_prediction_market_interview(
         post_file=post_file,
         output_file=output_file,
         system_prompt_template=x_finfluencer_interview_system_prompt,
-        user_prompt_template=prediction_market_interview_user_prompt,
+        user_prompt_template=rendered_prompt,
         llm_response_field="x_prediction_market_interview",
         interview_type="x_prediction_market_interview",
         enable_web_search=True,
         response_timestamp_col="prediction_market_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
         history_field="history",
+        batch_timeout_seconds=3600,
     )
 
     # Preprocess post interview results
@@ -475,6 +520,7 @@ def perform_x_stock_recommendation_interview(
         interview_type="x_finfluencer_stock_recommendation",
         enable_web_search=True,
         response_timestamp_col="stock_recommendation_interview_datetime",
+        batch_timeout_seconds=3600,
     )
 
     stock_recommendations = pd.read_csv(
@@ -584,6 +630,7 @@ def perform_x_daily_stock_pick_interview(
             enable_web_search=True,
             response_timestamp_col="daily_stock_pick_interview_datetime",
             latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+            batch_timeout_seconds=3600,
         )
 
     with ThreadPoolExecutor(max_workers=3) as executor:

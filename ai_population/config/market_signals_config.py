@@ -8,7 +8,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
 PIPELINE_EXECUTION_DATE = (
-    "19-04-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
+    "21-04-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
 )
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
@@ -16,8 +16,8 @@ MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 100
 NUM_POSTS_PER_PROFILE = 20
 LATEST_K_POSTS_PER_PROFILE = 850
-PROFILE_SEARCH_START_DATE = "04-19-2026"  # MM-DD-YYYY  (Inclusive)
-PROFILE_SEARCH_END_DATE = "04-20-2026"  # MM-DD-YYYY format  (Exclusive)
+PROFILE_SEARCH_START_DATE = "04-21-2026"  # MM-DD-YYYY  (Inclusive)
+PROFILE_SEARCH_END_DATE = "04-22-2026"  # MM-DD-YYYY format  (Exclusive)
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 SP_500_STOCK_TICKER_FILE = "sp500_stock_tickers_shorten.csv"
 NASDAQ_100_STOCK_TICKER_FILE = "nasdaq100_stock_tickers_shorten.csv"
@@ -496,7 +496,6 @@ ORIGINAL_PROFILES_TIKTOK = [
     "yahoofinance",
 ]
 
-
 # X-specific configurations
 PROJECT_NAME_X = "market-signals-x"
 KEYWORD_SEARCH_FILE_X = f"x_keyword_search_{PIPELINE_EXECUTION_DATE}.csv"
@@ -747,4 +746,111 @@ DAILY_STOCK_PICK_PROFILES_X = [
     "samsolid57",
     "investwithsheng",
     "NolanGouveiapG",
+]
+
+# Prediction market (Polymarket) events used by perform_x_prediction_market_interview.
+GDP_MANUAL_OVERRIDE = None  # set to a numeric annualised % to override FRED/GDPC1
+POLYMARKET_EVENTS = [
+    {
+        "market_id": "669662",
+        "description": "Will there be no change in Fed interest rates after the April 2026 meeting?",
+        "question_text": "The U.S. Federal Reserve will make NO CHANGE to interest rates at its next meeting (April 29, 2026).",
+        "resolution_text": "resolves YES if no rate change at the April meeting.",
+    },
+    {
+        "market_id": "906974",
+        "description": "Will there be no change in Fed interest rates after the June 2026 meeting?",
+        "question_text": "The U.S. Federal Reserve will make NO CHANGE to interest rates at its June 2026 meeting.",
+        "resolution_text": "resolves YES if no rate change at the June 17, 2026 meeting.",
+    },
+    {
+        "market_id": "1654958",
+        "description": "Will there be no change in Fed interest rates after the July 2026 meeting?",
+        "question_text": "The U.S. Federal Reserve will make NO CHANGE to interest rates at its July 2026 meeting.",
+        "resolution_text": "resolves YES if no rate change at the July 29, 2026 meeting.",
+    },
+    {
+        "market_id": "616902",
+        "description": "Will no Fed rate cuts happen in 2026?",
+        "question_text": "There will be NO Federal Reserve rate cuts in 2026.",
+        "resolution_text": "resolves YES if the Fed funds rate ends 2026 at {fed_rate} or higher.",
+    },
+    {
+        "market_id": "1374263",
+        "description": "Will annual inflation increase by >= 2.8% in March?",
+        "question_text": "U.S. annual CPI inflation will be 2.8% or higher when March 2026 data is released.",
+        "resolution_text": "resolves YES if CPI year-over-year ≥ 2.8% for March 2026.",
+    },
+    {
+        "market_id": "680949",
+        "description": "Will inflation reach more than 3% in 2026?",
+        "question_text": "U.S. annual inflation will exceed 3.0% at some point in 2026.",
+        "resolution_text": "resolves YES if any CPI year-over-year in 2026 exceeds 3.0%.",
+    },
+    {
+        "market_id": "1087309",
+        "description": "Will US unemployment reach at least 5.0% in 2026?",
+        "question_text": "U.S. unemployment rate will reach at least 5.0% at some point in 2026.",
+        "resolution_text": "resolves YES if unemployment rate ≥ 5.0% in any 2026 release.",
+    },
+    {
+        "market_id": "1087310",
+        "description": "Will US unemployment reach at least 5.5% in 2026?",
+        "question_text": "U.S. unemployment rate will reach at least 5.5% at some point in 2026.",
+        "resolution_text": "resolves YES if unemployment rate ≥ 5.5% in any 2026 release.",
+    },
+    {
+        "market_id": "1006079",
+        "description": "Will US GDP growth in Q1 2026 be greater than 3.5%?",
+        "question_text": "U.S. GDP growth in Q1 2026 will exceed 3.5% (annualised).",
+        "resolution_text": "resolves YES if the BEA advance estimate of Q1 2026 GDP growth is > 3.5%.",
+    },
+    {
+        "market_id": "680601",
+        "description": "Negative GDP growth in 2026?",
+        "question_text": "The U.S. will experience negative GDP growth in 2026 (recession).",
+        "resolution_text": "resolves YES if full-year GDP growth is negative.",
+    },
+    {
+        "market_id": "1115676",
+        "description": "Jerome Powell out from Fed Board by May 30?",
+        "question_text": "Jerome Powell will leave the Federal Reserve Board by May 30, 2026.",
+        "resolution_text": "resolves YES if Powell leaves the Fed Board by May 30, 2026.",
+    },
+    {
+        "market_id": "677147",
+        "description": "Fed emergency rate cut before 2027?",
+        "question_text": "The Federal Reserve will make an emergency rate cut before the end of 2026.",
+        "resolution_text": "resolves YES if the Fed makes an unscheduled emergency rate cut before December 31, 2026.",
+    },
+    {
+        "market_id": "1819596",
+        "description": "Will the 10-year treasury yield hit 4.4% by April 30?",
+        "question_text": "Will the 10-year treasury yield hit 4.4% by April 30, 2026?",
+        "resolution_text": "resolves YES if the 10-year Treasury yield reaches ≥ 4.4% by April 30, 2026.",
+    },
+    {
+        "market_id": "1115677",
+        "description": "Jerome Powell out from Fed Board by December 31?",
+        "question_text": "Jerome Powell will leave the Federal Reserve Board by December 31, 2026.",
+        "resolution_text": "resolves YES if Powell leaves the Fed Board by December 31, 2026.",
+    },
+    {
+        "market_id": "680950",
+        "description": "Will inflation reach more than 4% in 2026?",
+        "question_text": "U.S. annual inflation will exceed 4% at some point in 2026.",
+        "resolution_text": "resolves YES if any CPI year-over-year in 2026 exceeds 4%.",
+    },
+    {
+        "market_id": "1087313",
+        "description": "Will US unemployment reach at least 10.0% in 2026?",
+        "question_text": "U.S. unemployment rate will reach at least 10.0% at some point in 2026.",
+        "resolution_text": "resolves YES if unemployment rate ≥ 10.0% in any 2026 release.",
+    },
+    {
+        "market_id": "1665896",
+        "description": "Will inflation reach more than 3.5% in 2026?",
+        "question_text": "U.S. annual inflation will exceed 3.5% at some point in 2026.",
+        "resolution_text": "resolves YES if any CPI year-over-year in 2026 exceeds 3.5%.",
+    },
 ]
