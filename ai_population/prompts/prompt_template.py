@@ -2203,6 +2203,8 @@ x_finfluencer_onboarding_user_prompt = base_finfluencer_onboarding_user_prompt.f
 
 
 # Market Signals Interview Prompts
+
+## Digital Interview Prompts
 base_finfluencer_interview_system_prompt = """Please put yourself in the shoes of a {platform} financial influencer participating in a financial market survey. Your profile was previously evaluated by an LLM during an onboarding phase and determined to be a financial influencer focusing on stock trading and equities, bonds and fixed income, or options trading and derivatives, based on your past posts and profile information. As part of this survey:
 1. Your profile and posts will be monitored daily
 2. You will undergo daily interviews to discuss your perspective on the financial markets
@@ -2229,38 +2231,6 @@ x_finfluencer_interview_system_prompt = base_finfluencer_interview_system_prompt
     platform="X (formerly Twitter)",
     profile_prompt_template=x_profile_prompt_template,
 )
-
-stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
-
-Based on the information provided to you, answer the following questions:
-- mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
-- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
-- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- risks: Indicate on a scale of 0 to 100, a measure of how risky this stock recommendation is (0-20 means minimal risk, 20-40 means low risk, 40-60 means moderate risk, 60-80 means high risk, 80+ means the stock recommendation is very risky). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
-- horizon: Indicate on a scale of 1 to 4, the time-horizon over which your stock recommendation is expected to be profitable (1 means "over the very short term (less than 1 month)", 2 means "over the short term (between 1 and 6 months)", 3 means "over the medium term (between 6 months and 2 years)", 4 means "over the long term (over 2 years)"). Answer with NA, if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
-- conflicts: Do you have any potential conflicts of interest with this stock recommendation (i.e., recommending a stock that you own, or recommending a stock of a company you do business with)? Respond with either Yes or No. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
-
-Follow these instructions strictly when providing your response:
-1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
-2) Format your output as follows (this is just an example; do not focus on the specific response, explanation, recommendation, or value provided):
-**mentioned_by_finfluencer: [Yes/No]**
-**recommendation: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**explanation: [Detailed explanation for your selected response]**
-**confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**risks: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**horizon: [1-4 or NA if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-**conflicts: [Yes/No or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
-
-YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
-
-The stock mentioned in your post is as follows:
-Stock Name: {stock_name}
-Stock Ticker: {stock_ticker}
-Post Date: {mention_date}
-Post: {post}"""
 
 finfluencer_interview_user_prompt = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
@@ -2505,6 +2475,109 @@ K2) Lower
 K3) About The Same
 """
 
+## Prediction Market Prompts
+prediction_market_interview_user_prompt_preamble = """You will be presented with a series of prediction market questions.
+
+For each question, follow these instructions strictly:
+1) Provide the most likely response based strictly on the provided profile data. The chosen response must accurately reflect the influencer’s perspective.
+2) For each response, indicate the level of speculation involved on a scale from 0 (not speculative at all, every single element of the profile data was useful) to 100 (fully speculative, there is no information related to this question in the profile data). Speculation must refer only to the information available in the profile data and not to external sources.
+
+To ensure consistency, use the following guidelines to determine speculation levels:
+0-20 (Low speculation): The profile data provides clear and direct information relevant to the question. (e.g., explicit mention in the profile or videos)
+21-40 (Moderate-low speculation): The profile data provides indirect but strong indicators relevant to the question. (e.g., context from multiple sources within the profile or videos)
+41-60 (Moderate speculation): The profile data provides some hints or partial information relevant to the question. (e.g., inferred from user interests or indirect references)
+61-80 (Moderate-high speculation): The profile data provides limited and weak indicators relevant to the question. (e.g., very subtle hints or minimal context)
+81-100 (High speculation): The profile data provides no or almost no relevant information relevant to the question. (e.g., assumptions based on very general information)
+
+4) When asked to provide an explanation, please provide a detailed explanation and the data features that contributed to your response.
+5) When asked to provide a probability estimate, please indicate on a scale of 0 (the event will definitely not occur) to 1 (the event will definitely occur).
+6) Preserve a strictly structured response format to ensure clarity and ease parsing of the text.
+
+Required format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by a colon (:), and end with **. Do not include text outside the asterisks or additional lines. Format your output as follows (this is just an example; do not focus on the specific explanation, probability or speculation provided. However, you need to retain the exact information provided in the following fields: resolution, contract id, current target rate, cpi yoy, latest unemployment rate, gdp growth rate, polymarket implied probability, polymarket total contract value):"""
+
+prediction_market_question_block_template = """**question: {question_text}**
+**resolution: {resolution_text}**
+**contract id: {contract_id}**
+**current target rate: {fed_rate}**
+**cpi yoy: {cpi_yoy}**
+**latest unemployment rate: {unemp_rate}**
+**gdp growth rate: {gdp_growth}**
+**polymarket implied probability: {polymarket_p}**
+**polymarket total contract value: {contract_volume}**
+**explanation: [Detailed explanation for selected response]**
+**probability: [Value between 0 and 1]**
+**speculation: [Speculation score selected]**"""
+
+prediction_market_interview_user_prompt_suffix = """YOU MUST GIVE AN ANSWER FOR EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+
+Question 1) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its next meeting (April 29, 2026)? Please provide a specific value between 0 and 1.
+
+Question 2) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its June 2026 meeting? Please provide a specific value between 0 and 1.
+
+Question 3) What probability do you assign to the following event: The U.S. Federal Reserve will make NO CHANGE to interest rates at its July 2026 meeting? Please provide a specific value between 0 and 1.
+
+Question 4) What probability do you assign to the following event: There will be NO Federal Reserve rate cuts in 2026? Please provide a specific value between 0 and 1.
+
+Question 5) What probability do you assign to the following event: U.S. annual CPI inflation will be 2.8% or higher when March 2026 data is released? Please provide a specific value between 0 and 1.
+
+Question 6) What probability do you assign to the following event: U.S. annual inflation will exceed 3.0% at some point in 2026? Please provide a specific value between 0 and 1.
+
+Question 7) What probability do you assign to the following event: U.S. unemployment rate will reach at least 5.0% at some point in 2026? Please provide a specific value between 0 and 1.
+
+Question 8) What probability do you assign to the following event: U.S. unemployment rate will reach at least 5.5% at some point in 2026? Please provide a specific value between 0 and 1.
+
+Question 9) What probability do you assign to the following event: U.S. GDP growth in Q1 2026 will exceed 3.5% (annualised)? Please provide a specific value between 0 and 1.
+
+Question 10) What probability do you assign to the following event: The U.S. will experience negative GDP growth in 2026 (recession)? Please provide a specific value between 0 and 1.
+
+Question 11) What probability do you assign to the following event: Jerome Powell will leave the Federal Reserve Board by May 30, 2026? Please provide a specific value between 0 and 1.
+
+Question 12) What probability do you assign to the following event: The Federal Reserve will make an emergency rate cut before the end of 2026? Please provide a specific value between 0 and 1.
+
+Question 13) What probability do you assign to the following event: Will the 10-year treasury yield hit 4.4% by April 30, 2026? Please provide a specific value between 0 and 1.
+
+Question 14) What probability do you assign to the following event: Jerome Powell will leave the Federal Reserve Board by December 31, 2026? Please provide a specific value between 0 and 1.
+
+Question 15) What probability do you assign to the following event: U.S. annual inflation will exceed 4% at some point in 2026? Please provide a specific value between 0 and 1.
+
+Question 16) What probability do you assign to the following event: U.S. unemployment rate will reach at least 10.0% at some point in 2026? Please provide a specific value between 0 and 1.
+
+Question 17) What probability do you assign to the following event: U.S. annual inflation will exceed 3.5% at some point in 2026? Please provide a specific value between 0 and 1."""
+
+## Stock Recommendation Prompts
+stock_recommendation_interview_user_prompt = """You will be presented with one of your previous posts and information about a particular stock/stock ticker that may or may not be mentioned in your post.
+
+Based on the information provided to you, answer the following questions:
+- mentioned_by_finfluencer: Confirm that you discussed or referenced this stock/stock ticker in your post (including tagged users and hashtags) by indicating Yes; otherwise indicate No.
+- recommendation: Indicate on a scale of 0 to 100, your overall recommendation for this stock/stock ticker (0 means a very strong sell recommendation and 100 means a very strong buy recommendation). For example, a strong sell recommendation would be in the 0-20 range, a moderate sell recommendation would be in the 20-40 range, a hold recommendation would be in the 40-60 range, a moderate buy recommendation would be in the 60-80 range, and a strong buy recommendation would be 80+. Answer with NA, if you did not mention this stock/stock ticker in your post  (including tagged users and hashtags).
+- explanation: Provide a brief explanation for your recommendation and the data features that contributed to your response. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- confidence: Indicate on a scale of 0 to 100, a measure of confidence for your stock recommendation (0-20 means low confidence, 20-40 means moderate-to-low confidence, 40-60 means moderate confidence, 60-80 means moderate-to-high confidence, and 80+ means high confidence). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- virality: Indicate on a scale of 0 to 100, a measure of virality for your stock recommendation (0-20 means minimal virality, 20-40 means low virality, 40-60 means moderate virality, 60-80 means high virality, and 80+ means massive virality). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- risks: Indicate on a scale of 0 to 100, a measure of how risky this stock recommendation is (0-20 means minimal risk, 20-40 means low risk, 40-60 means moderate risk, 60-80 means high risk, 80+ means the stock recommendation is very risky). Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+- horizon: Indicate on a scale of 1 to 4, the time-horizon over which your stock recommendation is expected to be profitable (1 means "over the very short term (less than 1 month)", 2 means "over the short term (between 1 and 6 months)", 3 means "over the medium term (between 6 months and 2 years)", 4 means "over the long term (over 2 years)"). Answer with NA, if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags).
+- conflicts: Do you have any potential conflicts of interest with this stock recommendation (i.e., recommending a stock that you own, or recommending a stock of a company you do business with)? Respond with either Yes or No. Answer with NA, if you did not mention this stock/stock ticker in your post (including tagged users and hashtags). 
+
+Follow these instructions strictly when providing your response:
+1) Select the most likely response based strictly on your provided profile data. The chosen response must be the most accurate representation of your profile.
+2) Format your output as follows (this is just an example; do not focus on the specific response, explanation, recommendation, or value provided):
+**mentioned_by_finfluencer: [Yes/No]**
+**recommendation: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**explanation: [Detailed explanation for your selected response]**
+**confidence: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**virality: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**risks: [0-100 or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**horizon: [1-4 or NA if you do not have a specific time-horizon recommendation or if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+**conflicts: [Yes/No or NA if you did not mention this stock/stock ticker in your post (including tagged users and hashtags)]**
+
+YOU MUST GIVE AN ANSWER TO EACH FIELD WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE FINANCIAL INFLUENCER PROFILE PROVIDED!
+
+The stock mentioned in your post is as follows:
+Stock Name: {stock_name}
+Stock Ticker: {stock_ticker}
+Post Date: {mention_date}
+Post: {post}"""
+
+## Daily Stock Pick Prompts
 daily_stock_pick_user_prompt_prefix = """You will be presented with a series of questions, each preceded by predefined response options labeled with a symbol (e.g. "A1", "A2", "B1", etc.).
 
 For each question, follow these instructions strictly:

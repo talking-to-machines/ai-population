@@ -1,7 +1,10 @@
+import asyncio
 import os
 import pandas as pd
+import json
 from tqdm import tqdm
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 tqdm.pandas()
 from ai_population.config.market_signals_config import (
@@ -35,6 +38,10 @@ from ai_population.config.market_signals_config import (
     FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
     FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
     LATEST_K_POSTS_PER_PROFILE,
+    FINFLUENCER_PREDICTION_MARKET_FILE_X,
+    PREDICTION_MARKET_INTERVIEW_REGEX_PATTERNS,
+    POLYMARKET_EVENTS,
+    GDP_MANUAL_OVERRIDE,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -56,6 +63,7 @@ from ai_population.src.utils import (
     perform_x_keyword_search,
     perform_x_profile_metadata_search,
     perform_x_profile_search,
+    fetch_daily_snapshot,
 )
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
@@ -64,6 +72,9 @@ from ai_population.prompts.prompt_template import (
     investmentadvisor_reflection_user_prompt,
     x_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
+    prediction_market_interview_user_prompt_preamble,
+    prediction_market_question_block_template,
+    prediction_market_interview_user_prompt_suffix,
     stock_recommendation_interview_user_prompt,
     daily_stock_pick_user_prompts,
 )
@@ -219,6 +230,7 @@ def perform_x_finfluencer_interview(
         enable_web_search=True,
         response_timestamp_col="finfluencer_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+        batch_timeout_seconds=3600,
     )
 
     # Preprocess post interview results
@@ -242,6 +254,150 @@ def perform_x_finfluencer_interview(
     # Include timestamp information for when the interview was conducted
     if "finfluencer_interview_datetime" not in post_interview_results.columns:
         post_interview_results["finfluencer_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
+
+    # # Format past conversation
+    # post_interview_results["history"] = post_interview_results.apply(
+    #     lambda row: json.dumps(
+    #         [
+    #             {
+    #                 "role": "user",
+    #                 "content": finfluencer_interview_user_prompt,
+    #             },
+    #             {
+    #                 "role": "assistant",
+    #                 "content": row[
+    #                     "x_finfluencer_interview"
+    #                 ],
+    #             },
+    #         ],
+    #         ensure_ascii=False,
+    #         separators=(",", ":"),
+    #     ),
+    #     axis=1,
+    # )
+
+    # Save formatted interview results
+    if filter_original_profiles:
+        filtered_post_interview_results = post_interview_results[
+            post_interview_results["account_id"].isin(ORIGINAL_PROFILES_X)
+        ].reset_index(drop=True)
+        filtered_post_interview_results.to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
+    output_file_dir = os.path.join(
+        base_dir,
+        "../data",
+        project_name,
+        execution_date,
+        output_file[:-4] + "_full.csv",
+    )
+    post_interview_results.to_csv(
+        output_file_dir,
+        index=False,
+    )
+
+    # # Conduct prediction market interview
+    # perform_x_prediction_market_interview(
+    #     project_name=project_name,
+    #     execution_date=execution_date,
+    #     profile_metadata_file=output_file_dir,
+    #     post_file=post_file,
+    #     output_file=FINFLUENCER_PREDICTION_MARKET_FILE_X,
+    #     filter_original_profiles=filter_original_profiles,
+    # )
+
+
+def perform_x_prediction_market_interview(
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    post_file: str,
+    output_file: str,
+    filter_original_profiles: bool = False,
+) -> None:
+    snapshot = fetch_daily_snapshot(
+        events=POLYMARKET_EVENTS,
+        gdp_override=GDP_MANUAL_OVERRIDE,
+    )
+    macro = {
+        row["variable"]: row["value"]
+        for _, row in snapshot.iterrows()
+        if row["contract_id"] is None or pd.isna(row["contract_id"])
+    }
+
+    blocks = []
+    for event in POLYMARKET_EVENTS:
+        mid = str(event["market_id"])
+        contract_rows = snapshot[snapshot["contract_id"].astype(str) == mid]
+        poly_p_row = contract_rows[contract_rows["variable"] == "polymarket_p"]["value"]
+        vol_row = contract_rows[contract_rows["variable"] == "contract_volume"]["value"]
+        blocks.append(
+            prediction_market_question_block_template.format(
+                question_text=event["question_text"],
+                resolution_text=event["resolution_text"].format(**macro),
+                contract_id=mid,
+                fed_rate=macro["fed_rate"],
+                cpi_yoy=macro["cpi_yoy"],
+                unemp_rate=macro["unemp_rate"],
+                gdp_growth=macro["gdp_growth"],
+                polymarket_p=poly_p_row.iloc[0] if len(poly_p_row) else "NA",
+                contract_volume=vol_row.iloc[0] if len(vol_row) else "NA",
+            )
+        )
+
+    rendered_prompt = (
+        prediction_market_interview_user_prompt_preamble
+        + "\n\n"
+        + "\n\n".join(blocks)
+        + "\n\n"
+        + prediction_market_interview_user_prompt_suffix
+    )
+
+    perform_profile_interview(
+        project_name=project_name,
+        execution_date=execution_date,
+        gpt_model=GPT_MODEL,
+        profile_metadata_file=profile_metadata_file,
+        post_file=post_file,
+        output_file=output_file,
+        system_prompt_template=x_finfluencer_interview_system_prompt,
+        user_prompt_template=rendered_prompt,
+        llm_response_field="x_prediction_market_interview",
+        interview_type="x_prediction_market_interview",
+        enable_web_search=True,
+        response_timestamp_col="prediction_market_interview_datetime",
+        latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+        history_field="history",
+        batch_timeout_seconds=3600,
+    )
+
+    # Preprocess post interview results
+    post_interview_results = pd.read_csv(
+        os.path.join(base_dir, "../data", project_name, execution_date, output_file)
+    )
+    extracted_responses = post_interview_results["x_prediction_market_interview"].apply(
+        extract_llm_responses
+    )
+    post_interview_results = pd.concat(
+        [post_interview_results, extracted_responses], axis=1
+    )
+    # Merge identical columns from interview response
+    post_interview_results = coalesce_columns_by_regex(
+        post_interview_results, PREDICTION_MARKET_INTERVIEW_REGEX_PATTERNS
+    )
+
+    # Include LLM model information
+    post_interview_results["model"] = GPT_MODEL
+
+    # Include timestamp information for when the interview was conducted
+    if "prediction_market_interview_datetime" not in post_interview_results.columns:
+        post_interview_results["prediction_market_interview_datetime"] = (
             pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         )
 
@@ -364,6 +520,7 @@ def perform_x_stock_recommendation_interview(
         interview_type="x_finfluencer_stock_recommendation",
         enable_web_search=True,
         response_timestamp_col="stock_recommendation_interview_datetime",
+        batch_timeout_seconds=3600,
     )
 
     stock_recommendations = pd.read_csv(
@@ -457,23 +614,37 @@ def perform_x_daily_stock_pick_interview(
         index=False,
     )
 
-    for idx, user_prompt in enumerate(daily_stock_pick_user_prompts):
-        # if idx <= 5:
-        #     continue
+    def run_daily_stock_pick_interview(idx_prompt):
+        idx, user_prompt = idx_prompt
+        chunk_output_file = output_file[:-4] + f"_{idx+1}.csv"
+        chunk_output_path = os.path.join(
+            base_dir, "../data", project_name, execution_date, chunk_output_file
+        )
+        if os.path.exists(chunk_output_path):
+            print(f"Skipping idx={idx+1}: {chunk_output_path} already exists.")
+            return
         perform_profile_interview(
             project_name=project_name,
             execution_date=execution_date,
             gpt_model=GPT_MODEL,
             profile_metadata_file=f"x_finfluencer_sampled_profiles_{execution_date}.csv",
             post_file=post_file,
-            output_file=output_file[:-4] + f"_{idx+1}.csv",
+            output_file=chunk_output_file,
             system_prompt_template=x_finfluencer_interview_system_prompt,
             user_prompt_template=user_prompt,
             llm_response_field="x_finfluencer_daily_stock_pick",
-            interview_type="x_finfluencer_daily_stock_pick",
+            interview_type=f"x_finfluencer_daily_stock_pick_{idx+1}",
             enable_web_search=True,
             response_timestamp_col="daily_stock_pick_interview_datetime",
             latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+            batch_timeout_seconds=3600,
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        list(
+            executor.map(
+                run_daily_stock_pick_interview, enumerate(daily_stock_pick_user_prompts)
+            )
         )
 
     # Preprocess daily stock pick results
