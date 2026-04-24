@@ -1124,15 +1124,20 @@ def batch_query(
                     None,
                 )
                 if message_item is None:
-                    raise ValueError(
-                        f"No message item found in output for custom_id={result['custom_id']}"
+                    warnings.warn(
+                        f"Failed to parse batch result for custom_id={result['custom_id']}: "
+                        f"Recording empty response."
                     )
-                response_list.append(
-                    {
-                        "custom_id": f'{result["custom_id"]}',
-                        "query_response": message_item["content"][0]["text"],
-                    }
-                )
+                    response_list.append(
+                        {"custom_id": f"{result['custom_id']}", "query_response": None}
+                    )
+                else:
+                    response_list.append(
+                        {
+                            "custom_id": f'{result["custom_id"]}',
+                            "query_response": message_item["content"][0]["text"],
+                        }
+                    )
 
             else:
                 response_list.append(

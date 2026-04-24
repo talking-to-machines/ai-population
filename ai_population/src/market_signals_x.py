@@ -616,13 +616,20 @@ def perform_x_daily_stock_pick_interview(
 
     def run_daily_stock_pick_interview(idx_prompt):
         idx, user_prompt = idx_prompt
+        chunk_output_file = output_file[:-4] + f"_{idx+1}.csv"
+        chunk_output_path = os.path.join(
+            base_dir, "../data", project_name, execution_date, chunk_output_file
+        )
+        if os.path.exists(chunk_output_path):
+            print(f"Skipping idx={idx+1}: {chunk_output_path} already exists.")
+            return
         perform_profile_interview(
             project_name=project_name,
             execution_date=execution_date,
             gpt_model=GPT_MODEL,
             profile_metadata_file=f"x_finfluencer_sampled_profiles_{execution_date}.csv",
             post_file=post_file,
-            output_file=output_file[:-4] + f"_{idx+1}.csv",
+            output_file=chunk_output_file,
             system_prompt_template=x_finfluencer_interview_system_prompt,
             user_prompt_template=user_prompt,
             llm_response_field="x_finfluencer_daily_stock_pick",
