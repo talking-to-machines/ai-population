@@ -402,12 +402,12 @@ def construct_system_prompt(
 
     elif interview_type in [
         "jointllm_politician_demographic_interview",
-        "jointllm_politician_voting_interview",
+        "jointllm_politician_digital_polling_interview",
     ]:
         profile_args = {
             # For TikTok
             "profile_image": row.get("profile_pic_url", ""),
-            "profile_name": row.get("account_id", ""),
+            "profile_name": row.get("account_id_tiktok", ""),
             "profile_nickname": row.get("nickname", ""),
             "profile_biography": row.get("biography", ""),
             "profile_signature": row.get("signature", ""),
@@ -431,7 +431,7 @@ def construct_system_prompt(
             # For X (formerly Twitter)
             "profile_picture": row.get("profilePicture", ""),
             "name": row.get("name", ""),
-            "account_id": row.get("account_id", ""),
+            "account_id": row.get("account_id_x", ""),
             "location": row.get("location", ""),
             "description": row.get("description", ""),
             "url": row.get("url_x", ""),
@@ -1615,6 +1615,49 @@ def perform_profile_interview(
     )
 
 
+def merge_profile_metadata_via_validation(
+    tiktok_profile_metadata: pd.DataFrame,
+    x_profile_metadata: pd.DataFrame,
+    validation_file_path: str,
+    tiktok_username_col: str = "username_2025_tiktok",
+    x_username_col: str = "username_2025_x",
+) -> pd.DataFrame:
+    """
+    Outer-merge TikTok and X profile metadata using a politician validation
+    file as the bridge: TikTok joins on account_id == <tiktok_username_col>,
+    X joins on account_id == <x_username_col>. Empty-string usernames in the
+    validation file are treated as missing so they don't collide on join.
+    Overlapping columns between the two platforms get `_tiktok` / `_x` suffixes.
+    """
+    validation = pd.read_excel(validation_file_path)[
+        [tiktok_username_col, x_username_col, "name"]
+    ]
+    validation[tiktok_username_col] = validation[tiktok_username_col].replace("", pd.NA)
+    validation[x_username_col] = validation[x_username_col].replace("", pd.NA)
+    validation[tiktok_username_col] = validation[tiktok_username_col].replace("", pd.NA)
+    validation = validation.dropna(
+        subset=[tiktok_username_col, x_username_col], how="all"
+    ).reset_index(drop=True)
+
+    merged = validation.merge(
+        tiktok_profile_metadata,
+        how="outer",
+        left_on=tiktok_username_col,
+        right_on="account_id",
+    )
+    merged = merged.merge(
+        x_profile_metadata,
+        how="outer",
+        left_on=x_username_col,
+        right_on="account_id",
+        suffixes=("_tiktok", "_x"),
+    )
+    merged = merged.dropna(
+        subset=["account_id_tiktok", "account_id_x"], how="all"
+    ).reset_index(drop=True)
+    return merged
+
+
 def perform_profile_interview_x_tiktok(
     project_name: str,
     execution_date: str,
@@ -1705,11 +1748,13 @@ def perform_profile_interview_x_tiktok(
         extract_tweets, args=(x_post_metadata, latest_k_posts)
     )
 
-    profile_metadata_combined = pd.merge(
-        left=tiktok_profile_metadata,
-        right=x_profile_metadata,
-        on="account_id",
-        suffixes=("_tiktok", "_x"),
+    profile_metadata_combined = merge_profile_metadata_via_validation(
+        tiktok_profile_metadata=tiktok_profile_metadata,
+        x_profile_metadata=x_profile_metadata,
+        validation_file_path=os.path.join(
+            base_dir,
+            "../data/joint-llm-swiss/politician_validation_1_ch_11_2025.xlsx",
+        ),
     )
 
     if system_prompt_template:

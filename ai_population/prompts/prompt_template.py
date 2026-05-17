@@ -3707,6 +3707,7 @@ Vcu8) votaría por Eduardo Artés, candidato independiente no afiliado a ningún
 
 # Joint LLM Digital Twin - Swiss (Politician)
 base_jointllm_politician_system_prompt = """You are analyzing the social media presence of a Swiss politician using their X (formerly Twitter) profile and their TikTok profile to answer a series of questions.
+
 The politician's profile data on X (formerly Twitter):
 {x_profile_prompt_template}
 
@@ -3714,7 +3715,7 @@ The politician's profile data on TikTok:
 {tiktok_profile_prompt_template}
 
 Instructions:
-Analyze the provided information and answer the following questions exclusively on the basis of the available data. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
+Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
 """
 
 jointllm_politician_system_prompt = base_jointllm_politician_system_prompt.format(
@@ -3742,7 +3743,7 @@ To ensure consistency, use the following guidelines for determining the degree o
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 
-**question: PERSON LIVING IN SWITZERLAND**
+**question: PERSON_LIVING_IN_SWITZERLAND**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
@@ -3772,12 +3773,6 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-**question: CITIZENSHIP**
-**explanation: [Detailed explanation for selected response]**
-**symbol: [Symbol selected]**
-**category: [Category selected]**
-**speculation: [Speculation score selected]**
-
 **question: EDUCATION**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
@@ -3790,14 +3785,14 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 
 Below is the list of categories to which this user may belong:
-PERSON LIVING IN SWITZERLAND: Does the user of this account live in Switzerland?
+PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
 PLC2) No 
 
-REGION: If the answer to the question “PERSON LIVING IN SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise answer with “NA”.
+REGION: If the answer to the question “PERSON_LIVING_IN_SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise select “NA”.
 REG1) Zurich
 REG2) Bern
 REG3) Lucerne
@@ -3826,7 +3821,7 @@ REG25) Geneva
 REG26) Jura
 REG27) NA
 
-AGE: How old are you?
+AGE: What is the age of this politician?
 AG1) 18 to 24 years
 AG2) 25 to 34 years
 AG3) 35 to 44 years
@@ -3835,11 +3830,11 @@ AG5) 55 to 64 years
 AG6) 65 to 74 years
 AG7) 75 years or older
 
-GENDER: What gender do you identify with?
+GENDER: What gender does this user identify with?
 S1) Male
 S2) Female
 
-HOUSEHOLD_INCOME: In which bracket is the total gross monthly income of your household?
+HOUSEHOLD_INCOME:  In which bracket is the total gross monthly household income of this user?
 INC1) Less than 2,000 CHF
 INC2) 2,001 – 3,000 CHF
 INC3) 3,001 – 4,000 CHF
@@ -3861,11 +3856,7 @@ INC18) 18,001 – 19,000 CHF
 INC19) 19,001 – 20,000 CHF
 INC20) More than 20,000 CHF
 
-CITIZENSHIP: Do you hold Swiss citizenship?
-CIT1) Yes
-CIT2) No
-
-EDUCATION: What is your highest educational qualification?
+EDUCATION: What is the highest educational qualification of this user?
 EDU1) No completed education
 EDU2) Primary school
 EDU3) Secondary school
@@ -3881,7 +3872,7 @@ EDU12) University of applied sciences, pedagogical university
 EDU13) University, Federal Institute of Technology
 EDU14) Other
 
-PARTY_MEMBER: Which political party do you belong to?
+PARTY_MEMBER: Which political party does this user belong to?
 PP1) Sozialdemokratische Partei der Schweiz
 PP2) Schweizerische Volkspartei
 PP3) FDP.Die Liberalen
@@ -3895,55 +3886,66 @@ PP10) Mouvement Citoyens Genevois
 PP11) Other party
 PP12) Independent/no party"""
 
-jointllm_politician_question_template = """VOTE {id}
-Assume it is {date}. The Swiss National Council (Nationalrat) is currently deliberating and voting on the following proposal.
+jointllm_politician_question_template = """For the next two questions (TURNOUT_{business_number} and VOTE_{business_number}), assume it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative {business_number}.
+Here is the official summary of the initiative provided by the Federal Council:
+{booklet_summary_en}
 
-It proposes the following: 
-{proposal_en}
-This is the justification given with the proposal: 
-{justification_en}
+The full text of the Federal Decree of initiative {business_number} is:
+{federal_decree_text_en}
 
-How do you vote on this proposal?
-VOTE_{id}_1) I vote in favor of the proposed change to the Federal Constitution
-VOTE_{id}_2) I vote against the proposed change to the Federal Constitution
-VOTE_{id}_3) I abstain from voting"""
+TURNOUT_{business_number}: Would this user be present and vote, or abstain/be absent for the final vote on initiative {business_number}?
+TO_{business_number}_1) Vote
+TO_{business_number}_2) Abstain or absent
 
-jointllm_format_example_template = """**question: VOTE {id}**
+VOTE_{business_number}: If the answer to TURNOUT_{business_number} is "Vote", how would this user respond to the question: {mp_vote_question_en}. If the answer to TURNOUT_{business_number} is "Abstain or absent", select "NA".
+VO_{business_number}_1) {mp_vote_option_favour_en}
+VO_{business_number}_2) {mp_vote_option_opposed_en}
+VO_{business_number}_3) NA"""
+
+jointllm_format_example_template = """**question: TURNOUT_{business_number}**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
-"""
+
+**question: VOTE_{business_number}**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**"""
 
 base_jointllm_politician_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this Swiss politician based on their social media profile.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 {questions}
 """
 
-politician_election_info = pd.read_excel(
-    os.path.join(base_dir, "../data/joint-llm-swiss/politician_election_info_en.xlsx"),
-    sheet_name="Tabellenblatt1",
+referendums = pd.read_excel(
+    os.path.join(base_dir, "../data/joint-llm-swiss/referendums.xlsx"),
+    sheet_name="referendums",
 )
-politician_election_info = politician_election_info.fillna("")
+referendums = referendums.fillna("")
 # Construct jointllm format examples
 jointllm_format_examples = [
-    jointllm_format_example_template.format(id=id)
-    for id in politician_election_info["id"].tolist()
+    jointllm_format_example_template.format(business_number=business_number)
+    for business_number in referendums["business_number"].tolist()
 ]
 
 # Construct jointllm questions
 jointllm_politician_questions = [
     jointllm_politician_question_template.format(
-        id=row.id,
-        date=row.date,
-        proposal_en=row.proposal_en,
-        justification_en=row.justification_en,
+        business_number=row.business_number,
+        vote_date=row.vote_date,
+        booklet_summary_en=row.booklet_summary_en,
+        federal_decree_text_en=row.federal_decree_text_en,
+        mp_vote_question_en=row.mp_vote_question_en,
+        mp_vote_option_favour_en=row.mp_vote_option_favour_en,
+        mp_vote_option_opposed_en=row.mp_vote_option_opposed_en,
     )
-    for row in politician_election_info.itertuples()
+    for row in referendums.itertuples()
 ]
 
 jointllm_politician_digital_polling_user_prompt = (
@@ -3995,7 +3997,7 @@ To ensure consistency, use the following guidelines for determining the degree o
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 
-**question: PERSON LIVING IN SWITZERLAND**
+**question: PERSON_LIVING_IN_SWITZERLAND**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
@@ -4171,26 +4173,22 @@ YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF 
 {questions}
 """
 
-jointllm_voter_question_template = """VOTE {id}
-Assume it is {date}. Swiss citizens are voting in a national referendum on the following proposal.
-
-{proposal_en}
-
-To help you understand what the proposal is about, here is the official summary provided by the Federal Council:
-{justification_en}
-
-How do you vote on this proposal?
-VOTE_{id}_1) Yes
-VOTE_{id}_2) No
-VOTE_{id}_3) Abstain from voting"""
+jointllm_voter_question_template = """"""
 jointllm_voter_questions = [
     jointllm_voter_question_template.format(
-        id=row.id,
-        date=row.date,
-        proposal_en=row.proposal_en,
-        justification_en=row.justification_en,
+        # id=row.id,
+        # date=row.date,
+        # proposal_en=row.proposal_en,
+        # justification_en=row.justification_en,
+        business_number=row.business_number,
+        vote_date=row.vote_date,
+        booklet_summary_en=row.booklet_summary_en,
+        federal_decree_text_en=row.federal_decree_text_en,
+        mp_vote_question_en=row.mp_vote_question_en,
+        mp_vote_option_favour_en=row.mp_vote_option_favour_en,
+        mp_vote_option_opposed_en=row.mp_vote_option_opposed_en,
     )
-    for row in politician_election_info.itertuples()
+    for row in referendums.itertuples()
 ]
 jointllm_voter_digital_polling_user_prompt = (
     base_jointllm_voter_digital_polling_user_prompt.format(

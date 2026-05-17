@@ -230,7 +230,7 @@ def perform_x_finfluencer_interview(
         enable_web_search=True,
         response_timestamp_col="finfluencer_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
-        batch_timeout_seconds=3600,
+        batch_timeout_seconds=7200,
     )
 
     # Preprocess post interview results
@@ -374,7 +374,7 @@ def perform_x_prediction_market_interview(
         response_timestamp_col="prediction_market_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
         history_field="history",
-        batch_timeout_seconds=3600,
+        batch_timeout_seconds=7200,
     )
 
     # Preprocess post interview results
@@ -520,7 +520,7 @@ def perform_x_stock_recommendation_interview(
         interview_type="x_finfluencer_stock_recommendation",
         enable_web_search=True,
         response_timestamp_col="stock_recommendation_interview_datetime",
-        batch_timeout_seconds=3600,
+        batch_timeout_seconds=7200,
     )
 
     stock_recommendations = pd.read_csv(
@@ -637,7 +637,7 @@ def perform_x_daily_stock_pick_interview(
             enable_web_search=True,
             response_timestamp_col="daily_stock_pick_interview_datetime",
             latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
-            batch_timeout_seconds=3600,
+            batch_timeout_seconds=4800,
         )
 
     with ThreadPoolExecutor(max_workers=3) as executor:
@@ -933,28 +933,33 @@ if __name__ == "__main__":
         interview_type="x_stock_mention",
     )
 
-    # Step 7: Conduct finfluencer interview on financial markets
-    print("7. Conduct finfluencer interview on financial markets...")
-    perform_x_finfluencer_interview(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-        post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
-        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+    # Steps 7 & 8: Run finfluencer interview and stock recommendations interview in parallel
+    print(
+        "7+8. Run finfluencer interview and stock recommendations interview in parallel..."
     )
-
-    # Step 8: Conduct stock recommendations interview
-    print("8. Conduct stock recommendations interview...")
-    perform_x_stock_recommendation_interview(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        finfluencer_pool=FINFLUENCER_POOL_FILE_X,
-        output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
-        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
-    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        step7 = executor.submit(
+            perform_x_finfluencer_interview,
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+            post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+            output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+            filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+        )
+        step8 = executor.submit(
+            perform_x_stock_recommendation_interview,
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+            post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+            finfluencer_pool=FINFLUENCER_POOL_FILE_X,
+            output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
+            filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+        )
+        # Surface exceptions from either future
+        step7.result()
+        step8.result()
 
     # Step 9: Conduct daily stock pick interview
     print("9. Conduct daily stock pick interview...")

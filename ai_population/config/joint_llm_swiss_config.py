@@ -229,15 +229,17 @@ VOTER_ENTITY_GEOGRAPHIC_INCLUSION_REGEX_PATTERNS = [
     r"^PARTY_MEMBER.*\-\s*category$",
     r"^PARTY_MEMBER.*\-\s*speculation$",
 ]
-politician_election_info = pd.read_excel(
-    os.path.join(base_dir, "../data/joint-llm-swiss/politician_election_info_en.xlsx"),
-    sheet_name="Tabellenblatt1",
+referendums = pd.read_excel(
+    os.path.join(base_dir, "../data/joint-llm-swiss/referendums.xlsx"),
+    sheet_name="referendums",
 )
-politician_election_info = politician_election_info.fillna("")
+referendums = referendums.fillna("")
 _suffixes = ["explanation", "symbol", "category", "speculation"]
+_prefixes = ["VOTE", "TURNOUT"]
 DIGITAL_POLLING_REGEX_PATTERNS = [
-    rf"^VOTE {re.escape(str(pid))}.*\-\s*{s}$"
-    for pid in politician_election_info["id"].tolist()
+    rf"^{prefix}_{re.escape(str(pid))}.*\-\s*{s}$"
+    for prefix in _prefixes
+    for pid in referendums["business_number"].tolist()
     for s in _suffixes
 ]
 
@@ -276,10 +278,10 @@ POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE = (
 )
 
 POLITICIAN_DEMOGRAPHIC_INTERVIEW_REGEX_PATTERNS = [
-    r"^PERSON LIVING IN SWITZERLAND.*\-\s*explanation$",
-    r"^PERSON LIVING IN SWITZERLAND.*\-\s*symbol$",
-    r"^PERSON LIVING IN SWITZERLAND.*\-\s*category$",
-    r"^PERSON LIVING IN SWITZERLAND.*\-\s*speculation$",
+    r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*explanation$",
+    r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*symbol$",
+    r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*category$",
+    r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*speculation$",
     r"^REGION.*\-\s*explanation$",
     r"^REGION.*\-\s*symbol$",
     r"^REGION.*\-\s*category$",
@@ -296,10 +298,6 @@ POLITICIAN_DEMOGRAPHIC_INTERVIEW_REGEX_PATTERNS = [
     r"^HOUSEHOLD_INCOME.*\-\s*symbol$",
     r"^HOUSEHOLD_INCOME.*\-\s*category$",
     r"^HOUSEHOLD_INCOME.*\-\s*speculation$",
-    r"^CITIZENSHIP.*\-\s*explanation$",
-    r"^CITIZENSHIP.*\-\s*symbol$",
-    r"^CITIZENSHIP.*\-\s*category$",
-    r"^CITIZENSHIP.*\-\s*speculation$",
     r"^EDUCATION.*\-\s*explanation$",
     r"^EDUCATION.*\-\s*symbol$",
     r"^EDUCATION.*\-\s*category$",
