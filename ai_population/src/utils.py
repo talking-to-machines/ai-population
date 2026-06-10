@@ -26,6 +26,27 @@ from ai_population.config.market_signals_config import (
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
+_together_clients: dict = {}
+_grok_clients: dict = {}
+
+
+def _get_together_client(together_ai_endpoint: str) -> OpenAI:
+    if together_ai_endpoint not in _together_clients:
+        _together_clients[together_ai_endpoint] = OpenAI(
+            api_key=TOGETHER_API_KEY,
+            base_url=together_ai_endpoint,
+        )
+    return _together_clients[together_ai_endpoint]
+
+
+def _get_grok_client(grok_endpoint: str) -> OpenAI:
+    if grok_endpoint not in _grok_clients:
+        _grok_clients[grok_endpoint] = OpenAI(
+            api_key=XAI_API_KEY,
+            base_url=grok_endpoint,
+        )
+    return _grok_clients[grok_endpoint]
+
 
 def load_text_file(file_path) -> list:
     """
@@ -935,7 +956,7 @@ def create_batch_file(
     prompts: pd.DataFrame,
     project_name: str,
     execution_date: str,
-    gpt_model: str,
+    model_name: str,
     system_prompt_field: str,
     user_prompt_field: str = "question_prompt",
     history_field: str = None,
@@ -978,8 +999,8 @@ def create_batch_file(
 
         messages.append({"role": "user", "content": user_txt})
 
-        if not gpt_model.startswith(("gpt-4", "gpt-5")):
-            raise ValueError(f"Unsupported GPT model: {gpt_model}")
+        if not model_name.startswith(("gpt-4", "gpt-5")):
+            raise ValueError(f"Unsupported GPT model: {model_name}")
 
         # Build tools list based on enabled features
         tools = []
@@ -997,11 +1018,11 @@ def create_batch_file(
         if tools:
             # Use /v1/responses endpoint when tools are required
             body = {
-                "model": gpt_model,
+                "model": model_name,
                 "input": messages_to_input(messages),
                 "tools": tools,
             }
-            if gpt_model.startswith("gpt-4"):
+            if model_name.startswith("gpt-4"):
                 body["temperature"] = 0
             task = {
                 "custom_id": custom_id,
@@ -1012,10 +1033,10 @@ def create_batch_file(
         else:
             # Use /v1/chat/completions endpoint when no tools are needed
             body = {
-                "model": gpt_model,
+                "model": model_name,
                 "messages": messages,
             }
-            if gpt_model.startswith("gpt-4"):
+            if model_name.startswith("gpt-4"):
                 body["temperature"] = 0
             task = {
                 "custom_id": custom_id,
@@ -1390,8 +1411,10 @@ def extract_tweets(
 def row_query(row: pd.Series, args: list) -> str:
     system_prompt = row[args[0][0]]
     user_prompt = row[args[0][1]]
-    gpt_model = args[0][2]
+    model_name = args[0][2]
     enable_web_search = args[0][3]
+    together_ai_endpoint = args[0][4] if len(args[0]) > 4 else None
+    grok_endpoint = args[0][5] if len(args[0]) > 5 else None
 
     # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
     if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
@@ -1399,9 +1422,31 @@ def row_query(row: pd.Series, args: list) -> str:
 
     # Make a chat completion request
     try:
-        if enable_web_search:
+        if together_ai_endpoint:
+            client = _get_together_client(together_ai_endpoint)
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0,
+            )
+            return response.choices[0].message.content
+        elif grok_endpoint:
+            client = _get_grok_client(grok_endpoint)
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0,
+            )
+            return response.choices[0].message.content
+        elif enable_web_search:
             response = openai_client.responses.create(
-                model=gpt_model,
+                model=model_name,
                 input=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -1418,7 +1463,7 @@ def row_query(row: pd.Series, args: list) -> str:
             )
         else:
             response = openai_client.responses.create(
-                model=gpt_model,
+                model=model_name,
                 input=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -1436,7 +1481,7 @@ def row_query(row: pd.Series, args: list) -> str:
 def perform_profile_interview(
     project_name: str,
     execution_date: str,
-    gpt_model: str,
+    model_name: str,
     profile_metadata_file: str,
     post_file: str,
     output_file: str,
@@ -1451,7 +1496,22 @@ def perform_profile_interview(
     response_timestamp_col: str = "",
     latest_k_posts: int = None,
     batch_timeout_seconds: int = 7200,
+    together_ai_endpoint: str = None,
+    grok_endpoint: str = None,
 ) -> None:
+    if together_ai_endpoint and grok_endpoint:
+        raise ValueError(
+            "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
+        )
+    # Neither Together AI nor xAI (Grok) expose OpenAI's batch endpoint, so
+    # when either is supplied we route every request through the row-query path.
+    if (together_ai_endpoint or grok_endpoint) and not use_row_query:
+        provider = "together_ai_endpoint" if together_ai_endpoint else "grok_endpoint"
+        warnings.warn(
+            f"{provider} is set; forcing use_row_query=True because "
+            "the OpenAI batch API is not applicable to non-OpenAI endpoints."
+        )
+        use_row_query = True
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -1526,8 +1586,10 @@ def perform_profile_interview(
         row_query_args = [
             f"{interview_type}_system_prompt",
             f"{interview_type}_user_prompt",
-            gpt_model,
+            model_name,
             enable_web_search,
+            together_ai_endpoint,
+            grok_endpoint,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -1565,7 +1627,7 @@ def perform_profile_interview(
             profile_metadata,
             project_name=project_name,
             execution_date=execution_date,
-            gpt_model=gpt_model,
+            model_name=model_name,
             system_prompt_field=f"{interview_type}_system_prompt",
             user_prompt_field=f"{interview_type}_user_prompt",
             history_field=history_field,
@@ -1661,7 +1723,7 @@ def merge_profile_metadata_via_validation(
 def perform_profile_interview_x_tiktok(
     project_name: str,
     execution_date: str,
-    gpt_model: str,
+    model_name: str,
     x_profile_metadata_file: str,
     x_post_file: str,
     tiktok_profile_metadata_file: str,
@@ -1677,7 +1739,22 @@ def perform_profile_interview_x_tiktok(
     enable_web_search: bool = False,
     response_timestamp_col: str = "",
     latest_k_posts: int = None,
+    together_ai_endpoint: str = None,
+    grok_endpoint: str = None,
 ) -> None:
+    if together_ai_endpoint and grok_endpoint:
+        raise ValueError(
+            "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
+        )
+    # Neither Together AI nor xAI (Grok) expose OpenAI's batch endpoint, so
+    # when either is supplied we route every request through the row-query path.
+    if (together_ai_endpoint or grok_endpoint) and not use_row_query:
+        provider = "together_ai_endpoint" if together_ai_endpoint else "grok_endpoint"
+        warnings.warn(
+            f"{provider} is set; forcing use_row_query=True because "
+            "the OpenAI batch API is not applicable to non-OpenAI endpoints."
+        )
+        use_row_query = True
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -1789,8 +1866,10 @@ def perform_profile_interview_x_tiktok(
         row_query_args = [
             f"{interview_type}_system_prompt",
             f"{interview_type}_user_prompt",
-            gpt_model,
+            model_name,
             enable_web_search,
+            together_ai_endpoint,
+            grok_endpoint,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -1832,7 +1911,7 @@ def perform_profile_interview_x_tiktok(
             profile_metadata_combined,
             project_name=project_name,
             execution_date=execution_date,
-            gpt_model=gpt_model,
+            model_name=model_name,
             system_prompt_field=f"{interview_type}_system_prompt",
             user_prompt_field=f"{interview_type}_user_prompt",
             history_field=history_field,

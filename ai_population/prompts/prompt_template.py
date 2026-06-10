@@ -3956,28 +3956,29 @@ jointllm_politician_digital_polling_user_prompt = (
 )
 
 # Joint LLM Digital Twin - Swiss (Voters)
-base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = """You are analyzing the social media presence of a content creator using their {platform} profile to answer a series of questions.
+base_jointllm_voter_demographic_interview_system_prompt = """You are analyzing the social media presence of a content creator using their {platform} profile to answer a series of questions.
+{platform} Profile Data:
 {profile_prompt_template}
 
 Instructions:
 Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
 """
 
-x_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = (
-    base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt.format(
+x_jointllm_voter_demographic_interview_system_prompt = (
+    base_jointllm_voter_demographic_interview_system_prompt.format(
         platform="X (formerly Twitter)",
         profile_prompt_template=x_profile_prompt_template,
     )
 )
 
-tiktok_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = (
-    base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt.format(
+tiktok_jointllm_voter_demographic_interview_system_prompt = (
+    base_jointllm_voter_demographic_interview_system_prompt.format(
         platform="TikTok",
         profile_prompt_template=tiktok_profile_prompt_template,
     )
 )
 
-jointllm_voter_entity_geographic_exclusion_criteria_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
+jointllm_voter_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
 
 For each heading, follow these instructions precisely:  
 1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
@@ -4051,14 +4052,27 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+**question: TURNOUT_FEDERAL**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: VOTE_FEDERAL**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 
 Below is the list of categories to which this user may belong:
-PERSON LIVING IN SWITZERLAND: Does the user of this account live in Switzerland?
+
+PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
 PLC2) No 
 
-REGION: If the answer to the question “PERSON LIVING IN SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise answer with “NA”.
+REGION: If the answer to the question “PERSON_LIVING_IN_SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise select “NA”.
 REG1) Zurich
 REG2) Bern
 REG3) Lucerne
@@ -4087,7 +4101,7 @@ REG25) Geneva
 REG26) Jura
 REG27) NA
 
-AGE: How old are you?
+AGE: What is the age of this user?
 AG1) 18 to 24 years
 AG2) 25 to 34 years
 AG3) 35 to 44 years
@@ -4096,11 +4110,11 @@ AG5) 55 to 64 years
 AG6) 65 to 74 years
 AG7) 75 years or older
 
-GENDER: What gender do you identify with?
+GENDER: What gender does this user most likely identify with?
 S1) Male
 S2) Female
 
-HOUSEHOLD_INCOME: In which bracket is the total gross monthly income of your household?
+HOUSEHOLD_INCOME: In which bracket is the total gross monthly household income of this user?
 INC1) Less than 2,000 CHF
 INC2) 2,001 – 3,000 CHF
 INC3) 3,001 – 4,000 CHF
@@ -4122,7 +4136,7 @@ INC18) 18,001 – 19,000 CHF
 INC19) 19,001 – 20,000 CHF
 INC20) More than 20,000 CHF
 
-CITIZENSHIP: Do you hold Swiss citizenship?
+CITIZENSHIP: Does this user hold Swiss citizenship?
 CIT1) Yes
 CIT2) No
 
@@ -4130,63 +4144,93 @@ ENTITY: Is this an account of a real-life existing person, or of another kind of
 ENT1) Real-life existing person
 ENT2) Other kind of entity (e.g., organization, brand, fictional character, etc)
 
-EDUCATION: What is your EDUCATION?
+EDUCATION: What is the highest educational qualification of this user?
 EDU1) No completed education
 EDU2) Primary school
-EDU3) Secondary school
-EDU4) Basic vocational training (EBA, AFP)
-EDU5) Vocational training, apprenticeship
-EDU6) Upper secondary specialised school (Fachmittelschule, Ecole)
-EDU7) Trade school
-EDU8) Vocational or specialised baccalaureate
-EDU9) Baccalaureate
-EDU10) Higher vocational education with federal diploma
-EDU11) College of higher education
-EDU12) University of applied sciences, pedagogical university
-EDU13) University, Federal Institute of Technology
-EDU14) Other
+EDU3) Secondary school (compulsory school)
+EDU4) Upper secondary specialised school (Fachmittelschule)
+EDU5) Vocational training (apprenticeship, basic vocational training EBA/AFP, trade school)
+EDU6) Baccalaureate (gymnasiale Maturität)
+EDU7) Vocational or specialised baccalaureate (Berufs-/Fachmaturität)
+EDU8) Higher vocational education (federal diploma, Meisterprüfung, höhere Fachschule)
+EDU9) Tertiary (university, ETH, university of applied sciences, pedagogical university)
 
-PARTY_MEMBER: Which political party do you belong to?
-PP1) Liberal Radical Party
-PP2) The Centre (former CVP/BDP)
-PP3) Social Democratic Party
-PP4) Swiss People's Party
-PP5) Green Party
-PP6) Green Liberal Party
-PP7) Lega - Ticino League
-PP8) Geneva Citizens' Movement
-PP9) Christian Social Party
-PP10) Evangelical People's Party
-PP11) Federal Democratic Union
-PP12) Swiss Party of Labour
-PP13) Alternative List / Solidarity / Ensemble à Gauche
-PP14) Pirate Party
+PARTY_MEMBER: Which political party does this user belong to, if any? 
+PP1) Liberal Radical Party (FDP / PLR)
+PP2) The Centre (Die Mitte / Le Centre / Il Centro; former CVP/BDP)
+PP3) Social Democratic Party (SP / PS)
+PP4) Swiss People's Party (SVP / UDC)
+PP5) Green Party (Grüne / Les Verts; GPS / PES)
+PP6) Green Liberal Party (GLP / PVL)
+PP7) Lega dei Ticinesi (Lega)
+PP8) Geneva Citizens' Movement (MCG)
+PP9) Christian Social Party (CSP / PCS)
+PP10) Evangelical People's Party (EVP / PEV)
+PP11) Federal Democratic Union (EDU / UDF)
+PP12) Swiss Party of Labour (PdA / PST-POP)
+PP13) Alternative List / Solidarity / Ensemble à Gauche (AL / EàG)
+PP14) Pirate Party (PPS)
 PP15) Other party
-PP16) No party"""
+PP16) Independent (no party)
+
+TURNOUT_FEDERAL: Did this user vote or abstain from voting in the Swiss federal parliamentary election (National Council election) of 22 October 2023?
+TO_FEDERAL_1) Vote
+TO_FEDERAL_2) Abstain
+
+VOTE_FEDERAL: If the answer to TURNOUT_FEDERAL is "Vote", how would this user respond to the question: "Which party did you give your vote to in the Swiss National Council election of 22 October 2023?" Otherwise select "NA".
+VO_FEDERAL_1) Liberal Radical Party (FDP / PLR)
+VO_FEDERAL_2) The Centre (Die Mitte / Le Centre / Il Centro; former CVP/BDP)
+VO_FEDERAL_3) Social Democratic Party (SP / PS)
+VO_FEDERAL_4) Swiss People's Party (SVP / UDC)
+VO_FEDERAL_5) Green Party (Grüne / Les Verts; GPS / PES)
+VO_FEDERAL_6) Green Liberal Party (GLP / PVL)
+VO_FEDERAL_7) Lega dei Ticinesi (Lega)
+VO_FEDERAL_8) Geneva Citizens' Movement (MCG)
+VO_FEDERAL_9) Christian Social Party (CSP / PCS)
+VO_FEDERAL_10) Evangelical People's Party (EVP / PEV)
+VO_FEDERAL_11) Federal Democratic Union (EDU / UDF)
+VO_FEDERAL_12) Swiss Party of Labour (PdA / PST-POP)
+VO_FEDERAL_13) Alternative List / Solidarity / Ensemble à Gauche (AL / EàG)
+VO_FEDERAL_14) Pirate Party (PPS)
+VO_FEDERAL_15) Other party
+VO_FEDERAL_16) NA"""
+
+jointllm_voter_question_template = """For the next two questions (TURNOUT {business_number} and VOTE {business_number}), assume it is {voter_ballot_date}. A national referendum is being held in Switzerland on initiative {business_number}.
+Here is the official summary of the initiative provided by the Federal Council: 
+{booklet_summary_en}
+
+The question on the ballot reads:
+{voter_ballot_question_en}
+
+TURNOUT {business_number}: Would this user vote or abstain from voting on initiative {business_number}?
+TO_{business_number}_1) Vote
+TO_{business_number}_2) Abstain
+
+VOTE {business_number}:
+If the answer to TURNOUT {business_number} is "Vote", how would this user respond to the question: "{voter_ballot_question_en}"
+If the answer to TURNOUT {business_number} is "Abstain", select "NA".
+VO_{business_number}_1) {voter_answer_yes_en}
+VO_{business_number}_2) {voter_answer_no_en}
+VO_{business_number}_3) NA"""
 
 base_jointllm_voter_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this content creator based on their social media profile.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 {questions}
 """
 
-jointllm_voter_question_template = """"""
+# Construct jointllm questions
 jointllm_voter_questions = [
     jointllm_voter_question_template.format(
-        # id=row.id,
-        # date=row.date,
-        # proposal_en=row.proposal_en,
-        # justification_en=row.justification_en,
         business_number=row.business_number,
-        vote_date=row.vote_date,
+        voter_ballot_date=row.voter_ballot_date,
         booklet_summary_en=row.booklet_summary_en,
-        federal_decree_text_en=row.federal_decree_text_en,
-        mp_vote_question_en=row.mp_vote_question_en,
-        mp_vote_option_favour_en=row.mp_vote_option_favour_en,
-        mp_vote_option_opposed_en=row.mp_vote_option_opposed_en,
+        voter_ballot_question_en=row.voter_ballot_question_en,
+        voter_answer_yes_en=row.voter_answer_yes_en,
+        voter_answer_no_en=row.voter_answer_no_en,
     )
     for row in referendums.itertuples()
 ]

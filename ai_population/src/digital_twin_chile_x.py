@@ -59,7 +59,7 @@ def conduct_entity_geographic_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -190,7 +190,7 @@ def conduct_voting_preference_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
