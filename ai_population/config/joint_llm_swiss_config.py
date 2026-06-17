@@ -7,7 +7,7 @@ load_dotenv(dotenv_path="ai_population/config/.env")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 PROJECT_NAME = "joint-llm-swiss"
-NUM_POSTS_PER_PROFILE = 500  # 250
+NUM_POSTS_PER_PROFILE = 350  # 250
 NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH = 20
 MAX_NUM_POSTS_PER_KEYWORD = 100
 POLITICIAN_PIPELINE = "politicians-validation"

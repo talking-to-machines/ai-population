@@ -2357,7 +2357,7 @@ def perform_tiktok_keyword_search(
     execution_date: str,
     search_terms: list,
     output_file: str,
-    num_post_per_keyword: int,
+    num_posts_per_keyword: int,
 ) -> pd.DataFrame:
     """
     Perform a TikTok keyword search using the Bright Data API and save the results to a CSV file.
@@ -2369,7 +2369,7 @@ def perform_tiktok_keyword_search(
         search_terms (list): The list containing the search terms,
             one term per line.
         output_file (str): The file path where the resulting CSV file will be saved.
-        num_post_per_keyword (int): The maximum number of posts that should be returned per keyword search.
+        num_posts_per_keyword (int): The maximum number of posts that should be returned per keyword search.
 
     Returns:
         pd.DataFrame: Returns the keyword search results as a pandas Dataframe.
@@ -2389,7 +2389,11 @@ def perform_tiktok_keyword_search(
 
     # Initialise keyword search job
     data = [
-        {"search_keyword": keyword, "num_of_posts": num_post_per_keyword, "country": ""}
+        {
+            "search_keyword": keyword,
+            "num_of_posts": num_posts_per_keyword,
+            "country": "",
+        }
         for keyword in search_terms
     ]
     response = requests.post(
@@ -2857,8 +2861,16 @@ def perform_x_profile_search(
             profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
         )
         profile_search_results = profile_search_results[
-            profile_search_results["createdAt"]
-            >= datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            (
+                profile_search_results["createdAt"]
+                >= datetime.strptime(start_date, "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+            )
+            & (
+                profile_search_results["createdAt"]
+                < datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            )
         ].reset_index(drop=True)
 
     else:  # Perform local search

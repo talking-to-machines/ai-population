@@ -347,7 +347,7 @@ if __name__ == "__main__":
         execution_date=constants["pipeline_execution_date"],
         search_terms=constants["search_term_list"],
         output_file=constants["keyword_search_file"],
-        num_post_per_keyword=NUM_POSTS_PER_KEYWORD,
+        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     ## Extract profile metadata for search results

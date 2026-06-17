@@ -472,7 +472,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         search_terms=SEARCH_TERMS_TIKTOK,
         output_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        num_post_per_keyword=NUM_POSTS_PER_KEYWORD,
+        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     # Step 2: Extract profile metadata for search results

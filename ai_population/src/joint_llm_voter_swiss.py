@@ -135,6 +135,22 @@ def conduct_demographic_interview(
             )
         )
 
+    # Bucket EDUCATION symbols (EDU1..EDU9) into three coarse classes used by
+    # the stratification frame: EDU_COMPULSORY (EDU1-3), EDU_SECONDARY (EDU4-7),
+    # EDU_TERTIARY (EDU8-9). Written to a NEW column so the original
+    # 'EDUCATION - symbol' value from the LLM is preserved for analysis.
+    if "EDUCATION - symbol" in post_interview_profile_metadata.columns:
+        education_buckets = {
+            **{f"EDU{i}": "EDU_COMPULSORY" for i in range(1, 4)},
+            **{f"EDU{i}": "EDU_SECONDARY" for i in range(4, 8)},
+            **{f"EDU{i}": "EDU_TERTIARY" for i in range(8, 10)},
+        }
+        post_interview_profile_metadata["EDUCATION - symbol_bucketed"] = (
+            post_interview_profile_metadata["EDUCATION - symbol"].apply(
+                lambda s: education_buckets.get(s, s)
+            )
+        )
+
     # Filter out profiles that are non-individuals (entity inclusion criteria)
     filtered_profile_metadata = post_interview_profile_metadata[
         post_interview_profile_metadata["ENTITY - symbol"] == "ENT1"
@@ -179,12 +195,13 @@ def apply_quota_inclusion_criteria(
     target_stratification_frame: str,
     current_stratification_frame: str,
 ) -> bool:
-    # Load target stratification frame (expects pre-defined demo_cell_id and
-    # row_id columns plus a per-row 'count' target).
+    # Load target stratification frame (expects a 'cell_id' identifier and a
+    # per-row 'count' target; 'target_share' is bookkeeping metadata and
+    # ignored by the matching loop).
     target_stratification_df = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, target_stratification_frame)
     )
-    required_cols = {"demo_cell_id", "row_id", "count"}
+    required_cols = {"cell_id", "count"}
     missing = required_cols - set(target_stratification_df.columns)
     if missing:
         raise ValueError(
@@ -208,21 +225,19 @@ def apply_quota_inclusion_criteria(
     )
 
     # Stratification dimensions are all strat-frame columns except bookkeeping
-    # ones. The strat frame stores them as bare names (e.g. 'REGION'); the voter
+    # ones. The strat frame stores them as bare names (e.g. 'GENDER'); the voter
     # dataframe stores the LLM answer under '{col} - symbol'.
     strat_dims = [
         col
         for col in target_stratification_df.columns
-        if col not in ("count", "demo_cell_id", "row_id")
+        if col not in ("count", "cell_id", "target_share")
     ]
-    # VOTE_FEDERAL is matched against the bucketed column (VO_FEDERAL_7..15 are
-    # collapsed into VO_FEDERAL_7-15 there); other dims use the raw LLM symbol.
+    # VOTE_FEDERAL and EDUCATION are matched against bucketed columns
+    # (VO_FEDERAL_7..15 → VO_FEDERAL_7-15; EDU1..9 → EDU_COMPULSORY /
+    # EDU_SECONDARY / EDU_TERTIARY); other dims use the raw LLM symbol.
+    bucketed_dims = {"VOTE_FEDERAL", "EDUCATION"}
     voter_cols = {
-        col: (
-            "VOTE_FEDERAL - symbol_bucketed"
-            if col == "VOTE_FEDERAL"
-            else f"{col} - symbol"
-        )
+        col: (f"{col} - symbol_bucketed" if col in bucketed_dims else f"{col} - symbol")
         for col in strat_dims
     }
 
@@ -257,14 +272,11 @@ def apply_quota_inclusion_criteria(
         ):
             continue
 
-        # Assign voter to cell, increment count, and stamp the demo_cell_id /
-        # row_id of the matched cell on the voter so they can be traced back.
+        # Assign voter to cell, increment count, and stamp the cell_id of the
+        # matched cell on the voter so they can be traced back.
         current_stratification_df.loc[cell_idx, "count"] += 1
         voter_with_cell = voter.copy()
-        voter_with_cell["demo_cell_id"] = target_stratification_df.loc[
-            cell_idx, "demo_cell_id"
-        ]
-        voter_with_cell["row_id"] = target_stratification_df.loc[cell_idx, "row_id"]
+        voter_with_cell["cell_id"] = target_stratification_df.loc[cell_idx, "cell_id"]
         eligible_voters.append(voter_with_cell)
 
     # Save eligible voters to output file (append if file already exists)
@@ -495,7 +507,7 @@ if __name__ == "__main__":
                 execution_date=constants["pipeline_name"],
                 search_terms=constants["search_term_list"],
                 output_file=constants["keyword_search_file"],
-                num_post_per_keyword=num_posts_per_keyword,
+                num_posts_per_keyword=num_posts_per_keyword,
             )
         else:
             perform_tiktok_keyword_search(
@@ -503,7 +515,7 @@ if __name__ == "__main__":
                 execution_date=constants["pipeline_name"],
                 search_terms=constants["search_term_list"],
                 output_file=constants["keyword_search_file"],
-                num_post_per_keyword=num_posts_per_keyword,
+                num_posts_per_keyword=num_posts_per_keyword,
             )
 
         ## Skip authors already interviewed in a prior iteration so we do not
@@ -551,7 +563,10 @@ if __name__ == "__main__":
             perform_x_profile_search(
                 project_name=constants["project_name"],
                 execution_date=constants["pipeline_name"],
-                input_file=constants["keyword_profile_metadata_file"],
+                input_file=os.path.join(
+                    constants["pipeline_name"],
+                    constants["keyword_profile_metadata_file"],
+                ),
                 output_file=constants["keyword_profile_posts_file"],
                 start_date=PROFILE_SEARCH_START_DATE,
                 end_date=PROFILE_SEARCH_END_DATE,
@@ -570,7 +585,10 @@ if __name__ == "__main__":
             perform_tiktok_profile_search(
                 project_name=constants["project_name"],
                 execution_date=constants["pipeline_name"],
-                input_file=constants["keyword_profile_metadata_file"],
+                input_file=os.path.join(
+                    constants["pipeline_name"],
+                    constants["keyword_profile_metadata_file"],
+                ),
                 output_file=constants["keyword_profile_posts_file"],
                 start_date=PROFILE_SEARCH_START_DATE,
                 end_date=PROFILE_SEARCH_END_DATE,
@@ -626,7 +644,9 @@ if __name__ == "__main__":
         profile_latest_videos = perform_x_profile_search(
             project_name=constants["project_name"],
             execution_date=constants["pipeline_name"],
-            input_file=constants["quota_inclusion_criteria_file"],
+            input_file=os.path.join(
+                constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
+            ),
             output_file=constants["eligible_profile_posts_file"],
             start_date=PROFILE_SEARCH_START_DATE,
             end_date=PROFILE_SEARCH_END_DATE,
@@ -636,7 +656,9 @@ if __name__ == "__main__":
         profile_latest_videos = perform_tiktok_profile_search(
             project_name=constants["project_name"],
             execution_date=constants["pipeline_name"],
-            input_file=constants["quota_inclusion_criteria_file"],
+            input_file=os.path.join(
+                constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
+            ),
             output_file=constants["eligible_profile_posts_file"],
             start_date=PROFILE_SEARCH_START_DATE,
             end_date=PROFILE_SEARCH_END_DATE,
