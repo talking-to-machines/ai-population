@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import os
 import pandas as pd
@@ -193,6 +194,10 @@ def perform_x_finfluencer_interview(
     post_file: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
     """
     Conducts an interview process for X (Twitter) finfluencer profiles, processes the results, and saves the formatted output.
@@ -219,7 +224,7 @@ def perform_x_finfluencer_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        model_name=GPT_MODEL,
+        model_name=model_name,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -227,10 +232,12 @@ def perform_x_finfluencer_interview(
         user_prompt_template=finfluencer_interview_user_prompt,
         llm_response_field="x_finfluencer_interview",
         interview_type="x_finfluencer_interview",
-        enable_web_search=True,
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
         response_timestamp_col="finfluencer_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
         batch_timeout_seconds=7200,
+        provider=provider,
     )
 
     # Preprocess post interview results
@@ -249,7 +256,7 @@ def perform_x_finfluencer_interview(
     )
 
     # Include LLM model information
-    post_interview_results["model"] = GPT_MODEL
+    post_interview_results["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
     if "finfluencer_interview_datetime" not in post_interview_results.columns:
@@ -320,6 +327,10 @@ def perform_x_prediction_market_interview(
     post_file: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
     snapshot = fetch_daily_snapshot(
         events=POLYMARKET_EVENTS,
@@ -362,7 +373,7 @@ def perform_x_prediction_market_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        model_name=GPT_MODEL,
+        model_name=model_name,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -370,11 +381,13 @@ def perform_x_prediction_market_interview(
         user_prompt_template=rendered_prompt,
         llm_response_field="x_prediction_market_interview",
         interview_type="x_prediction_market_interview",
-        enable_web_search=True,
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
         response_timestamp_col="prediction_market_interview_datetime",
         latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
         history_field="history",
         batch_timeout_seconds=7200,
+        provider=provider,
     )
 
     # Preprocess post interview results
@@ -393,7 +406,7 @@ def perform_x_prediction_market_interview(
     )
 
     # Include LLM model information
-    post_interview_results["model"] = GPT_MODEL
+    post_interview_results["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
     if "prediction_market_interview_datetime" not in post_interview_results.columns:
@@ -433,6 +446,10 @@ def perform_x_stock_recommendation_interview(
     finfluencer_pool: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
     """
     Performs an interview process to extract and verify stock recommendations from X (formerly Twitter) finfluencers.
@@ -510,7 +527,7 @@ def perform_x_stock_recommendation_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        model_name=GPT_MODEL,
+        model_name=model_name,
         profile_metadata_file=output_file,
         post_file=post_file,
         output_file=output_file,
@@ -518,9 +535,11 @@ def perform_x_stock_recommendation_interview(
         user_prompt_template=stock_recommendation_interview_user_prompt,
         llm_response_field="x_finfluencer_stock_recommendation",
         interview_type="x_finfluencer_stock_recommendation",
-        enable_web_search=True,
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
         response_timestamp_col="stock_recommendation_interview_datetime",
         batch_timeout_seconds=7200,
+        provider=provider,
     )
 
     stock_recommendations = pd.read_csv(
@@ -549,7 +568,7 @@ def perform_x_stock_recommendation_interview(
     ].reset_index(drop=True)
 
     # Include LLM model information
-    valid_stock_recommendations["model"] = GPT_MODEL
+    valid_stock_recommendations["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
     if (
@@ -591,6 +610,10 @@ def perform_x_daily_stock_pick_interview(
     post_file: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
 
     profile_metadata = pd.read_csv(
@@ -626,7 +649,7 @@ def perform_x_daily_stock_pick_interview(
         perform_profile_interview(
             project_name=project_name,
             execution_date=execution_date,
-            model_name=GPT_MODEL,
+            model_name=model_name,
             profile_metadata_file=f"x_finfluencer_sampled_profiles_{execution_date}.csv",
             post_file=post_file,
             output_file=chunk_output_file,
@@ -634,10 +657,12 @@ def perform_x_daily_stock_pick_interview(
             user_prompt_template=user_prompt,
             llm_response_field="x_finfluencer_daily_stock_pick",
             interview_type=f"x_finfluencer_daily_stock_pick_{idx+1}",
-            enable_web_search=True,
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
             response_timestamp_col="daily_stock_pick_interview_datetime",
             latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
             batch_timeout_seconds=4800,
+            provider=provider,
         )
 
     with ThreadPoolExecutor(max_workers=3) as executor:
@@ -678,7 +703,7 @@ def perform_x_daily_stock_pick_interview(
     )
 
     # Include LLM model information
-    daily_stock_pick_results["model"] = GPT_MODEL
+    daily_stock_pick_results["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
     if "daily_stock_pick_interview_datetime" not in daily_stock_pick_results.columns:
@@ -837,6 +862,60 @@ def filter_x_profiles(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the X (Twitter) market signals interview pipeline.",
+    )
+    parser.add_argument(
+        "--model",
+        dest="model_name",
+        type=str,
+        default=GPT_MODEL,
+        help=(
+            "Model id used for every interview step. Use an OpenAI model id "
+            "(e.g. gpt-5.1-2025-11-13), an Anthropic Claude model id "
+            "(e.g. claude-opus-4-7), or an xAI Grok model id "
+            "(e.g. grok-4-fast-non-reasoning). The provider is auto-detected "
+            "from the model prefix unless --provider is set."
+        ),
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "claude", "xai", "grok"],
+        default=None,
+        help=(
+            "Force the provider routing (openai | anthropic/claude | xai/grok). "
+            "Defaults to auto-detection from --model."
+        ),
+    )
+    parser.add_argument(
+        "--enable-web-search",
+        dest="enable_web_search",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Enable provider-native web search (OpenAI web_search tool, "
+            "Anthropic web_search_20250305 tool, xAI Live Search). "
+            "Use --no-enable-web-search to disable."
+        ),
+    )
+    parser.add_argument(
+        "--use-row-query",
+        dest="use_row_query",
+        action="store_true",
+        default=False,
+        help=(
+            "Force per-row real-time API calls instead of the provider batch API. "
+            "Batch is used by default; this flag is useful for ad-hoc runs or "
+            "providers without a batch endpoint."
+        ),
+    )
+    args = parser.parse_args()
+    model_name = args.model_name
+    provider = args.provider
+    enable_web_search = args.enable_web_search
+    use_row_query = args.use_row_query
+
     # # Step 1: Perform search using predefined list of search terms
     # print("1. Perform keyword search using predefined list of search terms...")
     # perform_x_keyword_search(
@@ -946,6 +1025,10 @@ if __name__ == "__main__":
             post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
             output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
             filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+            model_name=model_name,
+            provider=provider,
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
         )
         step8 = executor.submit(
             perform_x_stock_recommendation_interview,
@@ -956,10 +1039,43 @@ if __name__ == "__main__":
             finfluencer_pool=FINFLUENCER_POOL_FILE_X,
             output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
             filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+            model_name=model_name,
+            provider=provider,
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
         )
         # Surface exceptions from either future
         step7.result()
         step8.result()
+
+    # print("7. Run finfluencer interview...")
+    # perform_x_finfluencer_interview(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+    #     post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+    #     output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+    #     filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+    #     model_name=model_name,
+    #     provider=provider,
+    #     enable_web_search=enable_web_search,
+    #     use_row_query=use_row_query,
+    # )
+
+    # print("8. Run stock recommendations interview...")
+    # perform_x_stock_recommendation_interview(
+    #     project_name=PROJECT_NAME_X,
+    #     execution_date=PIPELINE_EXECUTION_DATE,
+    #     profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+    #     post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+    #     finfluencer_pool=FINFLUENCER_POOL_FILE_X,
+    #     output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
+    #     filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+    #     model_name=model_name,
+    #     provider=provider,
+    #     enable_web_search=enable_web_search,
+    #     use_row_query=use_row_query,
+    # )
 
     # Step 9: Conduct daily stock pick interview
     print("9. Conduct daily stock pick interview...")
@@ -970,4 +1086,8 @@ if __name__ == "__main__":
         post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
         output_file=FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+        model_name=model_name,
+        provider=provider,
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
     )

@@ -8,7 +8,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
 PIPELINE_EXECUTION_DATE = (
-    "27-05-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
+    "18-07-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
 )
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
@@ -16,8 +16,8 @@ MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 100
 NUM_POSTS_PER_PROFILE = 20
 LATEST_K_POSTS_PER_PROFILE = 850
-PROFILE_SEARCH_START_DATE = "05-27-2026"  # MM-DD-YYYY  (Inclusive)
-PROFILE_SEARCH_END_DATE = "05-28-2026"  # MM-DD-YYYY format  (Exclusive)
+PROFILE_SEARCH_START_DATE = "07-18-2026"  # MM-DD-YYYY  (Inclusive)
+PROFILE_SEARCH_END_DATE = "07-19-2026"  # MM-DD-YYYY format  (Exclusive)
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 SP_500_STOCK_TICKER_FILE = "sp500_stock_tickers_shorten.csv"
 NASDAQ_100_STOCK_TICKER_FILE = "nasdaq100_stock_tickers_shorten.csv"

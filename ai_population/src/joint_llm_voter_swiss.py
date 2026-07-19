@@ -3,6 +3,7 @@ import pandas as pd
 import argparse
 from tqdm import tqdm
 import json
+from datetime import datetime
 
 tqdm.pandas()
 from ai_population.config.joint_llm_swiss_config import (
@@ -31,6 +32,7 @@ from ai_population.config.joint_llm_swiss_config import (
     VOTER_DIGITAL_POLLING_FILE_TIKTOK,
     PROFILE_SEARCH_START_DATE,
     PROFILE_SEARCH_END_DATE,
+    PROFILE_SEARCH_TODAY,
     MAX_NUM_POSTS_PER_KEYWORD,
     NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
     NUM_POSTS_PER_PROFILE,
@@ -409,6 +411,15 @@ def define_pipeline_constants(platform: str) -> dict:
             "digital_polling_system_prompt": x_jointllm_voter_demographic_interview_system_prompt,
             "digital_polling_user_prompt": jointllm_voter_digital_polling_user_prompt,
             "digital_polling_interview_type": "x_jointllm_voter_digital_polling_interview",
+            "profile_search_start_date": datetime.strptime(
+                PROFILE_SEARCH_START_DATE, "%m-%d-%Y"
+            ).strftime("%Y-%m-%d"),
+            "profile_search_end_date": datetime.strptime(
+                PROFILE_SEARCH_END_DATE, "%m-%d-%Y"
+            ).strftime("%Y-%m-%d"),
+            "profile_search_today": datetime.strptime(
+                PROFILE_SEARCH_TODAY, "%m-%d-%Y"
+            ).strftime("%Y-%m-%d"),
         }
     else:  # tiktok
         constants = {
@@ -430,6 +441,9 @@ def define_pipeline_constants(platform: str) -> dict:
             "digital_polling_system_prompt": tiktok_jointllm_voter_demographic_interview_system_prompt,
             "digital_polling_user_prompt": jointllm_voter_digital_polling_user_prompt,
             "digital_polling_interview_type": "tiktok_jointllm_voter_digital_polling_interview",
+            "profile_search_start_date": PROFILE_SEARCH_START_DATE,
+            "profile_search_end_date": PROFILE_SEARCH_END_DATE,
+            "profile_search_today": PROFILE_SEARCH_TODAY,
         }
     return constants
 
@@ -481,7 +495,7 @@ if __name__ == "__main__":
     constants = define_pipeline_constants(platform=platform)
 
     STRATIFICATION_FRAME_NOT_FILED = True
-    iteration = 0
+    iteration = 3
     # num_posts_per_keyword is reassigned at the top of every iteration. The 0
     # seed lets the while condition pass on the first check.
     num_posts_per_keyword = 0
@@ -568,8 +582,8 @@ if __name__ == "__main__":
                     constants["keyword_profile_metadata_file"],
                 ),
                 output_file=constants["keyword_profile_posts_file"],
-                start_date=PROFILE_SEARCH_START_DATE,
-                end_date=PROFILE_SEARCH_END_DATE,
+                start_date=constants["profile_search_start_date"],
+                end_date=constants["profile_search_today"],
                 num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
             )
 
@@ -590,8 +604,8 @@ if __name__ == "__main__":
                     constants["keyword_profile_metadata_file"],
                 ),
                 output_file=constants["keyword_profile_posts_file"],
-                start_date=PROFILE_SEARCH_START_DATE,
-                end_date=PROFILE_SEARCH_END_DATE,
+                start_date=constants["profile_search_start_date"],
+                end_date=constants["profile_search_end_date"],
                 num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
             )
             perform_video_transcription(
@@ -648,8 +662,8 @@ if __name__ == "__main__":
                 constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
             ),
             output_file=constants["eligible_profile_posts_file"],
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
+            start_date=constants["profile_search_start_date"],
+            end_date=constants["profile_search_end_date"],
             num_posts_per_profile=NUM_POSTS_PER_PROFILE,
         )
     else:
@@ -660,8 +674,8 @@ if __name__ == "__main__":
                 constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
             ),
             output_file=constants["eligible_profile_posts_file"],
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
+            start_date=constants["profile_search_start_date"],
+            end_date=constants["profile_search_end_date"],
             num_posts_per_profile=NUM_POSTS_PER_PROFILE,
         )
         perform_video_transcription(

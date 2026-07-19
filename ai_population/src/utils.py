@@ -23,7 +23,18 @@ from ai_population.config.market_signals_config import (
     RUSSELL_4000_STOCK_TICKER_FILE,
 )
 
+try:
+    from anthropic import Anthropic
+except ImportError:
+    Anthropic = None
+from xai_sdk.tools import web_search
+
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+anthropic_client = (
+    Anthropic(api_key=ANTHROPIC_API_KEY)
+    if (Anthropic is not None and ANTHROPIC_API_KEY)
+    else None
+)
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 _together_clients: dict = {}
@@ -39,13 +50,77 @@ def _get_together_client(together_ai_endpoint: str) -> OpenAI:
     return _together_clients[together_ai_endpoint]
 
 
-def _get_grok_client(grok_endpoint: str) -> OpenAI:
-    if grok_endpoint not in _grok_clients:
-        _grok_clients[grok_endpoint] = OpenAI(
+def _get_grok_client(grok_endpoint: str = None) -> OpenAI:
+    endpoint = grok_endpoint or XAI_BASE_URL
+    if endpoint not in _grok_clients:
+        _grok_clients[endpoint] = OpenAI(
             api_key=XAI_API_KEY,
-            base_url=grok_endpoint,
+            base_url=endpoint,
         )
-    return _grok_clients[grok_endpoint]
+    return _grok_clients[endpoint]
+
+
+def _detect_provider(
+    model_name: str,
+    together_ai_endpoint: str = None,
+    grok_endpoint: str = None,
+    provider: str = None,
+) -> str:
+    """Resolve provider id ("openai" | "anthropic" | "xai" | "together").
+
+    Explicit `provider` wins. Otherwise infer from endpoint overrides, then from
+    the model name prefix (claude-* → anthropic, grok-* → xai). Defaults to openai.
+    """
+    if provider:
+        p = provider.lower()
+        if p in ("openai", "anthropic", "claude", "xai", "grok", "together"):
+            return {"claude": "anthropic", "grok": "xai"}.get(p, p)
+        raise ValueError(f"Unsupported provider: {provider}")
+    if together_ai_endpoint:
+        return "together"
+    if grok_endpoint:
+        return "xai"
+    name = (model_name or "").lower()
+    if name.startswith("claude"):
+        return "anthropic"
+    if name.startswith("grok"):
+        return "xai"
+    return "openai"
+
+
+def _anthropic_web_search_tool() -> dict:
+    # Mirror the OpenAI web_search user_location={country: "US"} setting.
+    return {
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "user_location": {"type": "approximate", "country": "US"},
+    }
+
+
+def _xai_web_search_tool() -> dict:
+    # xAI Agent Tools API. The legacy `search_parameters` field and
+    # `live_search` tool are deprecated. `web_search` is the supported tool
+    # for both real-time `/v1/responses` and batch (when JSONL routes to
+    # `/v1/responses`). Restrict to US to mirror OpenAI's user_location.
+    # https://docs.x.ai/docs/guides/tools/overview
+    # https://docs.x.ai/docs/guides/batch-api
+    return {"type": "web_search", "country": "US"}
+
+
+def _extract_anthropic_text(message) -> str:
+    """Return the concatenated text blocks from an Anthropic Message response."""
+    parts = []
+    for block in getattr(message, "content", []) or []:
+        btype = getattr(block, "type", None) or (
+            block.get("type") if isinstance(block, dict) else None
+        )
+        if btype == "text":
+            text = getattr(block, "text", None) or (
+                block.get("text") if isinstance(block, dict) else ""
+            )
+            if text:
+                parts.append(text)
+    return "".join(parts)
 
 
 def load_text_file(file_path) -> list:
@@ -963,9 +1038,16 @@ def create_batch_file(
     batch_file_name: str = "batch_input.jsonl",
     vector_store_ids: list = [],
     enable_web_search: bool = False,
+    provider: str = "openai",
 ) -> str:
     # Creating an array of json tasks
     tasks = []
+
+    if provider in ("xai", "anthropic") and vector_store_ids:
+        warnings.warn(
+            f"vector_store_ids is not supported for provider={provider}; ignoring."
+        )
+        vector_store_ids = []
 
     for i in range(len(prompts)):
         custom_id = f"{prompts.loc[i, 'custom_id']}"
@@ -987,7 +1069,33 @@ def create_batch_file(
             else []
         )
 
-        # Build messages
+        if provider == "anthropic":
+            anth_messages = []
+            if history:
+                for m in history:
+                    r, c = m.get("role", "user"), m.get("content", "")
+                    if r == "system":
+                        # Anthropic system prompt is passed separately; prepend
+                        # any historical system turns to the system text.
+                        sys_txt = f"{sys_txt}\n\n{c}".strip() if sys_txt else c
+                    else:
+                        anth_messages.append({"role": r, "content": c})
+            anth_messages.append({"role": "user", "content": user_txt})
+
+            params = {
+                "model": model_name,
+                "max_tokens": ANTHROPIC_MAX_OUTPUT_TOKENS,
+                "messages": anth_messages,
+                "temperature": 0,
+            }
+            if sys_txt:
+                params["system"] = sys_txt
+            if enable_web_search:
+                params["tools"] = [_anthropic_web_search_tool()]
+            tasks.append({"custom_id": custom_id, "params": params})
+            continue
+
+        # OpenAI/xAI share the chat-completions JSONL shape
         messages = []
         if sys_txt:
             messages.append({"role": "system", "content": sys_txt})
@@ -999,10 +1107,38 @@ def create_batch_file(
 
         messages.append({"role": "user", "content": user_txt})
 
-        if not model_name.startswith(("gpt-4", "gpt-5")):
-            raise ValueError(f"Unsupported GPT model: {model_name}")
+        if provider == "openai" and not model_name.startswith(("gpt-4", "gpt-5")):
+            raise ValueError(f"Unsupported OpenAI model: {model_name}")
 
-        # Build tools list based on enabled features
+        if provider == "xai":
+            if enable_web_search:
+                # Per xAI batch docs, server-side tools (web_search/x_search)
+                # are only supported on /v1/responses with the `input` shape.
+                body = {
+                    "model": model_name,
+                    "input": messages,
+                    "tools": [_xai_web_search_tool()],
+                    "temperature": 0,
+                }
+                url_path = "/v1/responses"
+            else:
+                body = {
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": 0,
+                }
+                url_path = "/v1/chat/completions"
+            tasks.append(
+                {
+                    "custom_id": custom_id,
+                    "method": "POST",
+                    "url": url_path,
+                    "body": body,
+                }
+            )
+            continue
+
+        # provider == "openai"
         tools = []
         if vector_store_ids:
             tools.append({"type": "file_search", "vector_store_ids": vector_store_ids})
@@ -1066,9 +1202,33 @@ def batch_query(
     vector_store_ids: list = [],
     enable_web_search: bool = False,
     timeout_seconds: int = None,
+    provider: str = "openai",
 ) -> pd.DataFrame:
+    if provider == "anthropic":
+        return _anthropic_batch_query(
+            project_name=project_name,
+            execution_date=execution_date,
+            batch_input_file_dir=batch_input_file_dir,
+            batch_output_file_dir=batch_output_file_dir,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if provider == "xai":
+        return _xai_batch_query(
+            project_name=project_name,
+            execution_date=execution_date,
+            batch_input_file_dir=batch_input_file_dir,
+            batch_output_file_dir=batch_output_file_dir,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if provider == "openai":
+        client = openai_client
+    else:
+        raise ValueError(f"Unsupported provider for batch_query: {provider}")
+
     # Upload batch input file
-    batch_file = openai_client.files.create(
+    batch_file = client.files.create(
         file=open(
             f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_input_file_dir}",
             "rb",
@@ -1076,25 +1236,19 @@ def batch_query(
         purpose="batch",
     )
 
-    # Create batch job
+    # Create batch job.
     use_responses_api = bool(vector_store_ids) or enable_web_search
-    if use_responses_api:
-        batch_job = openai_client.batches.create(
-            input_file_id=batch_file.id,
-            endpoint="/v1/responses",
-            completion_window="24h",
-        )
-    else:
-        batch_job = openai_client.batches.create(
-            input_file_id=batch_file.id,
-            endpoint="/v1/chat/completions",
-            completion_window="24h",
-        )
+    endpoint = "/v1/responses" if use_responses_api else "/v1/chat/completions"
+    batch_job = client.batches.create(
+        input_file_id=batch_file.id,
+        endpoint=endpoint,
+        completion_window="24h",
+    )
 
     # Check batch status
     start_time = time.monotonic()
     while True:
-        batch_job = openai_client.batches.retrieve(batch_job.id)
+        batch_job = client.batches.retrieve(batch_job.id)
         print(f"Batch job status: {batch_job.status}")
         if batch_job.status == "completed":
             break
@@ -1106,7 +1260,7 @@ def batch_query(
                 and (time.monotonic() - start_time) >= timeout_seconds
             ):
                 try:
-                    openai_client.batches.cancel(batch_job.id)
+                    client.batches.cancel(batch_job.id)
                 except Exception as cancel_err:
                     warnings.warn(
                         f"Failed to cancel batch job {batch_job.id}: {cancel_err}"
@@ -1119,7 +1273,7 @@ def batch_query(
 
     # Retrieve batch results
     result_file_id = batch_job.output_file_id
-    results = openai_client.files.content(result_file_id).content
+    results = client.files.content(result_file_id).content
 
     # Save the batch output
     with open(
@@ -1168,6 +1322,323 @@ def batch_query(
                             "message"
                         ]["content"],
                     }
+                )
+
+    return pd.DataFrame(response_list)
+
+
+def _xai_batch_query(
+    project_name: str,
+    execution_date: str,
+    batch_input_file_dir: str,
+    batch_output_file_dir: str,
+    timeout_seconds: int = None,
+) -> pd.DataFrame:
+    """Submit an xAI batch via raw HTTP so we don't depend on the OpenAI SDK
+    matching xAI's response schema (xAI uses different field names).
+    """
+    base_url = XAI_BASE_URL.rstrip("/")
+    headers = {"Authorization": f"Bearer {XAI_API_KEY}"}
+    input_path = f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_input_file_dir}"
+    output_path = f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_output_file_dir}"
+
+    # Upload batch input file. xAI's /v1/files occasionally returns transient
+    # 5xx errors (e.g. 500 "Auth context expired") on large uploads, so retry.
+    upload_resp = None
+    max_upload_attempts = 4
+    for attempt in range(1, max_upload_attempts + 1):
+        with open(input_path, "rb") as f:
+            upload_resp = requests.post(
+                f"{base_url}/files",
+                headers=headers,
+                files={"file": (os.path.basename(input_path), f, "application/jsonl")},
+                data={"purpose": "batch"},
+            )
+        if upload_resp.ok:
+            break
+        is_transient = upload_resp.status_code >= 500
+        print(
+            f"xAI file upload attempt {attempt}/{max_upload_attempts} failed "
+            f"({upload_resp.status_code}): {upload_resp.text}"
+        )
+        if not is_transient or attempt == max_upload_attempts:
+            raise RuntimeError(
+                f"xAI file upload failed ({upload_resp.status_code}): {upload_resp.text}"
+            )
+        time.sleep(min(30, 5 * attempt))
+    upload_data = upload_resp.json()
+    print(f"xAI files upload response: {upload_data!r}")
+    file_id = (
+        upload_data.get("id")
+        or upload_data.get("file_id")
+        or (upload_data.get("data") or {}).get("id")
+    )
+    if not file_id:
+        raise RuntimeError(f"xAI file upload returned no id: {upload_data!r}")
+
+    # Create batch job. xAI's POST /v1/batches body takes only `name` and an
+    # optional `input_file_id`; endpoint/completion_window are OpenAI-only
+    # fields and are silently dropped (or trigger validation failure) by xAI.
+    batch_name = (
+        os.path.splitext(os.path.basename(batch_input_file_dir))[0][:64] or "batch"
+    )
+    create_body = {
+        "name": batch_name,
+        "input_file_id": file_id,
+    }
+    create_resp = requests.post(
+        f"{base_url}/batches", headers=headers, json=create_body
+    )
+    if not create_resp.ok:
+        raise RuntimeError(
+            f"xAI batches.create failed ({create_resp.status_code}): {create_resp.text}"
+        )
+    create_data = create_resp.json()
+    print(f"xAI batches.create response: {create_data!r}")
+    batch_id = (
+        create_data.get("id")
+        or create_data.get("batch_id")
+        or (create_data.get("data") or {}).get("id")
+        or (create_data.get("batch") or {}).get("id")
+    )
+    if not batch_id:
+        raise RuntimeError(
+            f"xAI batches.create returned no id in payload: {create_data!r}"
+        )
+
+    # Poll status. xAI's batch response has no top-level `status` string —
+    # progress is tracked via `state.num_pending` / `num_success` / `num_error`
+    # / `num_cancelled`, and the batch is done when num_pending == 0 with a
+    # positive num_requests (so we don't false-positive before xAI has finished
+    # ingesting the input file).
+    start_time = time.monotonic()
+    poll_interval = 20
+    polls = 0
+    ingest_grace_seconds = 180  # how long to allow num_requests to stay at 0
+    while True:
+        retrieve_resp = requests.get(f"{base_url}/batches/{batch_id}", headers=headers)
+        if not retrieve_resp.ok:
+            raise RuntimeError(
+                f"xAI batches.retrieve failed ({retrieve_resp.status_code}): {retrieve_resp.text}"
+            )
+        status_data = retrieve_resp.json()
+        polls += 1
+        # Print full payload every 5 polls so unknown fields stay visible.
+        if polls == 1 or polls % 5 == 0:
+            print(f"xAI batch {batch_id} full payload: {status_data!r}")
+        state = status_data.get("state") or {}
+        num_requests = state.get("num_requests", 0)
+        num_pending = state.get("num_pending", 0)
+        num_success = state.get("num_success", 0)
+        num_error = state.get("num_error", 0)
+        num_cancelled = state.get("num_cancelled", 0)
+        cancel_time = status_data.get("cancel_time")
+        elapsed = time.monotonic() - start_time
+        print(
+            f"xAI batch {batch_id} [{elapsed:.0f}s]: "
+            f"requests={num_requests} pending={num_pending} "
+            f"success={num_success} error={num_error} cancelled={num_cancelled}"
+        )
+
+        if cancel_time:
+            raise Exception(f"xAI batch {batch_id} was cancelled: {status_data!r}")
+        if num_requests > 0 and num_pending == 0:
+            break
+        if num_requests == 0 and elapsed >= ingest_grace_seconds:
+            raise RuntimeError(
+                f"xAI batch {batch_id} never ingested any requests "
+                f"(num_requests stayed at 0 for {elapsed:.0f}s). "
+                f"This usually means the JSONL request shape or one of the "
+                f"create-body fields (input_file_id / endpoint / completion_window) "
+                f"is not what xAI expects. Last payload: {status_data!r}"
+            )
+        if timeout_seconds is not None and elapsed >= timeout_seconds:
+            # xAI cancel endpoint uses colon syntax, not /cancel.
+            try:
+                requests.post(f"{base_url}/batches/{batch_id}:cancel", headers=headers)
+            except Exception as cancel_err:
+                warnings.warn(f"Failed to cancel xAI batch {batch_id}: {cancel_err}")
+            raise TimeoutError(
+                f"xAI batch {batch_id} did not complete within {timeout_seconds} seconds."
+            )
+        time.sleep(poll_interval)
+
+    # Fetch paginated results from xAI's dedicated /results endpoint. Unlike
+    # OpenAI, xAI does not produce an output file we can download by id.
+    response_list = []
+    raw_results = []
+    pagination_token = None
+    page = 0
+    while True:
+        params = {"limit": 100}
+        if pagination_token:
+            params["pagination_token"] = pagination_token
+        results_resp = requests.get(
+            f"{base_url}/batches/{batch_id}/results",
+            headers=headers,
+            params=params,
+        )
+        if not results_resp.ok:
+            raise RuntimeError(
+                f"xAI results retrieval failed ({results_resp.status_code}): {results_resp.text}"
+            )
+        results_data = results_resp.json()
+        page += 1
+        items = (
+            results_data.get("results")
+            or results_data.get("data")
+            or results_data.get("batch_results")
+            or []
+        )
+        for item in items:
+            raw_results.append(item)
+            custom_id = (
+                item.get("batch_request_id")
+                or item.get("custom_id")
+                or (item.get("batch_result") or {}).get("batch_request_id")
+            )
+            text = _extract_xai_batch_result_text(item)
+            response_list.append({"custom_id": f"{custom_id}", "query_response": text})
+        pagination_token = results_data.get("pagination_token") or results_data.get(
+            "next_page_token"
+        )
+        if not pagination_token:
+            break
+
+    # Persist the raw results to disk for downstream inspection.
+    with open(output_path, "w") as f:
+        for item in raw_results:
+            f.write(json.dumps(item) + "\n")
+
+    return pd.DataFrame(response_list)
+
+
+def _extract_xai_batch_result_text(item: dict) -> str:
+    """Pull the assistant text out of an xAI batch result item.
+
+    Handles both /v1/chat/completions and /v1/responses shapes. xAI nests the
+    payload under `batch_result.response.<endpoint_key>` per their docs.
+    """
+    # Direct chat-completions shape (legacy / unwrapped)
+    try:
+        return item["response"]["body"]["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        pass
+
+    response = (
+        (item.get("batch_result") or {}).get("response") or item.get("response") or {}
+    )
+
+    # Chat completions via xAI's documented `chat_get_completion` key
+    chat = response.get("chat_get_completion") or response.get("chat") or {}
+    try:
+        return chat["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        pass
+
+    # Responses API output: prefer convenience field if present, else walk
+    # `output[*].content[*].text`.
+    resp_obj = (
+        response.get("responses")
+        or response.get("response")
+        or response.get("model_response")
+        or response
+    )
+    if isinstance(resp_obj, dict):
+        text = resp_obj.get("output_text")
+        if text:
+            return text
+        output = resp_obj.get("output") or []
+        if isinstance(output, list):
+            parts = []
+            for out in output:
+                if not isinstance(out, dict):
+                    continue
+                for block in out.get("content", []) or []:
+                    if not isinstance(block, dict):
+                        continue
+                    t = block.get("text") or block.get("output_text")
+                    if t:
+                        parts.append(t)
+            if parts:
+                return "".join(parts)
+
+    warnings.warn(
+        f"Failed to parse xAI batch result item; recording empty response. "
+        f"Item: {item!r}"
+    )
+    return None
+
+
+def _anthropic_batch_query(
+    project_name: str,
+    execution_date: str,
+    batch_input_file_dir: str,
+    batch_output_file_dir: str,
+    timeout_seconds: int = None,
+) -> pd.DataFrame:
+    """Submit an Anthropic Message Batch built from the JSONL input file."""
+    if anthropic_client is None:
+        raise RuntimeError(
+            "Anthropic client unavailable. Install the `anthropic` package and "
+            "set ANTHROPIC_API_KEY."
+        )
+
+    input_path = f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_input_file_dir}"
+    output_path = f"{base_dir}/../data/{project_name}/{execution_date}/batch-files/{batch_output_file_dir}"
+
+    requests = []
+    with open(input_path, "r") as file:
+        for line in file:
+            entry = json.loads(line.strip())
+            requests.append(
+                {"custom_id": entry["custom_id"], "params": entry["params"]}
+            )
+
+    batch_job = anthropic_client.messages.batches.create(requests=requests)
+
+    start_time = time.monotonic()
+    while True:
+        batch_job = anthropic_client.messages.batches.retrieve(batch_job.id)
+        status = batch_job.processing_status
+        print(f"Anthropic batch status: {status}")
+        if status == "ended":
+            break
+        if (
+            timeout_seconds is not None
+            and (time.monotonic() - start_time) >= timeout_seconds
+        ):
+            try:
+                anthropic_client.messages.batches.cancel(batch_job.id)
+            except Exception as cancel_err:
+                warnings.warn(
+                    f"Failed to cancel Anthropic batch {batch_job.id}: {cancel_err}"
+                )
+            raise TimeoutError(
+                f"Anthropic batch {batch_job.id} did not complete within {timeout_seconds} seconds."
+            )
+        time.sleep(300)
+
+    response_list = []
+    with open(output_path, "w") as out_f:
+        for result in anthropic_client.messages.batches.results(batch_job.id):
+            custom_id = getattr(result, "custom_id", None)
+            result_obj = getattr(result, "result", None)
+            result_type = getattr(result_obj, "type", None)
+            text = None
+            if result_type == "succeeded":
+                text = _extract_anthropic_text(result_obj.message)
+            else:
+                warnings.warn(
+                    f"Anthropic batch result for custom_id={custom_id} "
+                    f"returned status={result_type}; recording empty response."
+                )
+            response_list.append({"custom_id": f"{custom_id}", "query_response": text})
+            try:
+                out_f.write(result.model_dump_json() + "\n")
+            except Exception:
+                out_f.write(
+                    json.dumps({"custom_id": custom_id, "type": result_type}) + "\n"
                 )
 
     return pd.DataFrame(response_list)
@@ -1415,14 +1886,22 @@ def row_query(row: pd.Series, args: list) -> str:
     enable_web_search = args[0][3]
     together_ai_endpoint = args[0][4] if len(args[0]) > 4 else None
     grok_endpoint = args[0][5] if len(args[0]) > 5 else None
+    provider = args[0][6] if len(args[0]) > 6 else None
 
     # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
     if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
         return ""
 
+    provider = _detect_provider(
+        model_name=model_name,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
+        provider=provider,
+    )
+
     # Make a chat completion request
     try:
-        if together_ai_endpoint:
+        if provider == "together":
             client = _get_together_client(together_ai_endpoint)
             response = client.chat.completions.create(
                 model=model_name,
@@ -1433,17 +1912,45 @@ def row_query(row: pd.Series, args: list) -> str:
                 temperature=0,
             )
             return response.choices[0].message.content
-        elif grok_endpoint:
+        elif provider == "xai":
             client = _get_grok_client(grok_endpoint)
+            messages_xai = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+            if enable_web_search:
+                # xAI's web_search tool is only available on /v1/responses
+                # (the OpenAI SDK's `.responses.create` hits that endpoint).
+                resp = client.responses.create(
+                    model=model_name,
+                    input=messages_xai,
+                    tools=[_xai_web_search_tool()],
+                    temperature=0,
+                )
+                return resp.output_text
             response = client.chat.completions.create(
                 model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=messages_xai,
                 temperature=0,
             )
             return response.choices[0].message.content
+        elif provider == "anthropic":
+            if anthropic_client is None:
+                raise RuntimeError(
+                    "Anthropic client unavailable. Install the `anthropic` "
+                    "package and set ANTHROPIC_API_KEY."
+                )
+            kwargs = dict(
+                model=model_name,
+                max_tokens=ANTHROPIC_MAX_OUTPUT_TOKENS,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+                temperature=0,
+            )
+            if enable_web_search:
+                kwargs["tools"] = [_anthropic_web_search_tool()]
+            message = anthropic_client.messages.create(**kwargs)
+            return _extract_anthropic_text(message)
         elif enable_web_search:
             response = openai_client.responses.create(
                 model=model_name,
@@ -1498,18 +2005,22 @@ def perform_profile_interview(
     batch_timeout_seconds: int = 7200,
     together_ai_endpoint: str = None,
     grok_endpoint: str = None,
+    provider: str = None,
 ) -> None:
     if together_ai_endpoint and grok_endpoint:
         raise ValueError(
             "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
         )
-    # Neither Together AI nor xAI (Grok) expose OpenAI's batch endpoint, so
-    # when either is supplied we route every request through the row-query path.
-    if (together_ai_endpoint or grok_endpoint) and not use_row_query:
-        provider = "together_ai_endpoint" if together_ai_endpoint else "grok_endpoint"
+    provider = _detect_provider(
+        model_name=model_name,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
+        provider=provider,
+    )
+    # Together AI has no batch endpoint, so force row-query mode.
+    if provider == "together" and not use_row_query:
         warnings.warn(
-            f"{provider} is set; forcing use_row_query=True because "
-            "the OpenAI batch API is not applicable to non-OpenAI endpoints."
+            "Together AI does not expose a batch endpoint; forcing use_row_query=True."
         )
         use_row_query = True
     # Create the project subfolder within the data folder if it does not exist
@@ -1590,6 +2101,7 @@ def perform_profile_interview(
             enable_web_search,
             together_ai_endpoint,
             grok_endpoint,
+            provider,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -1634,6 +2146,7 @@ def perform_profile_interview(
             batch_file_name=batch_input_file,
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
+            provider=provider,
         )
 
         llm_responses = batch_query(
@@ -1644,6 +2157,7 @@ def perform_profile_interview(
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
             timeout_seconds=batch_timeout_seconds,
+            provider=provider,
         )
         llm_responses.rename(
             columns={"query_response": llm_response_field}, inplace=True
@@ -1739,20 +2253,24 @@ def perform_profile_interview_x_tiktok(
     enable_web_search: bool = False,
     response_timestamp_col: str = "",
     latest_k_posts: int = None,
+    batch_timeout_seconds: int = 7200,
     together_ai_endpoint: str = None,
     grok_endpoint: str = None,
+    provider: str = None,
 ) -> None:
     if together_ai_endpoint and grok_endpoint:
         raise ValueError(
             "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
         )
-    # Neither Together AI nor xAI (Grok) expose OpenAI's batch endpoint, so
-    # when either is supplied we route every request through the row-query path.
-    if (together_ai_endpoint or grok_endpoint) and not use_row_query:
-        provider = "together_ai_endpoint" if together_ai_endpoint else "grok_endpoint"
+    provider = _detect_provider(
+        model_name=model_name,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
+        provider=provider,
+    )
+    if provider == "together" and not use_row_query:
         warnings.warn(
-            f"{provider} is set; forcing use_row_query=True because "
-            "the OpenAI batch API is not applicable to non-OpenAI endpoints."
+            "Together AI does not expose a batch endpoint; forcing use_row_query=True."
         )
         use_row_query = True
     # Create the project subfolder within the data folder if it does not exist
@@ -1861,8 +2379,8 @@ def perform_profile_interview_x_tiktok(
         exist_ok=True,
     )
 
-    if use_row_query:  # When performing row-wise queries
-        profile_metadata_with_responses = profile_metadata_combined.copy()
+    def _run_row_query():
+        df = profile_metadata_combined.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
             f"{interview_type}_user_prompt",
@@ -1870,6 +2388,7 @@ def perform_profile_interview_x_tiktok(
             enable_web_search,
             together_ai_endpoint,
             grok_endpoint,
+            provider,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -1879,7 +2398,6 @@ def perform_profile_interview_x_tiktok(
         rows = [row for _, row in profile_metadata_combined.iterrows()]
 
         def run_row_query(row):
-            # row_query(row, args=(...)) matches your previous progress_apply usage
             response_timestamp = (
                 pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
             )
@@ -1894,16 +2412,11 @@ def perform_profile_interview_x_tiktok(
                 tqdm_auto(executor.map(run_row_query, rows), total=len(rows))
             )
 
-        # Assign results back to the DataFrame in the same order
-        profile_metadata_with_responses[llm_response_field] = [
-            r["response"] for r in results
-        ]
-        profile_metadata_with_responses[response_timestamp_col] = [
-            r["response_timestamp"] for r in results
-        ]
+        df[llm_response_field] = [r["response"] for r in results]
+        df[response_timestamp_col] = [r["response_timestamp"] for r in results]
+        return df
 
-    else:  # Perform batch queries to save cost
-        # Perform batch query for survey questions
+    def _run_batch_query():
         batch_input_file = f"{interview_type}_batch_input.jsonl"
         batch_output_file = f"{interview_type}_batch_output.jsonl"
 
@@ -1918,6 +2431,7 @@ def perform_profile_interview_x_tiktok(
             batch_file_name=batch_input_file,
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
+            provider=provider,
         )
 
         llm_responses = batch_query(
@@ -1927,6 +2441,8 @@ def perform_profile_interview_x_tiktok(
             batch_output_file_dir=batch_output_file,
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
+            timeout_seconds=batch_timeout_seconds,
+            provider=provider,
         )
         llm_responses.rename(
             columns={"query_response": llm_response_field}, inplace=True
@@ -1937,11 +2453,23 @@ def perform_profile_interview_x_tiktok(
             "custom_id"
         ].astype("int64")
         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
-        profile_metadata_with_responses = pd.merge(
+        return pd.merge(
             left=profile_metadata_combined,
             right=llm_responses[["custom_id", llm_response_field]],
             on="custom_id",
         )
+
+    if use_row_query:
+        profile_metadata_with_responses = _run_row_query()
+    else:
+        try:
+            profile_metadata_with_responses = _run_batch_query()
+        except TimeoutError as e:
+            warnings.warn(
+                f"Batch job did not complete within {batch_timeout_seconds} seconds: {e}. "
+                f"Falling back to row-query approach."
+            )
+            profile_metadata_with_responses = _run_row_query()
 
     # Save profile metadata after analysis into CSV file
     profile_metadata_with_responses.to_csv(
@@ -2744,7 +3272,14 @@ def perform_x_keyword_search(
                 },
                 auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
             )
-            all_search_results += response.json()
+            # Tag each result with the search term that produced it. Batches
+            # are size 1, so all results in this response came from one term.
+            batch_keyword = batch_terms[0] if batch_terms else None
+            batch_results = response.json()
+            for item in batch_results:
+                if isinstance(item, dict):
+                    item["search_keyword"] = batch_keyword
+            all_search_results += batch_results
         except requests.exceptions.JSONDecodeError:
             warnings.warn(
                 f"JSONDecodeError encountered for search terms: {batch_terms}. Skipping these terms."
@@ -2752,9 +3287,9 @@ def perform_x_keyword_search(
             continue
 
     keyword_search_results = pd.DataFrame(all_search_results)
-    keyword_search_results = keyword_search_results.drop_duplicates(
-        subset="id"
-    ).reset_index(drop=True)
+    # keyword_search_results = keyword_search_results.drop_duplicates(
+    #     subset="id"
+    # ).reset_index(drop=True)
     keyword_search_results["account_id"] = keyword_search_results["author"].apply(
         lambda x: x.get("userName")
     )

@@ -2622,6 +2622,9 @@ Question 2: Please indicate your top-conviction SELL or SHORT stock pick for tod
 sp500_stock_tickers = pd.read_csv(
     os.path.join(base_dir, "../config", SP_500_STOCK_TICKER_FILE)
 )
+# sp500_stock_tickers = pd.read_csv(
+#     os.path.join(base_dir, "../config", NASDAQ_100_STOCK_TICKER_FILE)
+# )
 sp500_stock_tickers.drop_duplicates(subset=["TICKER"], inplace=True)
 sp500_stock_tickers["combined_ticker"] = sp500_stock_tickers.apply(
     lambda stock_row: f"{stock_row['COMNAM']} ({stock_row['TICKER']})", axis=1
@@ -3887,7 +3890,7 @@ PP11) Other party
 PP12) Independent/no party"""
 
 jointllm_politician_question_template = """For the next two questions (TURNOUT_{business_number} and VOTE_{business_number}), assume it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative {business_number}.
-Here is the official summary of the initiative provided by the Federal Council:
+Here is the official summary of the initiative:
 {booklet_summary_en}
 
 The full text of the Federal Decree of initiative {business_number} is:
@@ -3915,6 +3918,22 @@ jointllm_format_example_template = """**question: TURNOUT_{business_number}**
 **speculation: [Speculation score selected]**"""
 
 base_jointllm_politician_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this Swiss politician based on their social media profile.
+
+For each heading, follow these instructions precisely:  
+1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+2) Select exactly one symbol per question.
+3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
+4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+
+To ensure consistency, use the following guidelines for determining the degree of speculation:
+0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
+21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
+41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
+61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
+81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+
+5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
+6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}
@@ -4196,7 +4215,7 @@ VO_FEDERAL_15) Other party
 VO_FEDERAL_16) NA"""
 
 jointllm_voter_question_template = """For the next two questions (TURNOUT {business_number} and VOTE {business_number}), assume it is {voter_ballot_date}. A national referendum is being held in Switzerland on initiative {business_number}.
-Here is the official summary of the initiative provided by the Federal Council: 
+Here is the official summary of the initiative: 
 {booklet_summary_en}
 
 The question on the ballot reads:
@@ -4214,6 +4233,22 @@ VO_{business_number}_2) {voter_answer_no_en}
 VO_{business_number}_3) NA"""
 
 base_jointllm_voter_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this content creator based on their social media profile.
+
+For each heading, follow these instructions precisely:  
+1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+2) Select exactly one symbol per question.
+3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
+4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+
+To ensure consistency, use the following guidelines for determining the degree of speculation:
+0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
+21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
+41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
+61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
+81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+
+5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
+6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}

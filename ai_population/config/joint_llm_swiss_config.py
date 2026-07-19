@@ -1,4 +1,5 @@
 import os, re
+from datetime import datetime
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -10,11 +11,12 @@ PROJECT_NAME = "joint-llm-swiss"
 NUM_POSTS_PER_PROFILE = 350  # 250
 NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH = 20
 MAX_NUM_POSTS_PER_KEYWORD = 100
-POLITICIAN_PIPELINE = "politicians-validation"
+POLITICIAN_PIPELINE = "politicians-validation-round2"
 VOTER_PIPELINE_X = "voters-x"
 VOTER_PIPELINE_TIKTOK = "voters-tiktok"
 PROFILE_SEARCH_START_DATE = "01-01-2024"  # MM-DD-YYYY format
 PROFILE_SEARCH_END_DATE = "06-01-2025"  # MM-DD-YYYY format
+PROFILE_SEARCH_TODAY = datetime.today().strftime("%m-%d-%Y")
 
 # Voter-Related Config
 VOTER_KEYWORD_SEARCH_FILE_X = f"x_jointllm_voter_keyword_search_{VOTER_PIPELINE_X}.csv"
