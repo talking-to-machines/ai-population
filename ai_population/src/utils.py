@@ -3165,105 +3165,148 @@ def perform_tiktok_profile_search(
     return profile_search_results
 
 
+def _fetch_tiktok_profile_metadata_from_api(profile_list: list) -> pd.DataFrame:
+    """Fetch TikTok profile metadata for a list of account ids via the BrightData API.
+
+    Triggers a BrightData dataset collection job for the given profiles, polls until the
+    snapshot is ready, and returns the parsed metadata with dead pages and failed crawls
+    removed.
+
+    Args:
+        profile_list: List of account ids (TikTok handles) to query.
+
+    Returns:
+        DataFrame of profile metadata (with an ``account_id`` column). Empty if nothing
+        was returned.
+    """
+    # Initialise profile metadata search job
+    data = [
+        {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
+        for profile in profile_list
+    ]
+    response = requests.post(
+        "https://api.brightdata.com/datasets/v3/trigger",
+        headers={
+            "Authorization": f"Bearer {BRIGHTDATA_API}",
+            "Content-Type": "application/json",
+        },
+        params={
+            "dataset_id": "gd_l1villgoiiidt09ci",
+            "include_errors": "true",
+        },
+        json=data,
+    )
+    snapshot_id = response.json().get("snapshot_id")
+
+    # Retrieve profile metadata search results
+    response_json = {"status": "running"}
+    while response_json.get("status") != "ready":
+        time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+        response = requests.get(
+            f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
+            headers={
+                "Authorization": f"Bearer {BRIGHTDATA_API}",
+            },
+        )
+        response_json = response.json()
+
+    retries = 0
+    while True:
+        try:
+            response = requests.get(
+                f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
+                headers={
+                    "Authorization": f"Bearer {BRIGHTDATA_API}",
+                },
+                params={
+                    "format": "json",
+                },
+            )
+            response_json = response.json()
+            profile_metadata = pd.DataFrame(response_json)
+            break
+
+        except (requests.RequestException, ValueError, json.JSONDecodeError) as err:
+            retries += 1
+            if retries > MAX_RETRIES:
+                raise RuntimeError(
+                    f"Failed to retrieve snapshot after {MAX_RETRIES} attempts: {err}"
+                )
+            time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
+
+    if "warning_code" in profile_metadata.columns:
+        profile_metadata = profile_metadata[
+            profile_metadata["warning_code"] != "dead_page"
+        ].reset_index(drop=True)
+    if "error_code" in profile_metadata.columns:
+        profile_metadata = profile_metadata[
+            profile_metadata["error_code"] != "crawl_failed"
+        ].reset_index(drop=True)
+
+    return profile_metadata
+
+
 def perform_tiktok_profile_metadata_search(
     project_name: str,
     execution_date: str,
     input_file: str,
     output_file: str = "",
     local_file: str = None,
+    force_refresh: bool = False,
 ) -> pd.DataFrame:
+    """Retrieve TikTok profile metadata for a pool of profiles, with weekly API caching.
+
+    To reduce BrightData data costs the metadata is refreshed from the API at most once
+    per week (on the first run on or after Monday) and cached to a persistent local file;
+    the rest of the week the cached metadata is reused. The date-stamped output for the
+    current run is still written to the execution-date folder as before.
+
+    Args:
+        project_name: Project subfolder under ../data.
+        execution_date: Pipeline execution date in DD-MM-YYYY format.
+        input_file: CSV (relative to the project folder) containing an 'account_id' column.
+        output_file: Filename to write this run's metadata to under the execution-date folder.
+        local_file: Optional explicit CSV to read metadata from, bypassing both the
+            weekly cache and the API entirely (backward-compatible override).
+        force_refresh: When True, always refresh from the API regardless of the weekday
+            or cache freshness.
+
+    Returns:
+        DataFrame of profile metadata for the profiles in input_file.
+    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
+    project_dir = os.path.join(base_dir, "../data", project_name)
+    execution_dir = os.path.join(project_dir, execution_date)
+    os.makedirs(execution_dir, exist_ok=True)
 
     # Define list of profiles for search
-    profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file)
-    )
+    profile_data = pd.read_csv(os.path.join(project_dir, input_file))
     assert (
         "account_id" in profile_data.columns
     ), "Input file must contain 'account_id' column."
     profile_list = list(set(profile_data["account_id"].tolist()))
 
-    if local_file is None:  # Perform API search
-        # Initialise profile metadata search job
-        data = [
-            {"url": f"https://www.tiktok.com/@{profile}", "country": ""}
-            for profile in profile_list
-        ]
-        response = requests.post(
-            "https://api.brightdata.com/datasets/v3/trigger",
-            headers={
-                "Authorization": f"Bearer {BRIGHTDATA_API}",
-                "Content-Type": "application/json",
-            },
-            params={
-                "dataset_id": "gd_l1villgoiiidt09ci",
-                "include_errors": "true",
-            },
-            json=data,
-        )
-        snapshot_id = response.json().get("snapshot_id")
-
-        # Retrieve profile metadata search results
-        response_json = {"status": "running"}
-        while response_json.get("status") != "ready":
-            time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-            response = requests.get(
-                f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}",
-                headers={
-                    "Authorization": f"Bearer {BRIGHTDATA_API}",
-                },
-            )
-            response_json = response.json()
-
-        retries = 0
-        while True:
-            try:
-                response = requests.get(
-                    f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}",
-                    headers={
-                        "Authorization": f"Bearer {BRIGHTDATA_API}",
-                    },
-                    params={
-                        "format": "json",
-                    },
-                )
-                response_json = response.json()
-                profile_metadata = pd.DataFrame(response_json)
-                break
-
-            except (requests.RequestException, ValueError, json.JSONDecodeError) as err:
-                retries += 1
-                if retries > MAX_RETRIES:
-                    raise RuntimeError(
-                        f"Failed to retrieve snapshot after {MAX_RETRIES} attempts: {err}"
-                    )
-                time.sleep(WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS)
-
-        if "warning_code" in profile_metadata.columns:
-            profile_metadata = profile_metadata[
-                profile_metadata["warning_code"] != "dead_page"
-            ].reset_index(drop=True)
-        if "error_code" in profile_metadata.columns:
-            profile_metadata = profile_metadata[
-                profile_metadata["error_code"] != "crawl_failed"
-            ].reset_index(drop=True)
-
-    else:  # Perform local search
+    if local_file is not None:  # Explicit local override
         local_profile_metadata = pd.read_csv(local_file)
         profile_metadata = local_profile_metadata[
             local_profile_metadata["account_id"].isin(profile_list)
         ].reset_index(drop=True)
+    else:  # Weekly-cached API search
+        profile_metadata = _get_weekly_cached_profile_metadata(
+            project_dir=project_dir,
+            input_file=input_file,
+            profile_list=profile_list,
+            fetch_fn=_fetch_tiktok_profile_metadata_from_api,
+            force_refresh=force_refresh,
+            provider_label="TikTok",
+        )
 
-    profile_metadata.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
-        index=False,
-    )
+    if output_file:
+        profile_metadata.to_csv(
+            os.path.join(execution_dir, output_file),
+            index=False,
+        )
 
     return profile_metadata
 
@@ -3586,9 +3629,11 @@ def _get_weekly_cached_profile_metadata(
     project_dir: str,
     input_file: str,
     profile_list: list,
+    fetch_fn,
     force_refresh: bool = False,
+    provider_label: str = "profile",
 ) -> pd.DataFrame:
-    """Return X profile metadata, refreshing from the API at most once per week.
+    """Return profile metadata, refreshing from the API at most once per week.
 
     To reduce API data costs the metadata is refreshed from the API on the first run
     on or after each Monday (or whenever the cache is missing/stale) and cached to a
@@ -3597,12 +3642,20 @@ def _get_weekly_cached_profile_metadata(
     incrementally so newly added profiles are not dropped mid-week. The weekly refresh
     is keyed off the real system date (not the pipeline execution date).
 
+    This helper is provider-agnostic: the actual API call is delegated to ``fetch_fn``,
+    so it is shared by both the X (get_user_info) and TikTok (BrightData) metadata
+    searches. The only requirement is that ``fetch_fn`` returns a DataFrame with an
+    ``account_id`` column.
+
     Args:
         project_dir: Absolute path to the project's data folder.
         input_file: Input filename (used to derive the cache key).
         profile_list: Account ids to return metadata for.
+        fetch_fn: Callable taking a list of account ids and returning a DataFrame of
+            profile metadata (with an ``account_id`` column).
         force_refresh: When True, always refresh from the API regardless of the weekday
             or cache freshness.
+        provider_label: Human-readable provider name used only in log messages.
 
     Returns:
         DataFrame of profile metadata restricted to profile_list.
@@ -3652,15 +3705,17 @@ def _get_weekly_cached_profile_metadata(
             if force_refresh
             else "no fresh cache for the current week (weekly Monday refresh)"
         )
-        print(f"Refreshing X profile metadata from the API ({reason})...")
-        profile_metadata = _fetch_x_profile_metadata_from_api(profile_list)
+        print(
+            f"Refreshing {provider_label} profile metadata from the API ({reason})..."
+        )
+        profile_metadata = fetch_fn(profile_list)
         _write_profile_metadata_cache(
             profile_metadata, cache_path, meta_path, today, set(map(str, profile_list))
         )
     else:
         # Reuse this week's cached metadata to avoid additional API data costs.
         print(
-            f"Using cached X profile metadata fetched on {cache_fetch_date} "
+            f"Using cached {provider_label} profile metadata fetched on {cache_fetch_date} "
             f"(week of {week_start})."
         )
         profile_metadata = cached_metadata
@@ -3673,7 +3728,7 @@ def _get_weekly_cached_profile_metadata(
                 f"Fetching {len(missing_profiles)} profile(s) missing from the cache "
                 "from the API..."
             )
-            new_metadata = _fetch_x_profile_metadata_from_api(missing_profiles)
+            new_metadata = fetch_fn(missing_profiles)
             if not new_metadata.empty:
                 profile_metadata = (
                     pd.concat([profile_metadata, new_metadata], ignore_index=True)
@@ -3751,7 +3806,9 @@ def perform_x_profile_metadata_search(
             project_dir=project_dir,
             input_file=input_file,
             profile_list=profile_list,
+            fetch_fn=_fetch_x_profile_metadata_from_api,
             force_refresh=force_refresh,
+            provider_label="X",
         )
 
     if output_file:
