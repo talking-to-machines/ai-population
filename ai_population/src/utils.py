@@ -2545,7 +2545,10 @@ def build_profile_prompt(
 
 
 def perform_video_transcription(
-    project_name: str, execution_date: str, video_file: str
+    project_name: str,
+    execution_date: str,
+    video_file: str,
+    historical_post_file: str = None,
 ) -> None:
     """
     Perform video transcription for a given project by downloading videos, transcribing them,
@@ -2556,6 +2559,12 @@ def perform_video_transcription(
         execution_date (str): The date of the pipeline execution, used to create a unique directory name.
         video_metadata_file (str): The name of the CSV file containing video metadata.
                                    This file should be located in the project's data folder.
+        historical_post_file (str, optional): When provided, the transcript-enriched posts are
+            appended to this persistent CSV (deduplicated on ``post_id``, keeping the latest
+            version), creating it if it does not yet exist. This is the TikTok analog of the X
+            historical post file; accumulation happens here (rather than in
+            ``perform_tiktok_profile_search``) because video transcripts are only available after
+            transcription completes. Defaults to None (no accumulation).
 
     Raises:
         FileNotFoundError: If the specified video metadata file does not exist.
@@ -2623,6 +2632,26 @@ def perform_video_transcription(
         file_path = os.path.join(video_download_folder_path, file)
         if os.path.isfile(file_path):
             os.remove(file_path)
+
+    # Accumulate the transcript-enriched posts into the persistent historical file
+    if historical_post_file:
+        historical_post_file_path = os.path.join(
+            base_dir, "../data", project_name, execution_date, historical_post_file
+        )
+        video_metadata["post_id"] = video_metadata["post_id"].astype(str)
+        if os.path.exists(historical_post_file_path):
+            historical_posts = pd.read_csv(
+                historical_post_file_path, on_bad_lines="skip"
+            )
+            historical_posts["post_id"] = historical_posts["post_id"].astype(str)
+            historical_posts = (
+                pd.concat([historical_posts, video_metadata], ignore_index=True)
+                .drop_duplicates(subset="post_id", keep="last")
+                .reset_index(drop=True)
+            )
+        else:
+            historical_posts = video_metadata
+        historical_posts.to_csv(historical_post_file_path, index=False)
 
 
 def update_verified_profile_pool(
@@ -3463,90 +3492,273 @@ def perform_x_profile_search(
     return profile_search_results
 
 
+def _fetch_x_profile_metadata_from_api(profile_list: list) -> pd.DataFrame:
+    """Fetch X profile metadata for a list of account ids via the get_user_info API.
+
+    Args:
+        profile_list: List of account ids (X usernames) to query.
+
+    Returns:
+        DataFrame of profile metadata with a normalised 'account_id' column
+        (renamed from the API's 'userName' field). Empty if nothing was returned.
+    """
+    response_list = []
+    for profile in tqdm(profile_list):
+        attempt = 0
+
+        while attempt < MAX_RETRIES:
+            attempt += 1
+            try:
+                response = requests.get(
+                    "https://abundance.it.com/get_user_info",
+                    params={
+                        "user": profile,
+                    },
+                    auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+                )
+                response_list += response.json()
+                time.sleep(3)
+                break
+
+            except requests.exceptions.JSONDecodeError:
+                warnings.warn(
+                    f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.ReadTimeout:
+                warnings.warn(
+                    f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.ConnectTimeout:
+                warnings.warn(
+                    f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.HTTPError as e:
+                warnings.warn(
+                    f"HTTP error for profile {profile}: {e}. Skipping profile."
+                )
+                break
+            except requests.exceptions.RequestException as e:
+                warnings.warn(
+                    f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
+                )
+
+        else:
+            warnings.warn(
+                f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
+            )
+
+    profile_metadata = pd.DataFrame([r for r in response_list if r])
+    if "userName" in profile_metadata.columns:
+        profile_metadata.rename(columns={"userName": "account_id"}, inplace=True)
+    return profile_metadata
+
+
+def _write_profile_metadata_cache(
+    profile_metadata: pd.DataFrame,
+    cache_path: str,
+    meta_path: str,
+    fetch_date: date,
+    attempted_profiles: set,
+) -> None:
+    """Persist profile metadata and its cache bookkeeping to disk.
+
+    Args:
+        profile_metadata: Metadata to cache.
+        cache_path: CSV path for the cached metadata.
+        meta_path: JSON path for the cache metadata (fetch date + attempted profiles).
+        fetch_date: Date the current week's data was fetched (drives the weekly refresh).
+        attempted_profiles: Account ids already queried this week (fetched, whether or
+            not the API returned data), so they are not re-queried mid-week.
+    """
+    profile_metadata.to_csv(cache_path, index=False)
+    with open(meta_path, "w") as f:
+        json.dump(
+            {
+                "fetch_date": fetch_date.strftime("%Y-%m-%d"),
+                "profiles": sorted(str(p) for p in attempted_profiles),
+            },
+            f,
+            indent=2,
+        )
+
+
+def _get_weekly_cached_profile_metadata(
+    project_dir: str,
+    input_file: str,
+    profile_list: list,
+    force_refresh: bool = False,
+) -> pd.DataFrame:
+    """Return X profile metadata, refreshing from the API at most once per week.
+
+    To reduce API data costs the metadata is refreshed from the API on the first run
+    on or after each Monday (or whenever the cache is missing/stale) and cached to a
+    persistent local file. During the rest of the week the cached file is reused.
+    Profiles present in the pool but missing from an otherwise-fresh cache are fetched
+    incrementally so newly added profiles are not dropped mid-week. The weekly refresh
+    is keyed off the real system date (not the pipeline execution date).
+
+    Args:
+        project_dir: Absolute path to the project's data folder.
+        input_file: Input filename (used to derive the cache key).
+        profile_list: Account ids to return metadata for.
+        force_refresh: When True, always refresh from the API regardless of the weekday
+            or cache freshness.
+
+    Returns:
+        DataFrame of profile metadata restricted to profile_list.
+    """
+    # The cache lives outside the per-execution-date folder so it persists across days.
+    cache_dir = os.path.join(project_dir, "profile_metadata_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_key = os.path.splitext(os.path.basename(input_file))[0]
+    cache_path = os.path.join(cache_dir, f"{cache_key}_metadata_cache.csv")
+    meta_path = os.path.join(cache_dir, f"{cache_key}_metadata_cache.json")
+
+    # Use the real system date and the Monday that starts the current week.
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # Monday of this week
+
+    # Load the existing cache and its bookkeeping, if any.
+    cached_metadata = None
+    cache_fetch_date = None
+    attempted_profiles = set()
+    if os.path.exists(cache_path) and os.path.exists(meta_path):
+        try:
+            cached_metadata = pd.read_csv(cache_path)
+            with open(meta_path, "r") as f:
+                cache_meta = json.load(f)
+            cache_fetch_date = datetime.strptime(
+                cache_meta["fetch_date"], "%Y-%m-%d"
+            ).date()
+            attempted_profiles = {str(p) for p in cache_meta.get("profiles", [])}
+        except (ValueError, KeyError, OSError, json.JSONDecodeError):
+            warnings.warn(
+                "Profile metadata cache is unreadable; refreshing from the API."
+            )
+            cached_metadata = None
+            cache_fetch_date = None
+            attempted_profiles = set()
+
+    cache_is_fresh = (
+        cached_metadata is not None
+        and cache_fetch_date is not None
+        and cache_fetch_date >= week_start
+    )
+
+    if force_refresh or not cache_is_fresh:
+        # Weekly refresh: query the full profile list and rewrite the cache.
+        reason = (
+            "force_refresh requested"
+            if force_refresh
+            else "no fresh cache for the current week (weekly Monday refresh)"
+        )
+        print(f"Refreshing X profile metadata from the API ({reason})...")
+        profile_metadata = _fetch_x_profile_metadata_from_api(profile_list)
+        _write_profile_metadata_cache(
+            profile_metadata, cache_path, meta_path, today, set(map(str, profile_list))
+        )
+    else:
+        # Reuse this week's cached metadata to avoid additional API data costs.
+        print(
+            f"Using cached X profile metadata fetched on {cache_fetch_date} "
+            f"(week of {week_start})."
+        )
+        profile_metadata = cached_metadata
+
+        # Fetch any pool profiles not yet queried this week so mid-week additions
+        # are not dropped, while never re-querying profiles already attempted.
+        missing_profiles = [p for p in profile_list if str(p) not in attempted_profiles]
+        if missing_profiles:
+            print(
+                f"Fetching {len(missing_profiles)} profile(s) missing from the cache "
+                "from the API..."
+            )
+            new_metadata = _fetch_x_profile_metadata_from_api(missing_profiles)
+            if not new_metadata.empty:
+                profile_metadata = (
+                    pd.concat([profile_metadata, new_metadata], ignore_index=True)
+                    .drop_duplicates(subset="account_id", keep="last")
+                    .reset_index(drop=True)
+                )
+            attempted_profiles |= {str(p) for p in missing_profiles}
+            # Keep the original weekly fetch date so the next full refresh still
+            # happens on the coming Monday.
+            _write_profile_metadata_cache(
+                profile_metadata,
+                cache_path,
+                meta_path,
+                cache_fetch_date,
+                attempted_profiles,
+            )
+
+    # Restrict the returned metadata to the requested profiles.
+    if "account_id" in profile_metadata.columns:
+        profile_metadata = profile_metadata[
+            profile_metadata["account_id"].isin(profile_list)
+        ].reset_index(drop=True)
+
+    return profile_metadata
+
+
 def perform_x_profile_metadata_search(
     project_name: str,
     execution_date: str,
     input_file: str,
     output_file: str = "",
     local_file: str = None,
+    force_refresh: bool = False,
 ) -> pd.DataFrame:
+    """Retrieve X profile metadata for a pool of profiles, with weekly API caching.
+
+    To reduce API data costs the metadata is refreshed from the API at most once per
+    week (on the first run on or after Monday) and cached to a persistent local file;
+    the rest of the week the cached metadata is reused. The date-stamped output for
+    the current run is still written to the execution-date folder as before.
+
+    Args:
+        project_name: Project subfolder under ../data.
+        execution_date: Pipeline execution date in DD-MM-YYYY format.
+        input_file: CSV (relative to the project folder) containing an 'account_id' column.
+        output_file: Filename to write this run's metadata to under the execution-date folder.
+        local_file: Optional explicit CSV to read metadata from, bypassing both the
+            weekly cache and the API entirely (backward-compatible override).
+        force_refresh: When True, always refresh from the API regardless of the weekday
+            or cache freshness.
+
+    Returns:
+        DataFrame of profile metadata for the profiles in input_file.
+    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
-    os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
-    os.makedirs(
-        os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
-    )
+    project_dir = os.path.join(base_dir, "../data", project_name)
+    execution_dir = os.path.join(project_dir, execution_date)
+    os.makedirs(execution_dir, exist_ok=True)
 
     # Define list of profiles for search
-    profile_data = pd.read_csv(
-        os.path.join(base_dir, "../data", project_name, input_file)
-    )
+    profile_data = pd.read_csv(os.path.join(project_dir, input_file))
     assert (
         "account_id" in profile_data.columns
     ), "Input file must contain 'account_id' column."
     profile_list = list(set(profile_data["account_id"].tolist()))
 
-    if local_file is None:  # Perform API search
-        # Perform profile metadata search
-        response_list = []
-        for profile in tqdm(profile_list):
-            attempt = 0
-
-            while attempt < MAX_RETRIES:
-                attempt += 1
-                try:
-                    response = requests.get(
-                        "https://abundance.it.com/get_user_info",
-                        params={
-                            "user": profile,
-                        },
-                        auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-                    )
-                    response_list += response.json()
-                    time.sleep(3)
-                    break
-
-                except requests.exceptions.JSONDecodeError:
-                    warnings.warn(
-                        f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.ReadTimeout:
-                    warnings.warn(
-                        f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.ConnectTimeout:
-                    warnings.warn(
-                        f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.HTTPError as e:
-                    warnings.warn(
-                        f"HTTP error for profile {profile}: {e}. Skipping profile."
-                    )
-                    break
-                except requests.exceptions.RequestException as e:
-                    warnings.warn(
-                        f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
-                    )
-
-            else:
-                warnings.warn(
-                    f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
-                )
-
-        profile_metadata = pd.DataFrame([r for r in response_list if r])
-        profile_metadata.rename(columns={"userName": "account_id"}, inplace=True)
-
-    else:  # Perform local search
+    if local_file is not None:  # Explicit local override
         local_profile_metadata = pd.read_csv(local_file)
         profile_metadata = local_profile_metadata[
             local_profile_metadata["account_id"].isin(profile_list)
         ].reset_index(drop=True)
+    else:  # Weekly-cached API search
+        profile_metadata = _get_weekly_cached_profile_metadata(
+            project_dir=project_dir,
+            input_file=input_file,
+            profile_list=profile_list,
+            force_refresh=force_refresh,
+        )
 
-    profile_metadata.to_csv(
-        os.path.join(base_dir, "../data", project_name, execution_date, output_file),
-        index=False,
-    )
+    if output_file:
+        profile_metadata.to_csv(
+            os.path.join(execution_dir, output_file),
+            index=False,
+        )
 
     return profile_metadata
 

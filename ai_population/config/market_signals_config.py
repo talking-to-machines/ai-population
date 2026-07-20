@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="ai_population/config/.env")
@@ -7,17 +8,21 @@ load_dotenv(dotenv_path="ai_population/config/.env")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
-PIPELINE_EXECUTION_DATE = (
-    "18-07-2026"  # test  # DD-MM-YYYY  # datetime.today().date().strftime("%d-%m-%Y")
-)
+PIPELINE_EXECUTION_DATE = (datetime.today().date() - timedelta(days=1)).strftime(
+    "%d-%m-%Y"
+)  # DD-MM-YYYY  # 1 day before the current date
 MIN_FOLLOWER_COUNT = 5000
 MIN_VIDEO_COUNT = 10
 MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 100
 NUM_POSTS_PER_PROFILE = 20
 LATEST_K_POSTS_PER_PROFILE = 850
-PROFILE_SEARCH_START_DATE = "07-18-2026"  # MM-DD-YYYY  (Inclusive)
-PROFILE_SEARCH_END_DATE = "07-19-2026"  # MM-DD-YYYY format  (Exclusive)
+PROFILE_SEARCH_START_DATE = (datetime.today().date() - timedelta(days=1)).strftime(
+    "%m-%d-%Y"
+)  # MM-DD-YYYY  (Inclusive)  # 1 day before the current date
+PROFILE_SEARCH_END_DATE = (
+    datetime.today().date().strftime("%m-%d-%Y")
+)  # MM-DD-YYYY format  (Exclusive)  # the current date
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 SP_500_STOCK_TICKER_FILE = "sp500_stock_tickers_shorten.csv"
 NASDAQ_100_STOCK_TICKER_FILE = "nasdaq100_stock_tickers_shorten.csv"
@@ -384,7 +389,7 @@ KEYWORD_SEARCH_FILE_TIKTOK = f"tiktok_keyword_search_{PIPELINE_EXECUTION_DATE}.c
 PROFILE_METADATA_SEARCH_FILE_TIKTOK = (
     f"tiktok_profile_metadata_{PIPELINE_EXECUTION_DATE}.csv"
 )
-FINFLUENCER_POOL_FILE_TIKTOK = "tiktok_verified_finfluencer_profiles.csv"
+FINFLUENCER_POOL_FILE_TIKTOK = "tiktok_verified_finfluencer_profiles_sample.csv"
 ONBOARDING_RESULTS_FILE_TIKTOK = (
     f"tiktok_onboarding_results_{PIPELINE_EXECUTION_DATE}.csv"
 )
@@ -397,6 +402,9 @@ FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK = (
 FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK = (
     f"tiktok_finfluencer_profile_search_{PIPELINE_EXECUTION_DATE}.csv"
 )
+FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_TIKTOK = (
+    f"../tiktok_finfluencer_historical_profile_search.csv"
+)
 FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK = (
     f"tiktok_finfluencer_stock_mentions_{PIPELINE_EXECUTION_DATE}.csv"
 )
@@ -405,6 +413,9 @@ FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK = (
 )
 FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK = (
     f"tiktok_finfluencer_stock_recommendation_{PIPELINE_EXECUTION_DATE}.csv"
+)
+FINFLUENCER_DAILY_STOCK_PICK_FILE_TIKTOK = (
+    f"tiktok_finfluencer_daily_stock_pick_{PIPELINE_EXECUTION_DATE}.csv"
 )
 SEARCH_TERMS_TIKTOK = [
     "stocks",
@@ -495,6 +506,9 @@ ORIGINAL_PROFILES_TIKTOK = [
     "willy_lebon",
     "yahoofinance",
 ]
+# TODO: Populate with the TikTok daily-stock-pick profile handles (analogous to
+# DAILY_STOCK_PICK_PROFILES_X).
+DAILY_STOCK_PICK_PROFILES_TIKTOK = []
 
 # X-specific configurations
 PROJECT_NAME_X = "market-signals-x"
