@@ -1,4 +1,4 @@
-import os, json
+import os, json, argparse
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
@@ -90,11 +90,15 @@ def conduct_demographic_interview(
     tiktok_profile_metadata_file: str,
     tiktok_post_file: str,
     output_file: str,
+    model_name: str = GPT_MODEL,
+    together_ai_endpoint: str = None,
+    grok_endpoint: str = None,
+    batch_timeout_seconds: int = 7200,
 ) -> None:
     perform_profile_interview_x_tiktok(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=model_name,
         x_profile_metadata_file=x_profile_metadata_file,
         x_post_file=x_post_file,
         tiktok_profile_metadata_file=tiktok_profile_metadata_file,
@@ -104,6 +108,9 @@ def conduct_demographic_interview(
         user_prompt_template=jointllm_politician_demographic_interview_user_prompt,
         llm_response_field="jointllm_politician_demographic_interview_llm_response",
         interview_type="jointllm_politician_demographic_interview",
+        batch_timeout_seconds=batch_timeout_seconds,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
     )
 
     # Preprocess post interview results
@@ -157,11 +164,15 @@ def conduct_digital_polling(
     tiktok_profile_metadata_file: str,
     tiktok_post_file: str,
     output_file: str,
+    model_name: str = GPT_MODEL,
+    together_ai_endpoint: str = None,
+    grok_endpoint: str = None,
+    batch_timeout_seconds: int = 7200,
 ) -> None:
     perform_profile_interview_x_tiktok(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=model_name,
         x_profile_metadata_file=x_profile_metadata_file,
         x_post_file=x_post_file,
         tiktok_profile_metadata_file=tiktok_profile_metadata_file,
@@ -172,6 +183,9 @@ def conduct_digital_polling(
         llm_response_field="jointllm_politician_digital_polling_llm_response",
         interview_type="jointllm_politician_digital_polling_interview",
         history_field="history",
+        batch_timeout_seconds=batch_timeout_seconds,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
     )
 
     # Preprocess post interview results
@@ -190,7 +204,7 @@ def conduct_digital_polling(
     )
 
     # Include LLM model information
-    post_interview_results["model"] = GPT_MODEL
+    post_interview_results["model"] = model_name
 
     # Save formatted interview results
     post_interview_results.to_csv(
@@ -200,11 +214,44 @@ def conduct_digital_polling(
 
 
 if __name__ == "__main__":
-    perform_video_transcription(
-        project_name=PROJECT_NAME,
-        execution_date=POLITICIAN_PIPELINE,
-        video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
+    parser = argparse.ArgumentParser(
+        description="Run Swiss politician interview pipeline."
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=GPT_MODEL,
+        help="Model name to use for the interview. Pass an OpenAI model id (default) "
+        "or a Together AI model id when --together-ai-endpoint is also set.",
+    )
+    parser.add_argument(
+        "--together-ai-endpoint",
+        type=str,
+        default=None,
+        help="Together AI base URL (serverless or dedicated endpoint). When set, "
+        "the interview is routed through Together AI instead of OpenAI.",
+    )
+    parser.add_argument(
+        "--grok-endpoint",
+        type=str,
+        default=None,
+        help="xAI (Grok) base URL, typically https://api.x.ai/v1. When set, "
+        "the interview is routed through xAI instead of OpenAI. "
+        "Mutually exclusive with --together-ai-endpoint.",
+    )
+    parser.add_argument(
+        "--batch-timeout-seconds",
+        type=int,
+        default=7200,
+        help="Seconds to wait for the OpenAI batch job to complete before "
+        "falling back to row-by-row API calls. Default: 7200 (2 hours).",
+    )
+    args = parser.parse_args()
+    model_name = args.model_name
+    together_ai_endpoint = args.together_ai_endpoint
+    grok_endpoint = args.grok_endpoint
+    batch_timeout_seconds = args.batch_timeout_seconds
+
     # # Step 1: Perform profile search of identified politicians with a X profile (profile metadata and posts) during search period
     # print(
     #     "1. Perform profile search of identified politicians with a X profile (profile metadata and recent posts) during search period"
@@ -294,26 +341,34 @@ if __name__ == "__main__":
     #         video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
     #     )
 
-    # # Step 3: Perform demographic interview to infer demographic information
-    # print("3. Perform demographic interview to infer demographic information")
-    # conduct_demographic_interview(
-    #     project_name=PROJECT_NAME,
-    #     execution_date=POLITICIAN_PIPELINE,
-    #     x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-    #     x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-    #     tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-    #     tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-    #     output_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
-    # )
+    # Step 3: Perform demographic interview to infer demographic information
+    print("3. Perform demographic interview to infer demographic information")
+    conduct_demographic_interview(
+        project_name=PROJECT_NAME,
+        execution_date=POLITICIAN_PIPELINE,
+        x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+        x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+        tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+        tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+        output_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
+        model_name=model_name,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
+        batch_timeout_seconds=batch_timeout_seconds,
+    )
 
-    # # Step 4: Perform digital polling to infer election polling preferences
-    # print("4. Perform digital polling to infer election polling preferences")
-    # conduct_digital_polling(
-    #     project_name=PROJECT_NAME,
-    #     execution_date=POLITICIAN_PIPELINE,
-    #     x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-    #     x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-    #     tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-    #     tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-    #     output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
-    # )
+    # Step 4: Perform digital polling to infer election polling preferences
+    print("4. Perform digital polling to infer election polling preferences")
+    conduct_digital_polling(
+        project_name=PROJECT_NAME,
+        execution_date=POLITICIAN_PIPELINE,
+        x_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+        x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+        tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+        tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+        output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
+        model_name=model_name,
+        together_ai_endpoint=together_ai_endpoint,
+        grok_endpoint=grok_endpoint,
+        batch_timeout_seconds=batch_timeout_seconds,
+    )

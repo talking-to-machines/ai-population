@@ -182,7 +182,7 @@ def apply_entity_geographic_inclusion_criteria(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -257,7 +257,7 @@ def conduct_polling(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -347,7 +347,7 @@ if __name__ == "__main__":
         execution_date=constants["pipeline_execution_date"],
         search_terms=constants["search_term_list"],
         output_file=constants["keyword_search_file"],
-        num_post_per_keyword=NUM_POSTS_PER_KEYWORD,
+        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     ## Extract profile metadata for search results

@@ -2622,6 +2622,9 @@ Question 2: Please indicate your top-conviction SELL or SHORT stock pick for tod
 sp500_stock_tickers = pd.read_csv(
     os.path.join(base_dir, "../config", SP_500_STOCK_TICKER_FILE)
 )
+# sp500_stock_tickers = pd.read_csv(
+#     os.path.join(base_dir, "../config", NASDAQ_100_STOCK_TICKER_FILE)
+# )
 sp500_stock_tickers.drop_duplicates(subset=["TICKER"], inplace=True)
 sp500_stock_tickers["combined_ticker"] = sp500_stock_tickers.apply(
     lambda stock_row: f"{stock_row['COMNAM']} ({stock_row['TICKER']})", axis=1
@@ -3707,6 +3710,7 @@ Vcu8) votaría por Eduardo Artés, candidato independiente no afiliado a ningún
 
 # Joint LLM Digital Twin - Swiss (Politician)
 base_jointllm_politician_system_prompt = """You are analyzing the social media presence of a Swiss politician using their X (formerly Twitter) profile and their TikTok profile to answer a series of questions.
+
 The politician's profile data on X (formerly Twitter):
 {x_profile_prompt_template}
 
@@ -3714,7 +3718,7 @@ The politician's profile data on TikTok:
 {tiktok_profile_prompt_template}
 
 Instructions:
-Analyze the provided information and answer the following questions exclusively on the basis of the available data. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
+Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
 """
 
 jointllm_politician_system_prompt = base_jointllm_politician_system_prompt.format(
@@ -3742,7 +3746,7 @@ To ensure consistency, use the following guidelines for determining the degree o
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 
-**question: PERSON LIVING IN SWITZERLAND**
+**question: PERSON_LIVING_IN_SWITZERLAND**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
@@ -3772,12 +3776,6 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-**question: CITIZENSHIP**
-**explanation: [Detailed explanation for selected response]**
-**symbol: [Symbol selected]**
-**category: [Category selected]**
-**speculation: [Speculation score selected]**
-
 **question: EDUCATION**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
@@ -3790,14 +3788,14 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 
 Below is the list of categories to which this user may belong:
-PERSON LIVING IN SWITZERLAND: Does the user of this account live in Switzerland?
+PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
 PLC2) No 
 
-REGION: If the answer to the question “PERSON LIVING IN SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise answer with “NA”.
+REGION: If the answer to the question “PERSON_LIVING_IN_SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise select “NA”.
 REG1) Zurich
 REG2) Bern
 REG3) Lucerne
@@ -3826,7 +3824,7 @@ REG25) Geneva
 REG26) Jura
 REG27) NA
 
-AGE: How old are you?
+AGE: What is the age of this politician?
 AG1) 18 to 24 years
 AG2) 25 to 34 years
 AG3) 35 to 44 years
@@ -3835,11 +3833,11 @@ AG5) 55 to 64 years
 AG6) 65 to 74 years
 AG7) 75 years or older
 
-GENDER: What gender do you identify with?
+GENDER: What gender does this user identify with?
 S1) Male
 S2) Female
 
-HOUSEHOLD_INCOME: In which bracket is the total gross monthly income of your household?
+HOUSEHOLD_INCOME:  In which bracket is the total gross monthly household income of this user?
 INC1) Less than 2,000 CHF
 INC2) 2,001 – 3,000 CHF
 INC3) 3,001 – 4,000 CHF
@@ -3861,11 +3859,7 @@ INC18) 18,001 – 19,000 CHF
 INC19) 19,001 – 20,000 CHF
 INC20) More than 20,000 CHF
 
-CITIZENSHIP: Do you hold Swiss citizenship?
-CIT1) Yes
-CIT2) No
-
-EDUCATION: What is your highest educational qualification?
+EDUCATION: What is the highest educational qualification of this user?
 EDU1) No completed education
 EDU2) Primary school
 EDU3) Secondary school
@@ -3881,7 +3875,7 @@ EDU12) University of applied sciences, pedagogical university
 EDU13) University, Federal Institute of Technology
 EDU14) Other
 
-PARTY_MEMBER: Which political party do you belong to?
+PARTY_MEMBER: Which political party does this user belong to?
 PP1) Sozialdemokratische Partei der Schweiz
 PP2) Schweizerische Volkspartei
 PP3) FDP.Die Liberalen
@@ -3895,55 +3889,82 @@ PP10) Mouvement Citoyens Genevois
 PP11) Other party
 PP12) Independent/no party"""
 
-jointllm_politician_question_template = """VOTE {id}
-Assume it is {date}. The Swiss National Council (Nationalrat) is currently deliberating and voting on the following proposal.
+jointllm_politician_question_template = """For the next two questions (TURNOUT_{business_number} and VOTE_{business_number}), assume it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative {business_number}.
+Here is the official summary of the initiative:
+{booklet_summary_en}
 
-It proposes the following: 
-{proposal_en}
-This is the justification given with the proposal: 
-{justification_en}
+The full text of the Federal Decree of initiative {business_number} is:
+{federal_decree_text_en}
 
-How do you vote on this proposal?
-VOTE_{id}_1) I vote in favor of the proposed change to the Federal Constitution
-VOTE_{id}_2) I vote against the proposed change to the Federal Constitution
-VOTE_{id}_3) I abstain from voting"""
+TURNOUT_{business_number}: Would this user be present and vote, or abstain/be absent for the final vote on initiative {business_number}?
+TO_{business_number}_1) Vote
+TO_{business_number}_2) Abstain or absent
 
-jointllm_format_example_template = """**question: VOTE {id}**
+VOTE_{business_number}: If the answer to TURNOUT_{business_number} is "Vote", how would this user respond to the question: {mp_vote_question_en}. If the answer to TURNOUT_{business_number} is "Abstain or absent", select "NA".
+VO_{business_number}_1) {mp_vote_option_favour_en}
+VO_{business_number}_2) {mp_vote_option_opposed_en}
+VO_{business_number}_3) NA"""
+
+jointllm_format_example_template = """**question: TURNOUT_{business_number}**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
-"""
+
+**question: VOTE_{business_number}**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**"""
 
 base_jointllm_politician_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this Swiss politician based on their social media profile.
+
+For each heading, follow these instructions precisely:  
+1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+2) Select exactly one symbol per question.
+3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
+4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+
+To ensure consistency, use the following guidelines for determining the degree of speculation:
+0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
+21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
+41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
+61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
+81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+
+5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
+6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 {questions}
 """
 
-politician_election_info = pd.read_excel(
-    os.path.join(base_dir, "../data/joint-llm-swiss/politician_election_info_en.xlsx"),
-    sheet_name="Tabellenblatt1",
+referendums = pd.read_excel(
+    os.path.join(base_dir, "../data/joint-llm-swiss/referendums.xlsx"),
+    sheet_name="referendums",
 )
-politician_election_info = politician_election_info.fillna("")
+referendums = referendums.fillna("")
 # Construct jointllm format examples
 jointllm_format_examples = [
-    jointllm_format_example_template.format(id=id)
-    for id in politician_election_info["id"].tolist()
+    jointllm_format_example_template.format(business_number=business_number)
+    for business_number in referendums["business_number"].tolist()
 ]
 
 # Construct jointllm questions
 jointllm_politician_questions = [
     jointllm_politician_question_template.format(
-        id=row.id,
-        date=row.date,
-        proposal_en=row.proposal_en,
-        justification_en=row.justification_en,
+        business_number=row.business_number,
+        vote_date=row.vote_date,
+        booklet_summary_en=row.booklet_summary_en,
+        federal_decree_text_en=row.federal_decree_text_en,
+        mp_vote_question_en=row.mp_vote_question_en,
+        mp_vote_option_favour_en=row.mp_vote_option_favour_en,
+        mp_vote_option_opposed_en=row.mp_vote_option_opposed_en,
     )
-    for row in politician_election_info.itertuples()
+    for row in referendums.itertuples()
 ]
 
 jointllm_politician_digital_polling_user_prompt = (
@@ -3954,28 +3975,29 @@ jointllm_politician_digital_polling_user_prompt = (
 )
 
 # Joint LLM Digital Twin - Swiss (Voters)
-base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = """You are analyzing the social media presence of a content creator using their {platform} profile to answer a series of questions.
+base_jointllm_voter_demographic_interview_system_prompt = """You are analyzing the social media presence of a content creator using their {platform} profile to answer a series of questions.
+{platform} Profile Data:
 {profile_prompt_template}
 
 Instructions:
 Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
 """
 
-x_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = (
-    base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt.format(
+x_jointllm_voter_demographic_interview_system_prompt = (
+    base_jointllm_voter_demographic_interview_system_prompt.format(
         platform="X (formerly Twitter)",
         profile_prompt_template=x_profile_prompt_template,
     )
 )
 
-tiktok_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt = (
-    base_jointllm_voter_entity_geographic_exclusion_criteria_system_prompt.format(
+tiktok_jointllm_voter_demographic_interview_system_prompt = (
+    base_jointllm_voter_demographic_interview_system_prompt.format(
         platform="TikTok",
         profile_prompt_template=tiktok_profile_prompt_template,
     )
 )
 
-jointllm_voter_entity_geographic_exclusion_criteria_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
+jointllm_voter_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
 
 For each heading, follow these instructions precisely:  
 1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
@@ -3995,7 +4017,7 @@ To ensure consistency, use the following guidelines for determining the degree o
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 
-**question: PERSON LIVING IN SWITZERLAND**
+**question: PERSON_LIVING_IN_SWITZERLAND**
 **explanation: [Detailed explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
@@ -4049,14 +4071,27 @@ Required Output Format: Enclose each line of your response between two asterisks
 **category: [Category selected]**
 **speculation: [Speculation score selected]**
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+**question: TURNOUT_FEDERAL**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+**question: VOTE_FEDERAL**
+**explanation: [Detailed explanation for selected response]**
+**symbol: [Symbol selected]**
+**category: [Category selected]**
+**speculation: [Speculation score selected]**
+
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 
 Below is the list of categories to which this user may belong:
-PERSON LIVING IN SWITZERLAND: Does the user of this account live in Switzerland?
+
+PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
 PLC2) No 
 
-REGION: If the answer to the question “PERSON LIVING IN SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise answer with “NA”.
+REGION: If the answer to the question “PERSON_LIVING_IN_SWITZERLAND” is “Yes”, select from the following list the canton in which the user lives. Otherwise select “NA”.
 REG1) Zurich
 REG2) Bern
 REG3) Lucerne
@@ -4085,7 +4120,7 @@ REG25) Geneva
 REG26) Jura
 REG27) NA
 
-AGE: How old are you?
+AGE: What is the age of this user?
 AG1) 18 to 24 years
 AG2) 25 to 34 years
 AG3) 35 to 44 years
@@ -4094,11 +4129,11 @@ AG5) 55 to 64 years
 AG6) 65 to 74 years
 AG7) 75 years or older
 
-GENDER: What gender do you identify with?
+GENDER: What gender does this user most likely identify with?
 S1) Male
 S2) Female
 
-HOUSEHOLD_INCOME: In which bracket is the total gross monthly income of your household?
+HOUSEHOLD_INCOME: In which bracket is the total gross monthly household income of this user?
 INC1) Less than 2,000 CHF
 INC2) 2,001 – 3,000 CHF
 INC3) 3,001 – 4,000 CHF
@@ -4120,7 +4155,7 @@ INC18) 18,001 – 19,000 CHF
 INC19) 19,001 – 20,000 CHF
 INC20) More than 20,000 CHF
 
-CITIZENSHIP: Do you hold Swiss citizenship?
+CITIZENSHIP: Does this user hold Swiss citizenship?
 CIT1) Yes
 CIT2) No
 
@@ -4128,69 +4163,111 @@ ENTITY: Is this an account of a real-life existing person, or of another kind of
 ENT1) Real-life existing person
 ENT2) Other kind of entity (e.g., organization, brand, fictional character, etc)
 
-EDUCATION: What is your EDUCATION?
+EDUCATION: What is the highest educational qualification of this user?
 EDU1) No completed education
 EDU2) Primary school
-EDU3) Secondary school
-EDU4) Basic vocational training (EBA, AFP)
-EDU5) Vocational training, apprenticeship
-EDU6) Upper secondary specialised school (Fachmittelschule, Ecole)
-EDU7) Trade school
-EDU8) Vocational or specialised baccalaureate
-EDU9) Baccalaureate
-EDU10) Higher vocational education with federal diploma
-EDU11) College of higher education
-EDU12) University of applied sciences, pedagogical university
-EDU13) University, Federal Institute of Technology
-EDU14) Other
+EDU3) Secondary school (compulsory school)
+EDU4) Upper secondary specialised school (Fachmittelschule)
+EDU5) Vocational training (apprenticeship, basic vocational training EBA/AFP, trade school)
+EDU6) Baccalaureate (gymnasiale Maturität)
+EDU7) Vocational or specialised baccalaureate (Berufs-/Fachmaturität)
+EDU8) Higher vocational education (federal diploma, Meisterprüfung, höhere Fachschule)
+EDU9) Tertiary (university, ETH, university of applied sciences, pedagogical university)
 
-PARTY_MEMBER: Which political party do you belong to?
-PP1) Liberal Radical Party
-PP2) The Centre (former CVP/BDP)
-PP3) Social Democratic Party
-PP4) Swiss People's Party
-PP5) Green Party
-PP6) Green Liberal Party
-PP7) Lega - Ticino League
-PP8) Geneva Citizens' Movement
-PP9) Christian Social Party
-PP10) Evangelical People's Party
-PP11) Federal Democratic Union
-PP12) Swiss Party of Labour
-PP13) Alternative List / Solidarity / Ensemble à Gauche
-PP14) Pirate Party
+PARTY_MEMBER: Which political party does this user belong to, if any? 
+PP1) Liberal Radical Party (FDP / PLR)
+PP2) The Centre (Die Mitte / Le Centre / Il Centro; former CVP/BDP)
+PP3) Social Democratic Party (SP / PS)
+PP4) Swiss People's Party (SVP / UDC)
+PP5) Green Party (Grüne / Les Verts; GPS / PES)
+PP6) Green Liberal Party (GLP / PVL)
+PP7) Lega dei Ticinesi (Lega)
+PP8) Geneva Citizens' Movement (MCG)
+PP9) Christian Social Party (CSP / PCS)
+PP10) Evangelical People's Party (EVP / PEV)
+PP11) Federal Democratic Union (EDU / UDF)
+PP12) Swiss Party of Labour (PdA / PST-POP)
+PP13) Alternative List / Solidarity / Ensemble à Gauche (AL / EàG)
+PP14) Pirate Party (PPS)
 PP15) Other party
-PP16) No party"""
+PP16) Independent (no party)
+
+TURNOUT_FEDERAL: Did this user vote or abstain from voting in the Swiss federal parliamentary election (National Council election) of 22 October 2023?
+TO_FEDERAL_1) Vote
+TO_FEDERAL_2) Abstain
+
+VOTE_FEDERAL: If the answer to TURNOUT_FEDERAL is "Vote", how would this user respond to the question: "Which party did you give your vote to in the Swiss National Council election of 22 October 2023?" Otherwise select "NA".
+VO_FEDERAL_1) Liberal Radical Party (FDP / PLR)
+VO_FEDERAL_2) The Centre (Die Mitte / Le Centre / Il Centro; former CVP/BDP)
+VO_FEDERAL_3) Social Democratic Party (SP / PS)
+VO_FEDERAL_4) Swiss People's Party (SVP / UDC)
+VO_FEDERAL_5) Green Party (Grüne / Les Verts; GPS / PES)
+VO_FEDERAL_6) Green Liberal Party (GLP / PVL)
+VO_FEDERAL_7) Lega dei Ticinesi (Lega)
+VO_FEDERAL_8) Geneva Citizens' Movement (MCG)
+VO_FEDERAL_9) Christian Social Party (CSP / PCS)
+VO_FEDERAL_10) Evangelical People's Party (EVP / PEV)
+VO_FEDERAL_11) Federal Democratic Union (EDU / UDF)
+VO_FEDERAL_12) Swiss Party of Labour (PdA / PST-POP)
+VO_FEDERAL_13) Alternative List / Solidarity / Ensemble à Gauche (AL / EàG)
+VO_FEDERAL_14) Pirate Party (PPS)
+VO_FEDERAL_15) Other party
+VO_FEDERAL_16) NA"""
+
+jointllm_voter_question_template = """For the next two questions (TURNOUT {business_number} and VOTE {business_number}), assume it is {voter_ballot_date}. A national referendum is being held in Switzerland on initiative {business_number}.
+Here is the official summary of the initiative: 
+{booklet_summary_en}
+
+The question on the ballot reads:
+{voter_ballot_question_en}
+
+TURNOUT {business_number}: Would this user vote or abstain from voting on initiative {business_number}?
+TO_{business_number}_1) Vote
+TO_{business_number}_2) Abstain
+
+VOTE {business_number}:
+If the answer to TURNOUT {business_number} is "Vote", how would this user respond to the question: "{voter_ballot_question_en}"
+If the answer to TURNOUT {business_number} is "Abstain", select "NA".
+VO_{business_number}_1) {voter_answer_yes_en}
+VO_{business_number}_2) {voter_answer_no_en}
+VO_{business_number}_3) NA"""
 
 base_jointllm_voter_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this content creator based on their social media profile.
+
+For each heading, follow these instructions precisely:  
+1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+2) Select exactly one symbol per question.
+3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
+4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+
+To ensure consistency, use the following guidelines for determining the degree of speculation:
+0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
+21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
+41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
+61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
+81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+
+5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
+6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
 
 Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
 {format_examples}
 
-YOU MUST ANSWER EVERY QUESTION WHILE MAINTAINING THE PERSONA AND PERSPECTIVE OF THE USER PROFILE PROVIDED!
+For every question, provide your best prediction based on the profile data. Do not skip any question.
 {questions}
 """
 
-jointllm_voter_question_template = """VOTE {id}
-Assume it is {date}. Swiss citizens are voting in a national referendum on the following proposal.
-
-{proposal_en}
-
-To help you understand what the proposal is about, here is the official summary provided by the Federal Council:
-{justification_en}
-
-How do you vote on this proposal?
-VOTE_{id}_1) Yes
-VOTE_{id}_2) No
-VOTE_{id}_3) Abstain from voting"""
+# Construct jointllm questions
 jointllm_voter_questions = [
     jointllm_voter_question_template.format(
-        id=row.id,
-        date=row.date,
-        proposal_en=row.proposal_en,
-        justification_en=row.justification_en,
+        business_number=row.business_number,
+        voter_ballot_date=row.voter_ballot_date,
+        booklet_summary_en=row.booklet_summary_en,
+        voter_ballot_question_en=row.voter_ballot_question_en,
+        voter_answer_yes_en=row.voter_answer_yes_en,
+        voter_answer_no_en=row.voter_answer_no_en,
     )
-    for row in politician_election_info.itertuples()
+    for row in referendums.itertuples()
 ]
 jointllm_voter_digital_polling_user_prompt = (
     base_jointllm_voter_digital_polling_user_prompt.format(

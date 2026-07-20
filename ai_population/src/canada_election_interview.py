@@ -127,7 +127,7 @@ def apply_entity_geographic_inclusion_criteria(
     # Perform entity geographic inclusion criteria interview
     perform_profile_interview_shorten(
         project_name=project_name,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_input_file=profile_metadata_input_file,
         profile_metadata_output_file=profile_metadata_output_file,
         system_prompt_field="entity_geographic_inclusion_system_prompt",

@@ -1,6 +1,8 @@
+import argparse
 import os
 import pandas as pd
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 tqdm.pandas()
 from ai_population.config.market_signals_config import (
@@ -9,6 +11,7 @@ from ai_population.config.market_signals_config import (
     MIN_VIDEO_COUNT,
     NUM_POSTS_PER_KEYWORD,
     NUM_POSTS_PER_PROFILE,
+    LATEST_K_POSTS_PER_PROFILE,
     PROFILE_SEARCH_START_DATE,
     PROFILE_SEARCH_END_DATE,
     PROJECT_NAME_TIKTOK,
@@ -20,15 +23,19 @@ from ai_population.config.market_signals_config import (
     EXPERT_REFLECTION_FILE_TIKTOK,
     FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
     FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+    FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_TIKTOK,
     FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
     FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK,
     FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK,
+    FINFLUENCER_DAILY_STOCK_PICK_FILE_TIKTOK,
     ONBOARDING_INTERVIEW_REGEX_PATTERNS,
     FINFLUENCER_INTERVIEW_REGEX_PATTERNS,
+    FINFLUENCER_DAILY_STOCK_PICK_REGEX_PATTERNS,
     STOCK_RECOMMENDATION_OUTPUT_COLUMNS,
     PREDICTION_THRESHOLD_TIKTOK,
     FILTER_ORIGINAL_PROFILES_TIKTOK,
     ORIGINAL_PROFILES_TIKTOK,
+    DAILY_STOCK_PICK_PROFILES_TIKTOK,
 )
 from ai_population.config.base_config import GPT_MODEL
 from ai_population.src.utils import (
@@ -52,6 +59,7 @@ from ai_population.prompts.prompt_template import (
     tiktok_finfluencer_interview_system_prompt,
     finfluencer_interview_user_prompt,
     stock_recommendation_interview_user_prompt,
+    daily_stock_pick_user_prompts,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -84,7 +92,7 @@ def perform_tiktok_onboarding_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -92,6 +100,7 @@ def perform_tiktok_onboarding_interview(
         user_prompt_template=tiktok_finfluencer_onboarding_user_prompt,
         llm_response_field="onboarding_llm_response",
         interview_type="tiktok_finfluencer_onboarding",
+        enable_web_search=True,
     )
 
     # Preprocess onboarding results
@@ -155,7 +164,7 @@ def generate_expert_reflections(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=GPT_MODEL,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -163,6 +172,7 @@ def generate_expert_reflections(
         user_prompt_template=user_prompt_template,
         llm_response_field=llm_response_field,
         interview_type=interview_type,
+        enable_web_search=True,
     )
 
 
@@ -173,6 +183,10 @@ def perform_tiktok_finfluencer_interview(
     post_file: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
     """
     Conducts an interview process for TikTok finfluencer profiles using a language model, processes the results, and saves the formatted output.
@@ -184,6 +198,10 @@ def perform_tiktok_finfluencer_interview(
         post_file (str): Path to the CSV file containing post data.
         output_file (str): Name of the output CSV file to save interview results.
         filter_original_profiles (bool, optional): If True, filters results to include only original TikTok profiles. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Force provider routing (openai | anthropic/claude | xai/grok). Defaults to auto-detection from the model id.
+        enable_web_search (bool, optional): Enable provider-native web search during the interview. Defaults to True.
+        use_row_query (bool, optional): Force per-row real-time API calls instead of the provider batch API. Defaults to False.
 
     Returns:
         None
@@ -196,7 +214,7 @@ def perform_tiktok_finfluencer_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=model_name,
         profile_metadata_file=profile_metadata_file,
         post_file=post_file,
         output_file=output_file,
@@ -204,6 +222,12 @@ def perform_tiktok_finfluencer_interview(
         user_prompt_template=finfluencer_interview_user_prompt,
         llm_response_field="tiktok_finfluencer_interview",
         interview_type="tiktok_finfluencer_interview",
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
+        response_timestamp_col="finfluencer_interview_datetime",
+        latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+        batch_timeout_seconds=7200,
+        provider=provider,
     )
 
     # Preprocess post interview results
@@ -222,12 +246,13 @@ def perform_tiktok_finfluencer_interview(
     )
 
     # Include LLM model information
-    post_interview_results["model"] = GPT_MODEL
+    post_interview_results["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
-    post_interview_results["finfluencer_interview_datetime"] = (
-        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    )
+    if "finfluencer_interview_datetime" not in post_interview_results.columns:
+        post_interview_results["finfluencer_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
 
     # Save formatted interview results
     if filter_original_profiles:
@@ -261,6 +286,10 @@ def perform_tiktok_stock_recommendation_interview(
     finfluencer_pool: str,
     output_file: str,
     filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
 ) -> None:
     """
     Performs a TikTok stock recommendation interview process by preparing, formatting, and verifying stock mention data from TikTok finfluencer profiles.
@@ -275,6 +304,10 @@ def perform_tiktok_stock_recommendation_interview(
         finfluencer_pool (str): Filename of the finfluencer pool CSV.
         output_file (str): Filename for saving the output CSV.
         filter_original_profiles (bool, optional): If True, only retain recommendations from original profiles. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Force provider routing (openai | anthropic/claude | xai/grok). Defaults to auto-detection from the model id.
+        enable_web_search (bool, optional): Enable provider-native web search during the interview. Defaults to True.
+        use_row_query (bool, optional): Force per-row real-time API calls instead of the provider batch API. Defaults to False.
 
     Returns:
         None
@@ -334,7 +367,7 @@ def perform_tiktok_stock_recommendation_interview(
     perform_profile_interview(
         project_name=project_name,
         execution_date=execution_date,
-        gpt_model=GPT_MODEL,
+        model_name=model_name,
         profile_metadata_file=output_file,
         post_file=post_file,
         output_file=output_file,
@@ -342,6 +375,11 @@ def perform_tiktok_stock_recommendation_interview(
         user_prompt_template=stock_recommendation_interview_user_prompt,
         llm_response_field="tiktok_finfluencer_stock_recommendation",
         interview_type="tiktok_finfluencer_stock_recommendation",
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
+        response_timestamp_col="stock_recommendation_interview_datetime",
+        batch_timeout_seconds=7200,
+        provider=provider,
     )
 
     stock_recommendations = pd.read_csv(
@@ -370,12 +408,16 @@ def perform_tiktok_stock_recommendation_interview(
     ].reset_index(drop=True)
 
     # Include LLM model information
-    valid_stock_recommendations["model"] = GPT_MODEL
+    valid_stock_recommendations["model"] = model_name
 
     # Include timestamp information for when the interview was conducted
-    valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
-        pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    )
+    if (
+        "stock_recommendation_interview_datetime"
+        not in valid_stock_recommendations.columns
+    ):
+        valid_stock_recommendations["stock_recommendation_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
 
     # Save verified stock recommendations
     if filter_original_profiles:
@@ -390,6 +432,159 @@ def perform_tiktok_stock_recommendation_interview(
         )
 
     valid_stock_recommendations[STOCK_RECOMMENDATION_OUTPUT_COLUMNS].to_csv(
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            output_file[:-4] + "_full.csv",
+        ),
+        index=False,
+    )
+
+
+def perform_tiktok_daily_stock_pick_interview(
+    project_name: str,
+    execution_date: str,
+    profile_metadata_file: str,
+    post_file: str,
+    output_file: str,
+    filter_original_profiles: bool = False,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
+) -> None:
+    """
+    Conducts the TikTok daily stock pick interview across the sampled finfluencer profiles.
+
+    The interview is chunked into multiple user prompts (one per entry in
+    ``daily_stock_pick_user_prompts``); each chunk is run independently, cached to its own
+    output file, then merged back together into a single result.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Date of execution, used for organizing output files.
+        profile_metadata_file (str): Path to the CSV file containing profile metadata.
+        post_file (str): Path to the CSV file containing post data.
+        output_file (str): Name of the output CSV file to save interview results.
+        filter_original_profiles (bool, optional): If True, filters results to only include original profiles. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Force provider routing (openai | anthropic/claude | xai/grok). Defaults to auto-detection from the model id.
+        enable_web_search (bool, optional): Enable provider-native web search during the interview. Defaults to True.
+        use_row_query (bool, optional): Force per-row real-time API calls instead of the provider batch API. Defaults to False.
+
+    Returns:
+        None
+    """
+    profile_metadata = pd.read_csv(
+        os.path.join(
+            base_dir, "../data", project_name, execution_date, profile_metadata_file
+        )
+    )
+    sampled_profile_metadata = profile_metadata[
+        profile_metadata["account_id"].isin(
+            DAILY_STOCK_PICK_PROFILES_TIKTOK + ORIGINAL_PROFILES_TIKTOK
+        )
+    ].reset_index(drop=True)
+    sampled_profile_metadata.to_csv(
+        os.path.join(
+            base_dir,
+            "../data",
+            project_name,
+            execution_date,
+            f"tiktok_finfluencer_sampled_profiles_{execution_date}.csv",
+        ),
+        index=False,
+    )
+
+    def run_daily_stock_pick_interview(idx_prompt):
+        idx, user_prompt = idx_prompt
+        chunk_output_file = output_file[:-4] + f"_{idx+1}.csv"
+        chunk_output_path = os.path.join(
+            base_dir, "../data", project_name, execution_date, chunk_output_file
+        )
+        if os.path.exists(chunk_output_path):
+            print(f"Skipping idx={idx+1}: {chunk_output_path} already exists.")
+            return
+        perform_profile_interview(
+            project_name=project_name,
+            execution_date=execution_date,
+            model_name=model_name,
+            profile_metadata_file=f"tiktok_finfluencer_sampled_profiles_{execution_date}.csv",
+            post_file=post_file,
+            output_file=chunk_output_file,
+            system_prompt_template=tiktok_finfluencer_interview_system_prompt,
+            user_prompt_template=user_prompt,
+            llm_response_field="tiktok_finfluencer_daily_stock_pick",
+            interview_type=f"tiktok_finfluencer_daily_stock_pick_{idx+1}",
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
+            response_timestamp_col="daily_stock_pick_interview_datetime",
+            latest_k_posts=LATEST_K_POSTS_PER_PROFILE,
+            batch_timeout_seconds=4800,
+            provider=provider,
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        list(
+            executor.map(
+                run_daily_stock_pick_interview, enumerate(daily_stock_pick_user_prompts)
+            )
+        )
+
+    # Preprocess daily stock pick results
+    extracted_responses_list = []
+    for idx in tqdm(range(len(daily_stock_pick_user_prompts))):
+        daily_stock_pick_chunk = pd.read_csv(
+            os.path.join(
+                base_dir,
+                "../data",
+                project_name,
+                execution_date,
+                output_file[:-4] + f"_{idx+1}.csv",
+            )
+        )
+        extracted_responses = daily_stock_pick_chunk[
+            "tiktok_finfluencer_daily_stock_pick"
+        ].apply(extract_llm_responses)
+        extracted_responses[f"tiktok_finfluencer_daily_stock_pick_{idx+1}"] = (
+            daily_stock_pick_chunk["tiktok_finfluencer_daily_stock_pick"]
+        )
+        extracted_responses_list.append(extracted_responses)
+
+    daily_stock_pick_results = pd.concat(
+        [daily_stock_pick_chunk.drop(columns=["tiktok_finfluencer_daily_stock_pick"])]
+        + extracted_responses_list,
+        axis=1,
+    )
+    # Merge identical columns from interview response
+    daily_stock_pick_results = coalesce_columns_by_regex(
+        daily_stock_pick_results, FINFLUENCER_DAILY_STOCK_PICK_REGEX_PATTERNS
+    )
+
+    # Include LLM model information
+    daily_stock_pick_results["model"] = model_name
+
+    # Include timestamp information for when the interview was conducted
+    if "daily_stock_pick_interview_datetime" not in daily_stock_pick_results.columns:
+        daily_stock_pick_results["daily_stock_pick_interview_datetime"] = (
+            pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        )
+
+    # Save formatted interview results
+    if filter_original_profiles:
+        filtered_daily_stock_pick_results = daily_stock_pick_results[
+            daily_stock_pick_results["account_id"].isin(ORIGINAL_PROFILES_TIKTOK)
+        ].reset_index(drop=True)
+        filtered_daily_stock_pick_results.to_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, output_file
+            ),
+            index=False,
+        )
+
+    daily_stock_pick_results.to_csv(
         os.path.join(
             base_dir,
             "../data",
@@ -437,6 +632,16 @@ def filter_tiktok_profiles(
 
     # Filter profiles based on criteria
     verified_profiles = verified_profile_pool["account_id"].tolist()
+    profile_metadata["followers"] = (
+        pd.to_numeric(profile_metadata["followers"], errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
+    profile_metadata["videos_count"] = (
+        pd.to_numeric(profile_metadata["videos_count"], errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
     filtered_profiles = profile_metadata[
         (profile_metadata["followers"] >= MIN_FOLLOWER_COUNT)  # Minimum followers
         & (profile_metadata["videos_count"] >= MIN_VIDEO_COUNT)  # Minimum videos posted
@@ -465,6 +670,60 @@ def filter_tiktok_profiles(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the TikTok market signals interview pipeline.",
+    )
+    parser.add_argument(
+        "--model",
+        dest="model_name",
+        type=str,
+        default=GPT_MODEL,
+        help=(
+            "Model id used for every interview step. Use an OpenAI model id "
+            "(e.g. gpt-5.1-2025-11-13), an Anthropic Claude model id "
+            "(e.g. claude-opus-4-7), or an xAI Grok model id "
+            "(e.g. grok-4-fast-non-reasoning). The provider is auto-detected "
+            "from the model prefix unless --provider is set."
+        ),
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "claude", "xai", "grok"],
+        default=None,
+        help=(
+            "Force the provider routing (openai | anthropic/claude | xai/grok). "
+            "Defaults to auto-detection from --model."
+        ),
+    )
+    parser.add_argument(
+        "--enable-web-search",
+        dest="enable_web_search",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Enable provider-native web search (OpenAI web_search tool, "
+            "Anthropic web_search_20250305 tool, xAI Live Search). "
+            "Use --no-enable-web-search to disable."
+        ),
+    )
+    parser.add_argument(
+        "--use-row-query",
+        dest="use_row_query",
+        action="store_true",
+        default=False,
+        help=(
+            "Force per-row real-time API calls instead of the provider batch API. "
+            "Batch is used by default; this flag is useful for ad-hoc runs or "
+            "providers without a batch endpoint."
+        ),
+    )
+    args = parser.parse_args()
+    model_name = args.model_name
+    provider = args.provider
+    enable_web_search = args.enable_web_search
+    use_row_query = args.use_row_query
+
     # Step 1: Perform search using predefined list of search terms
     print("1. Perform keyword search using predefined list of search terms...")
     perform_tiktok_keyword_search(
@@ -472,7 +731,7 @@ if __name__ == "__main__":
         execution_date=PIPELINE_EXECUTION_DATE,
         search_terms=SEARCH_TERMS_TIKTOK,
         output_file=KEYWORD_SEARCH_FILE_TIKTOK,
-        num_post_per_keyword=NUM_POSTS_PER_KEYWORD,
+        num_posts_per_keyword=NUM_POSTS_PER_KEYWORD,
     )
 
     # Step 2: Extract profile metadata for search results
@@ -560,6 +819,7 @@ if __name__ == "__main__":
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         video_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+        historical_post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_TIKTOK,
     )
     extract_stock_mentions(
         project_name=PROJECT_NAME_TIKTOK,
@@ -570,25 +830,53 @@ if __name__ == "__main__":
         interview_type="tiktok_stock_mention",
     )
 
-    # Step 7: Conduct finfluencer interview on financial markets
-    print("7. Conduct finfluencer interview on financial markets...")
-    perform_tiktok_finfluencer_interview(
-        project_name=PROJECT_NAME_TIKTOK,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
-        output_file=FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK,
-        filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
+    # Steps 7 & 8: Run finfluencer interview and stock recommendations interview in parallel
+    print(
+        "7+8. Run finfluencer interview and stock recommendations interview in parallel..."
     )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        step7 = executor.submit(
+            perform_tiktok_finfluencer_interview,
+            project_name=PROJECT_NAME_TIKTOK,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
+            post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_TIKTOK,
+            output_file=FINFLUENCER_POST_INTERVIEW_FILE_TIKTOK,
+            filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
+            model_name=model_name,
+            provider=provider,
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
+        )
+        step8 = executor.submit(
+            perform_tiktok_stock_recommendation_interview,
+            project_name=PROJECT_NAME_TIKTOK,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
+            post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
+            finfluencer_pool=FINFLUENCER_POOL_FILE_TIKTOK,
+            output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK,
+            filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
+            model_name=model_name,
+            provider=provider,
+            enable_web_search=enable_web_search,
+            use_row_query=use_row_query,
+        )
+        # Surface exceptions from either future
+        step7.result()
+        step8.result()
 
-    # Step 9: Conduct stock recommendations interview
-    print("9. Conduct stock recommendations interview...")
-    perform_tiktok_stock_recommendation_interview(
+    # Step 9: Conduct daily stock pick interview
+    print("9. Conduct daily stock pick interview...")
+    perform_tiktok_daily_stock_pick_interview(
         project_name=PROJECT_NAME_TIKTOK,
         execution_date=PIPELINE_EXECUTION_DATE,
         profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_TIKTOK,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_TIKTOK,
-        finfluencer_pool=FINFLUENCER_POOL_FILE_TIKTOK,
-        output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_TIKTOK,
+        post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_TIKTOK,
+        output_file=FINFLUENCER_DAILY_STOCK_PICK_FILE_TIKTOK,
         filter_original_profiles=FILTER_ORIGINAL_PROFILES_TIKTOK,
+        model_name=model_name,
+        provider=provider,
+        enable_web_search=enable_web_search,
+        use_row_query=use_row_query,
     )
