@@ -3253,6 +3253,7 @@ def perform_tiktok_profile_metadata_search(
     output_file: str = "",
     local_file: str = None,
     force_refresh: bool = False,
+    cache_name: str = None,
 ) -> pd.DataFrame:
     """Retrieve TikTok profile metadata for a pool of profiles, with weekly API caching.
 
@@ -3270,6 +3271,9 @@ def perform_tiktok_profile_metadata_search(
             weekly cache and the API entirely (backward-compatible override).
         force_refresh: When True, always refresh from the API regardless of the weekday
             or cache freshness.
+        cache_name: Stable identifier for the weekly cache. Supply this when the input
+            filename can change (e.g. a pool file with a size suffix) so the cache is not
+            invalidated by the rename. Defaults to the input filename's basename.
 
     Returns:
         DataFrame of profile metadata for the profiles in input_file.
@@ -3300,6 +3304,7 @@ def perform_tiktok_profile_metadata_search(
             fetch_fn=_fetch_tiktok_profile_metadata_from_api,
             force_refresh=force_refresh,
             provider_label="TikTok",
+            cache_name=cache_name,
         )
 
     if output_file:
@@ -3632,6 +3637,7 @@ def _get_weekly_cached_profile_metadata(
     fetch_fn,
     force_refresh: bool = False,
     provider_label: str = "profile",
+    cache_name: str = None,
 ) -> pd.DataFrame:
     """Return profile metadata, refreshing from the API at most once per week.
 
@@ -3649,13 +3655,18 @@ def _get_weekly_cached_profile_metadata(
 
     Args:
         project_dir: Absolute path to the project's data folder.
-        input_file: Input filename (used to derive the cache key).
+        input_file: Input filename (used to derive the cache key when ``cache_name`` is
+            not supplied).
         profile_list: Account ids to return metadata for.
         fetch_fn: Callable taking a list of account ids and returning a DataFrame of
             profile metadata (with an ``account_id`` column).
         force_refresh: When True, always refresh from the API regardless of the weekday
             or cache freshness.
         provider_label: Human-readable provider name used only in log messages.
+        cache_name: Stable identifier for the weekly cache. Prefer supplying this so the
+            cache survives changes to the input filename (e.g. a pool file whose name
+            carries a size suffix such as ``..._183.csv``). Falls back to the input
+            filename's basename when not provided.
 
     Returns:
         DataFrame of profile metadata restricted to profile_list.
@@ -3663,7 +3674,10 @@ def _get_weekly_cached_profile_metadata(
     # The cache lives outside the per-execution-date folder so it persists across days.
     cache_dir = os.path.join(project_dir, "profile_metadata_cache")
     os.makedirs(cache_dir, exist_ok=True)
-    cache_key = os.path.splitext(os.path.basename(input_file))[0]
+    # Use a stable, caller-supplied cache name when available; otherwise derive it from
+    # the input filename. Deriving from the filename makes the cache brittle whenever the
+    # input file is renamed, so callers with a changing filename should pass cache_name.
+    cache_key = cache_name or os.path.splitext(os.path.basename(input_file))[0]
     cache_path = os.path.join(cache_dir, f"{cache_key}_metadata_cache.csv")
     meta_path = os.path.join(cache_dir, f"{cache_key}_metadata_cache.json")
 
@@ -3762,6 +3776,8 @@ def perform_x_profile_metadata_search(
     output_file: str = "",
     local_file: str = None,
     force_refresh: bool = False,
+    cache_name: str = None,
+    fetch_fn=None,
 ) -> pd.DataFrame:
     """Retrieve X profile metadata for a pool of profiles, with weekly API caching.
 
@@ -3779,6 +3795,13 @@ def perform_x_profile_metadata_search(
             weekly cache and the API entirely (backward-compatible override).
         force_refresh: When True, always refresh from the API regardless of the weekday
             or cache freshness.
+        cache_name: Stable identifier for the weekly cache. Supply this when the input
+            filename can change (e.g. a pool file with a size suffix) so the cache is not
+            invalidated by the rename. Defaults to the input filename's basename.
+        fetch_fn: Optional callable taking a list of account ids and returning a DataFrame
+            of profile metadata (with an 'account_id' column). Lets a caller source the
+            weekly-cached metadata from an alternative provider (e.g. X API v2) instead of
+            the default Abundance get_user_info API. Defaults to the Abundance fetcher.
 
     Returns:
         DataFrame of profile metadata for the profiles in input_file.
@@ -3806,9 +3829,10 @@ def perform_x_profile_metadata_search(
             project_dir=project_dir,
             input_file=input_file,
             profile_list=profile_list,
-            fetch_fn=_fetch_x_profile_metadata_from_api,
+            fetch_fn=fetch_fn or _fetch_x_profile_metadata_from_api,
             force_refresh=force_refresh,
             provider_label="X",
+            cache_name=cache_name,
         )
 
     if output_file:

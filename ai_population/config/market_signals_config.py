@@ -523,6 +523,15 @@ FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X = (
 FINFLUENCER_PROFILE_SEARCH_FILE_X = (
     f"x_finfluencer_profile_search_{PIPELINE_EXECUTION_DATE}.csv"
 )
+# Approach 2 (direct X API v2 pull, via x_api_daily_pull) comparison outputs.
+# Same schema/filenames as Approach 1 above but with an "xapi" tag, so both
+# collection methods can be compared side by side for the same execution date.
+FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_XAPI_X = (
+    f"x_finfluencer_profile_metadata_xapi_{PIPELINE_EXECUTION_DATE}.csv"
+)
+FINFLUENCER_PROFILE_SEARCH_FILE_XAPI_X = (
+    f"x_finfluencer_profile_search_xapi_{PIPELINE_EXECUTION_DATE}.csv"
+)
 FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X = (
     f"../x_finfluencer_historical_profile_search.csv"
 )

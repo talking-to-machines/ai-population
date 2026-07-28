@@ -25,6 +25,8 @@ from ai_population.config.market_signals_config import (
     EXPERT_REFLECTION_FILE_X,
     FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
     FINFLUENCER_PROFILE_SEARCH_FILE_X,
+    FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_XAPI_X,
+    FINFLUENCER_PROFILE_SEARCH_FILE_XAPI_X,
     FINFLUENCER_STOCK_MENTIONS_FILE_X,
     FINFLUENCER_POST_INTERVIEW_FILE_X,
     FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
@@ -66,6 +68,10 @@ from ai_population.src.utils import (
     perform_x_profile_search,
     fetch_daily_snapshot,
 )
+from ai_population.src.x_api_daily_pull import (
+    run_daily_pull,
+    fetch_x_api_profile_metadata,
+)
 from ai_population.prompts.prompt_template import (
     x_finfluencer_onboarding_system_prompt,
     x_finfluencer_onboarding_user_prompt,
@@ -81,6 +87,90 @@ from ai_population.prompts.prompt_template import (
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def perform_x_api_profile_search(
+    project_name: str,
+    execution_date: str,
+    input_file: str,
+    profile_metadata_output_file: str,
+    profile_search_output_file: str,
+    start_date: str,
+    end_date: str,
+    num_posts_per_profile: int,
+) -> None:
+    """Approach 2: collect X profile metadata and recent posts directly from the
+    X API v2 (via ``x_api_daily_pull``) and materialise them into the same output
+    files/schema that Approach 1 (the Abundance-based
+    ``perform_x_profile_metadata_search`` / ``perform_x_profile_search``) produces,
+    so the two collection methods can be compared side by side for the same
+    execution date.
+
+    Profile metadata is weekly-cached with the exact same semantics as Approach 1:
+    it is refreshed from X API v2 at most once per week (first run on/after Monday)
+    into a persistent cache under ``../data/<project_name>/profile_metadata_cache/``
+    (its own ``..._xapi`` cache key, so it never collides with Approach 1), and the
+    rest of the week the cached metadata is reused. The date-stamped comparison output
+    is written every run either way.
+
+    Recent posts are pulled from X API v2 for the execution date (posts-only; the raw
+    ``x_posts_<date>.csv``, run summary and failures JSON go under
+    ``../data/<project_name>/x_api_data/<execution_date>/``). The comparison outputs
+    are written to the execution-date folder alongside the Approach 1 outputs, and the
+    Approach 1 historical post file is intentionally left untouched.
+
+    Args:
+        project_name: Project subfolder under ../data.
+        execution_date: Pipeline execution date in DD-MM-YYYY format.
+        input_file: Pool CSV (relative to the project folder) with an 'account_id'
+            column and, ideally, 'influence'/'credibility' columns for prioritisation.
+        profile_metadata_output_file: Filename for the Approach 2 metadata comparison output.
+        profile_search_output_file: Filename for the Approach 2 posts comparison output.
+        start_date: Inclusive post start date (YYYY-MM-DD).
+        end_date: Exclusive post end date (YYYY-MM-DD).
+        num_posts_per_profile: Retained for signature parity with Approach 1 (unused
+            by the local-file post filter).
+
+    Returns:
+        None
+    """
+    project_dir = os.path.join(base_dir, "../data", project_name)
+    pool_path = os.path.join(project_dir, input_file)
+
+    # 1. Profile metadata: weekly-cached via the same helper Approach 1 uses, but
+    #    sourced from X API v2 (fetch_fn) and stored under its own cache key so the
+    #    two approaches' caches never collide.
+    perform_x_profile_metadata_search(
+        project_name=project_name,
+        execution_date=execution_date,
+        input_file=input_file,
+        output_file=profile_metadata_output_file,
+        cache_name="x_finfluencer_profile_metadata_xapi",
+        fetch_fn=fetch_x_api_profile_metadata,
+    )
+
+    # 2. Recent posts: pull the execution date's posts from X API v2 (posts-only;
+    #    metadata is handled by the weekly cache above).
+    posts_csv, _ = run_daily_pull(
+        date_tag=execution_date,
+        metadata_mode="off",
+        panel_file=pool_path,
+        output_dir=os.path.join(project_dir, "x_api_data"),
+    )
+
+    # 3. Materialise the recent-posts comparison file via the local_file override.
+    #    historical_post_file is intentionally omitted so the comparison run does not
+    #    mutate Approach 1's historical post file.
+    perform_x_profile_search(
+        project_name=project_name,
+        execution_date=execution_date,
+        input_file=input_file,
+        output_file=profile_search_output_file,
+        start_date=start_date,
+        end_date=end_date,
+        num_posts_per_profile=num_posts_per_profile,
+        local_file=str(posts_csv),
+    )
 
 
 def perform_x_onboarding_interview(
@@ -987,11 +1077,13 @@ if __name__ == "__main__":
     print(
         "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
     )
+    # --- Approach 1: Abundance API (current production path) ---
     perform_x_profile_metadata_search(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
         input_file=FINFLUENCER_POOL_FILE_X,
         output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
+        cache_name="x_finfluencer_profile_metadata",
     )
     perform_x_profile_search(
         project_name=PROJECT_NAME_X,
@@ -1003,6 +1095,30 @@ if __name__ == "__main__":
         num_posts_per_profile=NUM_POSTS_PER_PROFILE,
         historical_post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
     )
+
+    # --- Approach 2: direct X API v2 pull (for comparison only) ---
+    # Produces *_xapi_<date>.csv alongside the Approach 1 outputs. Wrapped so a
+    # missing X_BEARER_TOKEN or API failure logs a warning but does not abort the
+    # rest of the pipeline (which still runs on the Approach 1 outputs).
+    print(
+        "6b. Perform profile search via direct X API v2 pull (comparison approach)..."
+    )
+    try:
+        perform_x_api_profile_search(
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            input_file=FINFLUENCER_POOL_FILE_X,
+            profile_metadata_output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_XAPI_X,
+            profile_search_output_file=FINFLUENCER_PROFILE_SEARCH_FILE_XAPI_X,
+            start_date=PROFILE_SEARCH_START_DATE,
+            end_date=PROFILE_SEARCH_END_DATE,
+            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+        )
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 - comparison step must not break the pipeline
+        print(f"WARNING: X API v2 comparison pull skipped/failed: {exc}")
+
     extract_stock_mentions(
         project_name=PROJECT_NAME_X,
         execution_date=PIPELINE_EXECUTION_DATE,
