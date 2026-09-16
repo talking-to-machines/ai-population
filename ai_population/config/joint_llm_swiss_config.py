@@ -8,13 +8,13 @@ load_dotenv(dotenv_path="ai_population/config/.env")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 PROJECT_NAME = "joint-llm-swiss"
-NUM_POSTS_PER_PROFILE = 350  # 250
+NUM_POSTS_PER_PROFILE = 100000  # Effectively unlimited: above the X API's ~3,200-tweet-per-user ceiling and any realistic TikTok count (matches X_API_ABUNDANCE_UNLIMITED_POSTS)
 NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH = 20
 MAX_NUM_POSTS_PER_KEYWORD = 100
-POLITICIAN_PIPELINE = "politicians-validation-round2"
+POLITICIAN_PIPELINE = "politicians-validation-fullrun"
 VOTER_PIPELINE_X = "voters-x"
 VOTER_PIPELINE_TIKTOK = "voters-tiktok"
-PROFILE_SEARCH_START_DATE = "01-01-2024"  # MM-DD-YYYY format
+PROFILE_SEARCH_START_DATE = "01-01-2023"  # MM-DD-YYYY format
 PROFILE_SEARCH_END_DATE = "06-01-2025"  # MM-DD-YYYY format
 PROFILE_SEARCH_TODAY = datetime.today().strftime("%m-%d-%Y")
 
@@ -324,7 +324,6 @@ POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE = (
 POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE = (
     f"jointllm_politician_post_digital_polling_interview_{POLITICIAN_PIPELINE}.csv"
 )
-
 POLITICIAN_DEMOGRAPHIC_INTERVIEW_REGEX_PATTERNS = [
     r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*explanation$",
     r"^PERSON_LIVING_IN_SWITZERLAND.*\-\s*symbol$",

@@ -566,6 +566,14 @@ if __name__ == "__main__":
             "Perform profile metadata search for profiles obtained via keyword search results..."
         )
         if platform == "x":
+            # X profile metadata and recent posts are collected from the X API v2
+            # (primary source) with an automatic fallback to the Abundance API on
+            # a wholesale X API failure (missing bearer token, auth failure, or
+            # zero handles resolved). The shared helpers normalize whichever
+            # source served the request to one canonical schema, so the metadata
+            # and post files written here are identical in column names/structure
+            # regardless of which API produced them and feed directly into the
+            # downstream demographic-interview step.
             perform_x_profile_metadata_search(
                 project_name=constants["project_name"],
                 execution_date=constants["pipeline_name"],
@@ -585,6 +593,7 @@ if __name__ == "__main__":
                 start_date=constants["profile_search_start_date"],
                 end_date=constants["profile_search_today"],
                 num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
+                daily_post_budget=None,
             )
 
         else:
@@ -655,6 +664,9 @@ if __name__ == "__main__":
     # Step 4: Extract posts from eligible profiles during polling period
     print("Step 4: Extract posts from eligible profiles during polling period")
     if platform == "x":
+        # X API v2 primary with an automatic Abundance API fallback, normalized
+        # to the same canonical post schema as Step 1, so the eligible-profile
+        # posts feed straight into the digital-polling step below.
         profile_latest_videos = perform_x_profile_search(
             project_name=constants["project_name"],
             execution_date=constants["pipeline_name"],
@@ -665,6 +677,7 @@ if __name__ == "__main__":
             start_date=constants["profile_search_start_date"],
             end_date=constants["profile_search_end_date"],
             num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+            daily_post_budget=None,
         )
     else:
         profile_latest_videos = perform_tiktok_profile_search(

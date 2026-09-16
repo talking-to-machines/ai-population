@@ -3862,32 +3862,31 @@ INC20) More than 20,000 CHF
 EDUCATION: What is the highest educational qualification of this user?
 EDU1) No completed education
 EDU2) Primary school
-EDU3) Secondary school
-EDU4) Basic vocational training (EBA, AFP)
-EDU5) Vocational training, apprenticeship
-EDU6) Upper secondary specialised school (Fachmittelschule, Ecole)
-EDU7) Trade school
-EDU8) Vocational or specialised baccalaureate
-EDU9) Baccalaureate
-EDU10) Higher vocational education with federal diploma
-EDU11) College of higher education
-EDU12) University of applied sciences, pedagogical university
-EDU13) University, Federal Institute of Technology
-EDU14) Other
+EDU3) Secondary school (compulsory school)
+EDU4) Upper secondary specialised school (Fachmittelschule)
+EDU5) Vocational training (apprenticeship, basic vocational training EBA/AFP, trade school)
+EDU6) Baccalaureate (gymnasiale Maturität)
+EDU7) Vocational or specialised baccalaureate (Berufs-/Fachmaturität)
+EDU8) Higher vocational education (federal diploma, Meisterprüfung, höhere Fachschule)
+EDU9) Tertiary (university, ETH, university of applied sciences, pedagogical university)
 
-PARTY_MEMBER: Which political party does this user belong to?
-PP1) Sozialdemokratische Partei der Schweiz
-PP2) Schweizerische Volkspartei
-PP3) FDP.Die Liberalen
-PP4) Die Mitte
-PP5) Grüne Partei der Schweiz
-PP6) Grüne Liberale
-PP7) Evangelische Volkspartei
-PP8) Partei der Arbeit der Schweiz
-PP9) Eidgenössisch-Demokratische Union
-PP10) Mouvement Citoyens Genevois
-PP11) Other party
-PP12) Independent/no party"""
+PARTY_MEMBER: Which political party does this user belong to, if any? 
+PP1) Liberal Radical Party (FDP / PLR)
+PP2) The Centre (Die Mitte / Le Centre / Il Centro; former CVP/BDP)
+PP3) Social Democratic Party (SP / PS)
+PP4) Swiss People's Party (SVP / UDC)
+PP5) Green Party (Grüne / Les Verts; GPS / PES)
+PP6) Green Liberal Party (GLP / PVL)
+PP7) Lega dei Ticinesi (Lega)
+PP8) Geneva Citizens' Movement (MCG)
+PP9) Christian Social Party (CSP / PCS)
+PP10) Evangelical People's Party (EVP / PEV)
+PP11) Federal Democratic Union (EDU / UDF)
+PP12) Swiss Party of Labour (PdA / PST-POP)
+PP13) Alternative List / Solidarity / Ensemble à Gauche (AL / EàG)
+PP14) Pirate Party (PPS)
+PP15) Other party
+PP16) Independent (no party)"""
 
 jointllm_politician_question_template = """For the next two questions (TURNOUT_{business_number} and VOTE_{business_number}), assume it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative {business_number}.
 Here is the official summary of the initiative:

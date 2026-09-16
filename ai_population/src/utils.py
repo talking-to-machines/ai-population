@@ -2040,6 +2040,7 @@ def perform_profile_interview(
     post_metadata = pd.read_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, post_file),
         on_bad_lines="skip",
+        low_memory=False,
     )
     if "warning_code" in post_metadata.columns:
         post_metadata = post_metadata[
@@ -2057,12 +2058,7 @@ def perform_profile_interview(
             extract_video_transcripts, args=(post_metadata,)
         )
     elif interview_type.startswith("x"):
-        try:
-            post_metadata["createdAt"] = pd.to_datetime(
-                post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-            )
-        except ValueError:
-            post_metadata["createdAt"] = pd.to_datetime(post_metadata["createdAt"])
+        post_metadata["createdAt"] = parse_x_created_at(post_metadata["createdAt"])
         profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
             extract_tweets, args=(post_metadata, latest_k_posts)
         )
@@ -2333,12 +2329,7 @@ def perform_profile_interview_x_tiktok(
         "account_id"
     ].apply(extract_video_transcripts, args=(tiktok_post_metadata,))
 
-    try:
-        x_post_metadata["createdAt"] = pd.to_datetime(
-            x_post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-        )
-    except ValueError:
-        x_post_metadata["createdAt"] = pd.to_datetime(x_post_metadata["createdAt"])
+    x_post_metadata["createdAt"] = parse_x_created_at(x_post_metadata["createdAt"])
     x_profile_metadata["posts_combined"] = x_profile_metadata["account_id"].apply(
         extract_tweets, args=(x_post_metadata, latest_k_posts)
     )
@@ -2882,12 +2873,7 @@ def extract_stock_mentions(
             extract_video_transcripts, args=(post_metadata,)
         )
     elif interview_type.startswith("x"):
-        try:
-            post_metadata["createdAt"] = pd.to_datetime(
-                post_metadata["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-            )
-        except ValueError:
-            post_metadata["createdAt"] = pd.to_datetime(post_metadata["createdAt"])
+        post_metadata["createdAt"] = parse_x_created_at(post_metadata["createdAt"])
         profile_metadata["posts_combined"] = profile_metadata["account_id"].apply(
             extract_tweets, args=(post_metadata,)
         )
@@ -3384,6 +3370,666 @@ def perform_x_keyword_search(
     return keyword_search_results
 
 
+# ===========================================================================
+# X API v2 collection (primary source) + cross-source normalization
+# ---------------------------------------------------------------------------
+# The X pipeline collects profile metadata and recent posts from the X API v2 as
+# the primary source, and falls back to the Abundance API (per-run, wholesale) if
+# the X API attempt fails. Both sources are normalized to one canonical schema so
+# that the fields consumed by the prompts are identical in column name and data
+# structure regardless of which API produced them. (Moved here from the former
+# standalone ai_population/src/x_api_daily_pull.py.)
+# ===========================================================================
+X_API_BASE = "https://api.x.com/2"
+X_API_TWEET_FIELDS = (
+    "created_at,public_metrics,entities,referenced_tweets,lang,"
+    "conversation_id,in_reply_to_user_id,author_id"
+)
+X_API_USER_FIELDS = (
+    "created_at,description,entities,location,name,pinned_tweet_id,"
+    "profile_image_url,protected,public_metrics,url,username,"
+    "verified,verified_type"
+)
+X_API_EXCLUDE = "retweets,replies"  # X API stays originals-only (per design)
+X_API_DAILY_BUDGET_POSTS = 2000  # safety ceiling on billed posts per run
+# Abundance's get_tweets requires a numeric max_tweets_per_user, so this stands in
+# for "all posts" when a caller requests unlimited per-profile collection
+# (num_posts_per_profile=None). Set well above any single account's post count in a
+# search window.
+X_API_ABUNDANCE_UNLIMITED_POSTS = 100000
+X_API_HTTP_TIMEOUT = 30
+
+# Canonical post schema (column order the profile-search step emits).
+X_API_POST_COLUMNS = [
+    "type",
+    "id",
+    "url",
+    "twitterUrl",
+    "text",
+    "source",
+    "retweetCount",
+    "replyCount",
+    "likeCount",
+    "quoteCount",
+    "viewCount",
+    "createdAt",
+    "lang",
+    "bookmarkCount",
+    "isReply",
+    "inReplyToId",
+    "conversationId",
+    "inReplyToUserId",
+    "inReplyToUsername",
+    "author",
+    "entities",
+    "account_id",
+    "hashtags",
+    "tagged_users",
+]
+
+# Canonical profile-metadata schema.
+X_API_METADATA_COLUMNS = [
+    "id",
+    "name",
+    "account_id",
+    "location",
+    "url",
+    "description",
+    "entities",
+    "protected",
+    "isVerified",
+    "isBlueVerified",
+    "verifiedType",
+    "followers",
+    "following",
+    "favouritesCount",
+    "statusesCount",
+    "mediaCount",
+    "createdAt",
+    "coverPicture",
+    "profilePicture",
+    "canDm",
+    "affiliatesHighlightedLabel",
+    "isAutomated",
+    "automatedBy",
+    "pinnedTweetIds",
+    "unavailable",
+    "message",
+    "unavailableReason",
+]
+
+
+# --- canonical value helpers (shared by both sources) ----------------------
+def _x_coerce_dict(val) -> dict:
+    """Return val as a dict, parsing a JSON/Python-literal string if needed."""
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str) and val.strip():
+        for parser in (json.loads, ast.literal_eval):
+            try:
+                out = parser(val)
+                if isinstance(out, dict):
+                    return out
+            except Exception:
+                continue
+    return {}
+
+
+def _x_to_iso(value) -> str:
+    """Normalize any supported datetime representation to a canonical ISO-8601
+    UTC string. Handles the X classic format ('Mon Jul 27 13:22:17 +0000 2026')
+    and ISO inputs alike; returns '' when the value is missing/unparseable."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    s = str(value).strip()
+    if not s or s.lower() == "nan":
+        return ""
+    ts = pd.to_datetime(s, utc=True, errors="coerce")
+    if pd.isna(ts):
+        return ""
+    return ts.isoformat()
+
+
+def _x_post_created_at(value) -> str:
+    """Canonical post 'createdAt': space-separated ISO-8601 with a colon UTC offset
+    ('2026-07-29 12:31:44+00:00').
+
+    This matches the legacy historical-file format (a pandas datetime serialized by
+    to_csv), so the accumulating x_finfluencer_historical_profile_search.csv stays in
+    one consistent format instead of mixing space- and 'T'-separated timestamps."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    ts = pd.to_datetime(str(value).strip(), utc=True, errors="coerce")
+    if pd.isna(ts):
+        return ""
+    return ts.isoformat(sep=" ")
+
+
+def parse_x_created_at(series: pd.Series) -> pd.Series:
+    """Parse an X 'createdAt' column that may hold a mix of formats into tz-aware
+    UTC timestamps.
+
+    Post files (especially the accumulating historical file) can contain, in the
+    same column: canonical ISO-8601 with a 'T' ('2026-07-29T12:31:44+00:00'),
+    legacy space-separated datetimes ('2025-09-29 15:26:57+00:00'), and the X
+    classic string ('Wed Jul 27 13:22:17 +0000 2026'). A single fixed-format parse
+    breaks on such mixes, so this parses the ISO forms vectorised (fast) and only
+    falls back to per-element parsing for the leftover classic rows. Unparseable
+    values become NaT."""
+    parsed = pd.to_datetime(series, format="ISO8601", utc=True, errors="coerce")
+    leftover = parsed.isna() & series.notna() & (series.astype(str).str.strip() != "")
+    if leftover.any():
+        parsed.loc[leftover] = pd.to_datetime(
+            series[leftover], format="mixed", utc=True, errors="coerce"
+        )
+    return parsed
+
+
+def _x_to_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return False
+    s = str(value).strip().lower()
+    if s in ("true", "1", "yes"):
+        return True
+    if s in ("false", "0", "no", ""):
+        return False
+    return bool(value)
+
+
+def _x_hashtags_str(entities) -> str:
+    """Canonical hashtags: comma-separated tag texts derived from v1 entities."""
+    e = _x_coerce_dict(entities)
+    tags = [h.get("text", "") for h in e.get("hashtags", []) if isinstance(h, dict)]
+    return ", ".join(t for t in tags if t)
+
+
+def _x_tagged_users_str(entities) -> str:
+    """Canonical tagged users: comma-separated screen-name handles from entities."""
+    e = _x_coerce_dict(entities)
+    users = [
+        m.get("screen_name", "")
+        for m in e.get("user_mentions", [])
+        if isinstance(m, dict)
+    ]
+    return ", ".join(u for u in users if u)
+
+
+def _x_author_username(author) -> str:
+    d = author if isinstance(author, dict) else _x_coerce_dict(author)
+    return d.get("userName", "")
+
+
+# --- X API v2 low-level access ---------------------------------------------
+def _x_read_token_from_env_file(env_file: str):
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f.read().splitlines():
+                if line.strip().startswith("X_BEARER_TOKEN="):
+                    return line.split("=", 1)[1].strip()
+    return None
+
+
+def load_x_bearer() -> str:
+    """Return the X API v2 bearer token from the environment or config .env.
+
+    Raises RuntimeError when unavailable, which the callers use as the signal to
+    fall back to the Abundance API."""
+    token = os.environ.get("X_BEARER_TOKEN")
+    if not token:
+        src_dir = os.path.dirname(os.path.abspath(__file__))
+        for env_file in (
+            os.path.join(src_dir, ".env"),
+            os.path.join(src_dir, "..", "config", ".env"),
+        ):
+            token = _x_read_token_from_env_file(env_file)
+            if token:
+                break
+    if not token:
+        raise RuntimeError(
+            "X_BEARER_TOKEN not set (env var or ai_population/config/.env)."
+        )
+    return token
+
+
+def _x_api_get(url: str, headers: dict, params: dict, failures: list, tag: str):
+    """GET with timeout, 429 wait, and retries on transport/5xx errors.
+
+    Returns parsed json, or None after recording a failure entry."""
+    last = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.get(
+                url, headers=headers, params=params, timeout=X_API_HTTP_TIMEOUT
+            )
+        except requests.RequestException as exc:
+            last = {"where": tag, "error": str(exc)}
+            time.sleep(3 * attempt)
+            continue
+        if r.status_code == 429:
+            reset = int(r.headers.get("x-rate-limit-reset", "0"))
+            last = {"where": tag, "status": 429, "note": "rate limited"}
+            time.sleep(min(max(1, reset - int(time.time()) + 2), 900))
+            continue
+        if r.status_code >= 500:
+            last = {"where": tag, "status": r.status_code, "body": r.text[:200]}
+            time.sleep(3 * attempt)
+            continue
+        if r.status_code != 200:
+            failures.append(
+                {"where": tag, "status": r.status_code, "body": r.text[:200]}
+            )
+            return None
+        return r.json()
+    failures.append(last or {"where": tag, "error": "retries exhausted"})
+    return None
+
+
+def _x_load_uid_cache(path: str) -> dict:
+    if not os.path.exists(path):
+        return {}
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    return {h: u for h, u in zip(df["handle"], df["user_id"]) if h and u}
+
+
+def _x_save_uid_cache(cache: dict, path: str) -> None:
+    pd.DataFrame(sorted(cache.items()), columns=["handle", "user_id"]).to_csv(
+        path, index=False
+    )
+
+
+def _x_lookup_users(handles, headers, failures) -> list:
+    """Batched /users/by lookup (<=100 handles per request)."""
+    users = []
+    for i in range(0, len(handles), 100):
+        batch = handles[i : i + 100]
+        body = _x_api_get(
+            f"{X_API_BASE}/users/by",
+            headers,
+            {"usernames": ",".join(batch), "user.fields": X_API_USER_FIELDS},
+            failures,
+            f"users/by batch {i // 100}",
+        )
+        if body is None:
+            for h in batch:
+                failures.append(
+                    {"where": "users/by", "handle": h, "note": "batch lookup failed"}
+                )
+            continue
+        users.extend(body.get("data", []))
+        for e in body.get("errors", []):
+            failures.append(
+                {"where": "users/by", "value": e.get("value"), "title": e.get("title")}
+            )
+        time.sleep(1)
+    return users
+
+
+def _x_merge_uid_cache(cache: dict, users: list, requested: list) -> None:
+    by_lower = {u["username"].lower(): str(u["id"]) for u in users}
+    for h in requested:
+        uid = by_lower.get(h.lower())
+        if uid:
+            cache[h] = uid
+
+
+def _x_entities_v1(t: dict) -> dict:
+    """Map X API v2 entities onto the v1-style shape the pipeline parsers use."""
+    ent = t.get("entities", {}) or {}
+    return {
+        "hashtags": [{"text": h.get("tag", "")} for h in ent.get("hashtags", [])],
+        "user_mentions": [
+            {"screen_name": m.get("username", ""), "id_str": str(m.get("id", ""))}
+            for m in ent.get("mentions", [])
+        ],
+        "urls": [
+            {
+                "url": u.get("url", ""),
+                "expanded_url": u.get("expanded_url", ""),
+                "display_url": u.get("display_url", ""),
+            }
+            for u in ent.get("urls", [])
+        ],
+    }
+
+
+# --- X API v2 -> canonical row builders ------------------------------------
+def _x_profile_row(u: dict) -> dict:
+    """Map an X API v2 user object onto the canonical profile-metadata schema."""
+    m = u.get("public_metrics", {})
+    verified_type = u.get("verified_type", "") or ""
+    return {
+        "id": str(u.get("id", "")),
+        "name": u.get("name", ""),
+        "account_id": u.get("username", ""),
+        "location": u.get("location", ""),
+        "url": u.get("url", ""),
+        "description": u.get("description", ""),
+        "entities": json.dumps(u.get("entities", {})),
+        "protected": bool(u.get("protected", False)),
+        "isVerified": verified_type in ("business", "government"),
+        "isBlueVerified": bool(u.get("verified", False)),
+        "verifiedType": verified_type,
+        "followers": m.get("followers_count", 0),
+        "following": m.get("following_count", 0),
+        "favouritesCount": m.get("like_count", 0),
+        "statusesCount": m.get("tweet_count", 0),
+        "mediaCount": m.get("media_count", 0),
+        "createdAt": _x_to_iso(u.get("created_at", "")),  # canonical ISO
+        "coverPicture": "",  # not exposed by X API v2
+        "profilePicture": u.get("profile_image_url", ""),
+        "canDm": "",  # not exposed by X API v2
+        "affiliatesHighlightedLabel": "",  # not exposed by X API v2
+        "isAutomated": "",  # not exposed by X API v2
+        "automatedBy": "",  # not exposed by X API v2
+        "pinnedTweetIds": (
+            json.dumps([u["pinned_tweet_id"]]) if u.get("pinned_tweet_id") else "[]"
+        ),
+        "unavailable": False,
+        "message": "",
+        "unavailableReason": "",
+    }
+
+
+def _x_post_row(t: dict, handle: str, user_id: str) -> dict:
+    """Map an X API v2 tweet onto the canonical post schema."""
+    m = t.get("public_metrics", {})
+    refs = t.get("referenced_tweets", []) or []
+    ents = _x_entities_v1(t)
+    ents_json = json.dumps(ents)
+    return {
+        "type": "tweet",
+        "id": str(t["id"]),
+        "url": f"https://x.com/{handle}/status/{t['id']}",
+        "twitterUrl": f"https://twitter.com/{handle}/status/{t['id']}",
+        "text": t.get("text", ""),
+        "source": "",  # retired by X API v2
+        "retweetCount": m.get("retweet_count", 0),
+        "replyCount": m.get("reply_count", 0),
+        "likeCount": m.get("like_count", 0),
+        "quoteCount": m.get("quote_count", 0),
+        "viewCount": m.get("impression_count", 0),
+        "createdAt": _x_post_created_at(
+            t.get("created_at", "")
+        ),  # canonical (space-sep)
+        "lang": t.get("lang", ""),
+        "bookmarkCount": m.get("bookmark_count", 0),
+        "isReply": any(r.get("type") == "replied_to" for r in refs),
+        "inReplyToId": next(
+            (r["id"] for r in refs if r.get("type") == "replied_to"), ""
+        ),
+        "conversationId": str(t.get("conversation_id", "")),
+        "inReplyToUserId": str(t.get("in_reply_to_user_id", "") or ""),
+        "inReplyToUsername": "",
+        "author": json.dumps({"userName": handle, "id": str(user_id)}),
+        "entities": ents_json,
+        "account_id": handle,
+        "hashtags": _x_hashtags_str(ents_json),  # canonical comma-separated
+        "tagged_users": _x_tagged_users_str(ents_json),
+    }
+
+
+def _x_pull_handle(
+    handle, user_id, start, end, headers, failures, budget_left, per_handle_cap
+):
+    """Collect originals for one handle inside [start, end).
+
+    ``per_handle_cap`` and ``budget_left`` are upper bounds on how many posts to
+    keep for this handle; either may be None to mean "no limit" for that
+    dimension. When both are None the timeline is paginated until the
+    [start, end) window is exhausted (subject to the X API's own
+    ~3200-most-recent-tweets ceiling per user).
+
+    Returns (rows, posts_billed). Page size is trimmed to what is still needed so
+    the API never returns posts that would be discarded."""
+    bounds = [c for c in (per_handle_cap, budget_left) if c is not None]
+    cap = min(bounds) if bounds else None  # None => unbounded
+    rows, billed, next_token = [], 0, None
+    while cap is None or len(rows) < cap:
+        # X API max_results must be in [5, 100]; request only what is still needed
+        # (or a full page of 100 when collecting without a cap).
+        remaining = 100 if cap is None else (cap - len(rows))
+        page_size = max(5, min(100, remaining))
+        params = {
+            "start_time": start,
+            "end_time": end,
+            "max_results": page_size,
+            "exclude": X_API_EXCLUDE,
+            "tweet.fields": X_API_TWEET_FIELDS,
+        }
+        if next_token:
+            params["pagination_token"] = next_token
+        body = _x_api_get(
+            f"{X_API_BASE}/users/{user_id}/tweets",
+            headers,
+            params,
+            failures,
+            f"timeline {handle}",
+        )
+        if body is None:
+            break
+        data = body.get("data", [])
+        billed += len(data)
+        for t in data:
+            if cap is None or len(rows) < cap:
+                rows.append(_x_post_row(t, handle, user_id))
+        next_token = body.get("meta", {}).get("next_token")
+        if not next_token:
+            break
+    return rows, billed
+
+
+# --- normalization of either source's output to the canonical schema -------
+def _normalize_x_metadata(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce a profile-metadata DataFrame (from X API or Abundance) to the
+    canonical schema: ISO createdAt, boolean flags, and all canonical columns
+    present (missing filled with '')."""
+    if df is None or df.empty:
+        return pd.DataFrame(columns=X_API_METADATA_COLUMNS)
+    df = df.copy()
+    if "createdAt" in df.columns:
+        df["createdAt"] = df["createdAt"].apply(_x_to_iso)
+    for col in ("protected", "isVerified", "isBlueVerified", "unavailable"):
+        if col in df.columns:
+            df[col] = df[col].apply(_x_to_bool)
+    for col in X_API_METADATA_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    # Canonical columns first (in a stable order), any source-specific extras after.
+    extras = [c for c in df.columns if c not in X_API_METADATA_COLUMNS]
+    return df[X_API_METADATA_COLUMNS + extras]
+
+
+def _normalize_x_posts(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce a posts DataFrame (from X API or Abundance) to the canonical schema:
+    account_id from author, comma-separated hashtags/tagged_users derived from the
+    v1 entities, ISO createdAt, and all canonical columns present."""
+    if df is None or df.empty:
+        return pd.DataFrame(columns=X_API_POST_COLUMNS)
+    df = df.copy()
+    if "author" in df.columns:
+        df["account_id"] = df["author"].apply(_x_author_username)
+    if "entities" in df.columns:
+        df["hashtags"] = df["entities"].apply(_x_hashtags_str)
+        df["tagged_users"] = df["entities"].apply(_x_tagged_users_str)
+    else:
+        df["hashtags"] = ""
+        df["tagged_users"] = ""
+    if "createdAt" in df.columns:
+        df["createdAt"] = df["createdAt"].apply(_x_post_created_at)
+    for col in X_API_POST_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    # Canonical columns first (in a stable order), any source-specific extras after.
+    extras = [c for c in df.columns if c not in X_API_POST_COLUMNS]
+    return df[X_API_POST_COLUMNS + extras]
+
+
+# --- primary fetchers (X API) + Abundance fallback -------------------------
+def fetch_x_api_profile_metadata(handles, uid_cache_path: str) -> pd.DataFrame:
+    """Fetch X API v2 profile metadata for handles in the canonical schema.
+
+    Raises RuntimeError when the bearer token is unavailable and returns an empty
+    DataFrame when the API resolves nothing; either signals the caller to fall back
+    to Abundance. Opportunistically refreshes the user-id cache so a subsequent
+    posts pull can skip the lookups."""
+    handles = list(handles)
+    headers = {"Authorization": f"Bearer {load_x_bearer()}"}  # raises if no token
+    failures: list = []
+    users = _x_lookup_users(handles, headers, failures)
+    cache = _x_load_uid_cache(uid_cache_path)
+    _x_merge_uid_cache(cache, users, handles)
+    _x_save_uid_cache(cache, uid_cache_path)
+    return pd.DataFrame([_x_profile_row(u) for u in users])
+
+
+def _fetch_x_profile_metadata_with_fallback(handles, project_dir: str) -> pd.DataFrame:
+    """X API v2 metadata with a per-run wholesale Abundance fallback, normalized to
+    the canonical schema regardless of which source served the request."""
+    uid_cache_path = os.path.join(project_dir, "x_user_id_cache.csv")
+    try:
+        df = fetch_x_api_profile_metadata(handles, uid_cache_path)
+        if not df.empty:
+            return _normalize_x_metadata(df)
+        warnings.warn(
+            "X API returned no profile metadata; falling back to Abundance get_user_info."
+        )
+    except RuntimeError as exc:
+        warnings.warn(f"X API metadata unavailable ({exc}); falling back to Abundance.")
+    except Exception as exc:  # noqa: BLE001 - any X API failure triggers the fallback
+        warnings.warn(f"X API metadata failed ({exc}); falling back to Abundance.")
+    return _normalize_x_metadata(_fetch_x_profile_metadata_from_api(list(handles)))
+
+
+def _fetch_x_posts_from_xapi(
+    profile_list,
+    start_date,
+    end_date,
+    num_posts_per_profile,
+    uid_cache_path,
+    daily_post_budget=X_API_DAILY_BUDGET_POSTS,
+):
+    """Pull each handle's originals for [start_date, end_date) from X API v2.
+
+    ``num_posts_per_profile`` caps posts collected per handle (None => no cap).
+    ``daily_post_budget`` caps total posts billed across the whole run (None =>
+    no per-run ceiling). With both None every handle is fully drained for the
+    window, subject only to the X API's own ~3200-most-recent-tweets per-user
+    ceiling.
+
+    Returns (DataFrame in canonical post schema, ok). ok=False signals a wholesale
+    X API failure (missing token / auth down / zero handles resolved), which the
+    caller uses to fall back to Abundance."""
+    try:
+        headers = {"Authorization": f"Bearer {load_x_bearer()}"}
+    except RuntimeError as exc:
+        warnings.warn(f"X API bearer token unavailable ({exc}).")
+        return pd.DataFrame(columns=X_API_POST_COLUMNS), False
+
+    start = f"{start_date}T00:00:00Z"
+    end = f"{end_date}T00:00:00Z"
+    failures: list = []
+    cache = _x_load_uid_cache(uid_cache_path)
+
+    missing = [h for h in profile_list if h not in cache]
+    if missing:
+        users = _x_lookup_users(missing, headers, failures)
+        _x_merge_uid_cache(cache, users, missing)
+        _x_save_uid_cache(cache, uid_cache_path)
+
+    if not any(h in cache for h in profile_list):
+        warnings.warn("X API resolved 0 handles (auth/token issue?).")
+        return pd.DataFrame(columns=X_API_POST_COLUMNS), False
+
+    all_rows, posts_billed = [], 0
+    for handle in tqdm(profile_list):
+        if handle not in cache:
+            continue
+        # daily_post_budget=None disables the per-run ceiling entirely; otherwise
+        # stop once this run's cumulative billed posts reach the budget.
+        if daily_post_budget is None:
+            budget_left = None
+        else:
+            budget_left = daily_post_budget - posts_billed
+            if budget_left <= 0:
+                warnings.warn(
+                    f"X API daily post budget ({daily_post_budget}) reached; "
+                    "remaining handles skipped this run."
+                )
+                break
+        rows, billed = _x_pull_handle(
+            handle,
+            cache[handle],
+            start,
+            end,
+            headers,
+            failures,
+            budget_left,
+            num_posts_per_profile,
+        )
+        all_rows.extend(rows)
+        posts_billed += billed
+        time.sleep(0.2)
+    return pd.DataFrame(all_rows, columns=X_API_POST_COLUMNS), True
+
+
+def _fetch_x_posts_from_abundance(profile_list, start_date, num_posts_per_profile):
+    """Abundance get_tweets fallback: raw posts DataFrame (pre-normalization).
+
+    num_posts_per_profile=None means "no per-profile cap"; Abundance requires a
+    numeric max_tweets_per_user, so an effectively-unlimited ceiling is sent."""
+    max_tweets_per_user = (
+        X_API_ABUNDANCE_UNLIMITED_POSTS
+        if num_posts_per_profile is None
+        else num_posts_per_profile
+    )
+    response_list = []
+    for profile in tqdm(profile_list):
+        attempt = 0
+        while attempt < MAX_RETRIES:
+            attempt += 1
+            try:
+                response = requests.get(
+                    "https://abundance.it.com/get_tweets",
+                    params={
+                        "user": profile,
+                        "max_tweets_per_user": max_tweets_per_user,
+                        "cut_off_time": f"{start_date}T00:00:00",
+                    },
+                    auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
+                )
+                response_list += response.json()[0]
+                time.sleep(3)
+                break
+            except requests.exceptions.JSONDecodeError:
+                warnings.warn(
+                    f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.ReadTimeout:
+                warnings.warn(
+                    f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.ConnectTimeout:
+                warnings.warn(
+                    f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
+                )
+            except requests.exceptions.HTTPError as e:
+                warnings.warn(
+                    f"HTTP error for profile {profile}: {e}. Skipping profile."
+                )
+                break
+            except requests.exceptions.RequestException as e:
+                warnings.warn(
+                    f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
+                )
+        else:
+            warnings.warn(
+                f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
+            )
+    return pd.DataFrame([r for r in response_list if r])
+
+
 def perform_x_profile_search(
     project_name: str,
     execution_date: str,
@@ -3391,10 +4037,22 @@ def perform_x_profile_search(
     output_file: str,
     start_date: str,
     end_date: str,
-    num_posts_per_profile: int,
+    num_posts_per_profile: int = None,
     local_file: str = None,
     historical_post_file: str = None,
+    daily_post_budget: int = X_API_DAILY_BUDGET_POSTS,
 ) -> pd.DataFrame:
+    """Collect X posts for a pool of profiles within [start_date, end_date).
+
+    ``num_posts_per_profile`` caps posts collected per profile; pass None to
+    collect every post in the window per profile. ``daily_post_budget`` caps the
+    total posts fetched from the X API across the whole run (safety/cost ceiling);
+    pass None to disable it. Set both to None to extract all in-window posts for
+    every profile without restriction (subject to the X API's own
+    ~3200-most-recent-tweets per-user ceiling). Both knobs apply to the X API
+    (primary) and Abundance (fallback) paths; they are ignored when reading a
+    ``local_file``, which returns all in-window rows for the pool regardless.
+    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -3409,81 +4067,45 @@ def perform_x_profile_search(
     )["account_id"].tolist()
 
     # Peform profile search
-    if local_file is None:  # Perform API search
-        response_list = []
-        for profile in tqdm(profile_list):
-            attempt = 0
-
-            while attempt < MAX_RETRIES:
-                attempt += 1
-                try:
-                    response = requests.get(
-                        "https://abundance.it.com/get_tweets",
-                        params={
-                            "user": profile,
-                            "max_tweets_per_user": num_posts_per_profile,
-                            "cut_off_time": f"{start_date}T00:00:00",  # YYYY-MM-DDTHH:MM:SS
-                        },
-                        auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-                    )
-                    response_list += response.json()[0]
-                    time.sleep(3)
-                    break
-
-                except requests.exceptions.JSONDecodeError:
-                    warnings.warn(
-                        f"JSONDecodeError for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.ReadTimeout:
-                    warnings.warn(
-                        f"ReadTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.ConnectTimeout:
-                    warnings.warn(
-                        f"ConnectTimeout for profile {profile} (attempt {attempt}/{MAX_RETRIES}). Retrying..."
-                    )
-                except requests.exceptions.HTTPError as e:
-                    warnings.warn(
-                        f"HTTP error for profile {profile}: {e}. Skipping profile."
-                    )
-                    break
-                except requests.exceptions.RequestException as e:
-                    warnings.warn(
-                        f"RequestException for profile {profile}: {e}. Retrying (attempt {attempt}/{MAX_RETRIES})..."
-                    )
-
-            else:
-                warnings.warn(
-                    f"Failed to fetch info for profile {profile} after {MAX_RETRIES} attempts. Skipping."
-                )
-
-        profile_search_results = pd.DataFrame([r for r in response_list if r])
-        profile_search_results["account_id"] = profile_search_results["author"].apply(
-            lambda x: x.get("userName")
+    if local_file is None:  # Perform API search (X API primary, Abundance fallback)
+        # Primary source: X API v2. On a wholesale failure (missing token, auth
+        # down, or zero handles resolved) fall back to the Abundance API for the
+        # entire run so a single run never mixes the two sources.
+        uid_cache_path = os.path.join(
+            base_dir, "../data", project_name, "x_user_id_cache.csv"
         )
-        profile_search_results["hashtags"] = profile_search_results["entities"].apply(
-            extract_hashtags
+        profile_search_results, ok = _fetch_x_posts_from_xapi(
+            profile_list,
+            start_date,
+            end_date,
+            num_posts_per_profile,
+            uid_cache_path,
+            daily_post_budget=daily_post_budget,
         )
-        profile_search_results["tagged_users"] = profile_search_results[
-            "entities"
-        ].apply(extract_tagged_users)
-
-        # Filter posts that happen before start_date
-        profile_search_results["createdAt"] = pd.to_datetime(
-            profile_search_results["createdAt"], format="%a %b %d %H:%M:%S %z %Y"
-        )
-        profile_search_results = profile_search_results[
-            (
-                profile_search_results["createdAt"]
-                >= datetime.strptime(start_date, "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                )
+        if not ok:
+            warnings.warn(
+                "X API posts unavailable; falling back to Abundance get_tweets."
             )
-            & (
-                profile_search_results["createdAt"]
-                < datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            profile_search_results = _fetch_x_posts_from_abundance(
+                profile_list, start_date, num_posts_per_profile
             )
-        ].reset_index(drop=True)
+
+        # Normalize both sources to the canonical schema (account_id, canonical
+        # comma-separated hashtags/tagged_users, ISO createdAt, all canonical
+        # columns present) so the prompt-facing fields are identical either way.
+        profile_search_results = _normalize_x_posts(profile_search_results)
+
+        # Filter to the [start_date, end_date) window on the canonical ISO
+        # createdAt. (X API already applies the window server-side, so this is a
+        # no-op for that source and the real filter for the Abundance fallback.)
+        if not profile_search_results.empty:
+            _created = pd.to_datetime(
+                profile_search_results["createdAt"], utc=True, errors="coerce"
+            )
+            profile_search_results = profile_search_results[
+                (_created >= pd.to_datetime(start_date, utc=True))
+                & (_created < pd.to_datetime(end_date, utc=True))
+            ].reset_index(drop=True)
 
     else:  # Perform local search
         local_profile_search = pd.read_csv(local_file)
@@ -3824,12 +4446,19 @@ def perform_x_profile_metadata_search(
         profile_metadata = local_profile_metadata[
             local_profile_metadata["account_id"].isin(profile_list)
         ].reset_index(drop=True)
-    else:  # Weekly-cached API search
+    else:  # Weekly-cached API search (X API primary, Abundance fallback)
+        # Default fetcher: X API v2 first, Abundance as a per-run wholesale
+        # fallback, normalized to one canonical schema. Callers may still pass an
+        # explicit fetch_fn to override (e.g. Abundance-only for A/B comparisons).
+        if fetch_fn is None:
+            fetch_fn = lambda handles: _fetch_x_profile_metadata_with_fallback(
+                handles, project_dir
+            )
         profile_metadata = _get_weekly_cached_profile_metadata(
             project_dir=project_dir,
             input_file=input_file,
             profile_list=profile_list,
-            fetch_fn=fetch_fn or _fetch_x_profile_metadata_from_api,
+            fetch_fn=fetch_fn,
             force_refresh=force_refresh,
             provider_label="X",
             cache_name=cache_name,
