@@ -2244,6 +2244,7 @@ def perform_profile_interview_x_tiktok(
     llm_response_field: str,
     interview_type: str,
     history_field: str = None,
+    history_file: str = None,
     vector_store_ids: list = [],
     use_row_query: bool = False,
     enable_web_search: bool = False,
@@ -2342,6 +2343,45 @@ def perform_profile_interview_x_tiktok(
             "../data/joint-llm-swiss/politician_validation_1_ch_11_2025.xlsx",
         ),
     )
+
+    # Carry a prior interview's conversation (e.g. the demographic interview) into
+    # this interview so the model's earlier response stays available in context,
+    # mirroring the voter pipeline. The history is looked up from `history_file`
+    # on the validation crosswalk keys (X + TikTok usernames), which uniquely
+    # identify a politician across both platforms; profiles without a match get
+    # no history (handled gracefully downstream via _coerce_history).
+    if history_file and history_field:
+        history_df = pd.read_csv(
+            os.path.join(
+                base_dir, "../data", project_name, execution_date, history_file
+            )
+        )
+        crosswalk_keys = ["username_2025_x", "username_2025_tiktok"]
+        if (
+            history_field in history_df.columns
+            and all(k in history_df.columns for k in crosswalk_keys)
+            and all(k in profile_metadata_combined.columns for k in crosswalk_keys)
+        ):
+
+            def _crosswalk_key(df: pd.DataFrame) -> pd.Series:
+                return (
+                    df["username_2025_x"].fillna("").astype(str)
+                    + "|"
+                    + df["username_2025_tiktok"].fillna("").astype(str)
+                )
+
+            history_map = dict(
+                zip(_crosswalk_key(history_df), history_df[history_field])
+            )
+            profile_metadata_combined[history_field] = _crosswalk_key(
+                profile_metadata_combined
+            ).map(history_map)
+        else:
+            warnings.warn(
+                f"history_file={history_file} was provided but the crosswalk keys "
+                f"{crosswalk_keys} or history column '{history_field}' are missing; "
+                "proceeding without carried-over history."
+            )
 
     if system_prompt_template:
         profile_metadata_combined[f"{interview_type}_system_prompt"] = (

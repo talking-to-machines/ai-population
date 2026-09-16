@@ -164,6 +164,7 @@ def conduct_digital_polling(
     tiktok_profile_metadata_file: str,
     tiktok_post_file: str,
     output_file: str,
+    history_file: str = None,
     model_name: str = GPT_MODEL,
     together_ai_endpoint: str = None,
     grok_endpoint: str = None,
@@ -183,6 +184,7 @@ def conduct_digital_polling(
         llm_response_field="jointllm_politician_digital_polling_llm_response",
         interview_type="jointllm_politician_digital_polling_interview",
         history_field="history",
+        history_file=history_file,
         batch_timeout_seconds=batch_timeout_seconds,
         together_ai_endpoint=together_ai_endpoint,
         grok_endpoint=grok_endpoint,
@@ -318,7 +320,7 @@ if __name__ == "__main__":
             project_name=PROJECT_NAME,
             execution_date=POLITICIAN_PIPELINE,
             input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK,
+            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         )
 
     if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH):
@@ -337,7 +339,7 @@ if __name__ == "__main__":
             project_name=PROJECT_NAME,
             execution_date=POLITICIAN_PIPELINE,
             input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
+            output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
             start_date=PROFILE_SEARCH_START_DATE,
             end_date=PROFILE_SEARCH_END_DATE,
             num_posts_per_profile=NUM_POSTS_PER_PROFILE,
@@ -345,7 +347,7 @@ if __name__ == "__main__":
         perform_video_transcription(
             project_name=PROJECT_NAME,
             execution_date=POLITICIAN_PIPELINE,
-            video_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK,
+            video_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
         )
 
     # Step 3: Perform demographic interview to infer demographic information
@@ -374,6 +376,7 @@ if __name__ == "__main__":
         tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
         output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
+        history_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
         model_name=model_name,
         together_ai_endpoint=together_ai_endpoint,
         grok_endpoint=grok_endpoint,

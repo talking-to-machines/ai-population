@@ -3718,7 +3718,7 @@ The politician's profile data on TikTok:
 {tiktok_profile_prompt_template}
 
 Instructions:
-Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
+Analyze the provided profile information and answer the questions exclusively based on the available information. Do not use the web or external tools. Do not introduce facts about the politician that are not contained in the provided profile data. Keep your answers concise and evidence-based.
 """
 
 jointllm_politician_system_prompt = base_jointllm_politician_system_prompt.format(
@@ -3726,71 +3726,71 @@ jointllm_politician_system_prompt = base_jointllm_politician_system_prompt.forma
     tiktok_profile_prompt_template=tiktok_profile_prompt_template,
 )
 
-jointllm_politician_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this Swiss politician based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
+jointllm_politician_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this Swiss politician based on their social media profile. Each question is preceded by a heading. For each question, the available answer categories are prefixed with a symbol.
 
-For each heading, follow these instructions precisely:  
-1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+For each heading, follow these instructions precisely:
+1) Select the most likely answer category using only the supplied profile data.
 2) Select exactly one symbol per question.
-3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
-4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data – i.e., username, name, description, profile picture, and profile videos – and must not be influenced by additional information from other sources.
+3) State the selected symbol and write out in full the answer category associated with that symbol.
+4) Indicate the degree of speculation associated with the selection on a scale from 0 to 100. A score of 0 means that the supplied profile contains clear and direct information supporting the selection. A score of 100 means that the profile contains no information relevant to the question. The score must refer only to the information supplied in the profile and must not be influenced by information obtained from other sources.
 
-To ensure consistency, use the following guidelines for determining the degree of speculation:
-0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
-21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
-41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
-61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
-81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+Use the following guidelines:
+0-20 (low speculation): The profile provides clear and direct information relevant to the question.
+21-40 (low to moderate speculation): The profile provides indirect but highly relevant evidence, including consistent evidence from multiple parts of the profile.
+41-60 (moderate speculation): The profile provides some partially relevant or indirect evidence.
+61-80 (moderate to high speculation): The profile provides only limited and weakly relevant evidence.
+81-100 (high speculation): The profile provides almost no or no information relevant to the question.
 
-5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
-6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
+5) For each selection, explain which features of the supplied profile contributed to the answer and the assigned speculation score. Do not introduce facts that are not contained in the supplied profile.
+6) Adhere to the required response format. Enclose each line between two asterisks at the beginning and end. Each line must begin with the lowercase field name followed by a colon. Do not include text outside the specified lines.
 
-Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+Required Output Format:
 
 **question: PERSON_LIVING_IN_SWITZERLAND**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: REGION**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: AGE**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: GENDER**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: HOUSEHOLD_INCOME**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: EDUCATION**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: PARTY_MEMBER**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
-For every question, provide your best prediction based on the profile data. Do not skip any question.
+For every question, provide the best prediction permitted by the supplied profile data. Do not skip any question.
 
-Below is the list of categories to which this user may belong:
+Available categories:
 PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
 PLC2) No 
@@ -3888,56 +3888,59 @@ PP14) Pirate Party (PPS)
 PP15) Other party
 PP16) Independent (no party)"""
 
-jointllm_politician_question_template = """For the next two questions (TURNOUT_{business_number} and VOTE_{business_number}), assume it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative {business_number}.
-Here is the official summary of the initiative:
-{booklet_summary_en}
-
-The full text of the Federal Decree of initiative {business_number} is:
-{federal_decree_text_en}
-
-TURNOUT_{business_number}: Would this user be present and vote, or abstain/be absent for the final vote on initiative {business_number}?
+jointllm_politician_question_template = """For the next two questions, assume that it is {vote_date}. The Swiss National Council (Nationalrat) is holding the final vote (Schlussabstimmung) on initiative or proposal {business_number}.
+Here is the official neutral summary of the initiative or proposal:
+"{booklet_summary_en}"
+The full model-facing text of the Federal Decree is:
+"{federal_decree_text_en}"
+The substantive question is:
+"{mp_vote_question_en}"
+TURNOUT_{business_number}:
+Would this politician be present and cast a Yes or No vote, or would this politician abstain or be absent?
 TO_{business_number}_1) Vote
 TO_{business_number}_2) Abstain or absent
-
-VOTE_{business_number}: If the answer to TURNOUT_{business_number} is "Vote", how would this user respond to the question: {mp_vote_question_en}. If the answer to TURNOUT_{business_number} is "Abstain or absent", select "NA".
+VOTE_{business_number}:
+If TURNOUT_{business_number} is Vote, how would this politician respond to the following substantive question?
+"{mp_vote_question_en}"
+If TURNOUT_{business_number} is Abstain or absent, select NA.
 VO_{business_number}_1) {mp_vote_option_favour_en}
 VO_{business_number}_2) {mp_vote_option_opposed_en}
 VO_{business_number}_3) NA"""
 
 jointllm_format_example_template = """**question: TURNOUT_{business_number}**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: VOTE_{business_number}**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**"""
+**speculation: [Integer from 0 to 100]**"""
 
-base_jointllm_politician_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this Swiss politician based on their social media profile.
+base_jointllm_politician_digital_polling_user_prompt = """You will now be asked questions about the voting preferences of this Swiss politician based on the supplied social media profile.
 
-For each heading, follow these instructions precisely:  
-1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+For each heading, follow these instructions precisely:
+1) Select the most likely answer category using only the supplied profile and referendum information.
 2) Select exactly one symbol per question.
-3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
-4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+3) State the selected symbol and write out in full the answer category associated with that symbol.
+4) Indicate the degree of speculation associated with the selection on a scale from 0 to 100. A score of 0 means that the supplied profile contains clear and direct information supporting the prediction. A score of 100 means that the profile contains no information relevant to the prediction. The score must refer only to information supplied in the profile and must not be influenced by information obtained from other sources.
 
-To ensure consistency, use the following guidelines for determining the degree of speculation:
-0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
-21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
-41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
-61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
-81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+Use the following guidelines:
+0-20 (low speculation): The profile provides clear and direct information relevant to the question.
+21-40 (low to moderate speculation): The profile provides indirect but highly relevant evidence, including consistent evidence from multiple parts of the profile.
+41-60 (moderate speculation): The profile provides some partially relevant or indirect evidence.
+61-80 (moderate to high speculation): The profile provides only limited and weakly relevant evidence.
+81-100 (high speculation): The profile provides almost no or no information relevant to the question.
 
-5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
-6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
+5) Explain which features of the supplied profile contributed to each selection and speculation score. Do not introduce facts about the politician that are not contained in the supplied profile.
+6) Enclose each line between two asterisks. Each line must begin with the lowercase field name followed by a colon. Do not include text outside the specified lines.
 
-Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+Required Output Format:
 {format_examples}
 
-For every question, provide your best prediction based on the profile data. Do not skip any question.
+For every question, provide the best prediction permitted by the supplied profile data. Do not skip any question.
 {questions}
 """
 
@@ -3979,7 +3982,7 @@ base_jointllm_voter_demographic_interview_system_prompt = """You are analyzing t
 {profile_prompt_template}
 
 Instructions:
-Analyze the provided profile information and answer the following questions exclusively based on the available information. Do not draw inferences or make assumptions that go beyond the given information. Keep your answers concise and strictly evidence-based.
+Analyze the provided profile information and answer the questions exclusively based on the available information. Do not use the web or external tools. Do not introduce facts about the user that are not contained in the provided profile data. Keep your answers concise and evidence-based.
 """
 
 x_jointllm_voter_demographic_interview_system_prompt = (
@@ -3996,95 +3999,95 @@ tiktok_jointllm_voter_demographic_interview_system_prompt = (
     )
 )
 
-jointllm_voter_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading (e.g., “AGE:” or “GENDER:” etc.). For each question, there are various answer options, i.e., categories to which the user might belong. Each of these categories is prefixed with a symbol (e.g., “A1”, “A2” or “E1” etc.).
+jointllm_voter_demographic_interview_user_prompt = """You will be asked a series of demographic questions about this content creator based on their social media profile. Each question is preceded by a heading. For each question, the available answer categories are prefixed with a symbol.
 
-For each heading, follow these instructions precisely:  
-1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+For each heading, follow these instructions precisely:
+1) Select the most likely answer category using only the supplied profile data.
 2) Select exactly one symbol per question.
-3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
-4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data – i.e., username, name, description, profile picture, and profile videos – and must not be influenced by additional information from other sources.
+3) State the selected symbol and write out in full the answer category associated with that symbol.
+4) Indicate the degree of speculation associated with the selection on a scale from 0 to 100. A score of 0 means that the supplied profile contains clear and direct information supporting the selection. A score of 100 means that the profile contains no information relevant to the question. The score must refer only to the information supplied in the profile and must not be influenced by information obtained from other sources.
 
-To ensure consistency, use the following guidelines for determining the degree of speculation:
-0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
-21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
-41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
-61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
-81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+Use the following guidelines:
+0-20 (low speculation): The profile provides clear and direct information relevant to the question.
+21-40 (low to moderate speculation): The profile provides indirect but highly relevant evidence, including consistent evidence from multiple parts of the profile.
+41-60 (moderate speculation): The profile provides some partially relevant or indirect evidence.
+61-80 (moderate to high speculation): The profile provides only limited and weakly relevant evidence.
+81-100 (high speculation): The profile provides almost no or no information relevant to the question.
 
-5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
-6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
+5) For each selection, explain which features of the supplied profile contributed to the answer and the assigned speculation score. Do not introduce facts that are not contained in the supplied profile.
+6) Adhere to the required response format. Enclose each line between two asterisks at the beginning and end. Each line must begin with the lowercase field name followed by a colon. Do not include text outside the specified lines.
 
-Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+Required Output Format:
 
 **question: PERSON_LIVING_IN_SWITZERLAND**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: REGION**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: AGE**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: GENDER**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: HOUSEHOLD_INCOME**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: CITIZENSHIP**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: ENTITY**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: EDUCATION**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: PARTY_MEMBER**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: TURNOUT_FEDERAL**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
 **question: VOTE_FEDERAL**
-**explanation: [Detailed explanation for selected response]**
+**explanation: [Evidence-based explanation for selected response]**
 **symbol: [Symbol selected]**
 **category: [Category selected]**
-**speculation: [Speculation score selected]**
+**speculation: [Integer from 0 to 100]**
 
-For every question, provide your best prediction based on the profile data. Do not skip any question.
+For every question, provide the best prediction permitted by the supplied profile data. Do not skip any question.
 
-Below is the list of categories to which this user may belong:
+Available categories:
 
 PERSON_LIVING_IN_SWITZERLAND: Does the user of this account live in Switzerland?
 PLC1) Yes
@@ -4213,46 +4216,45 @@ VO_FEDERAL_14) Pirate Party (PPS)
 VO_FEDERAL_15) Other party
 VO_FEDERAL_16) NA"""
 
-jointllm_voter_question_template = """For the next two questions (TURNOUT {business_number} and VOTE {business_number}), assume it is {voter_ballot_date}. A national referendum is being held in Switzerland on initiative {business_number}.
-Here is the official summary of the initiative: 
-{booklet_summary_en}
-
+jointllm_voter_question_template = """For the next two questions, assume that it is {voter_ballot_date}. A national referendum is being held in Switzerland on initiative or proposal {business_number}.
+Here is the official neutral summary of the initiative or proposal:
+"{booklet_summary_en}"
 The question on the ballot reads:
-{voter_ballot_question_en}
-
-TURNOUT {business_number}: Would this user vote or abstain from voting on initiative {business_number}?
+"{voter_ballot_question_en}"
+TURNOUT_{business_number}:
+Would this user vote or abstain from voting on initiative or proposal {business_number}?
 TO_{business_number}_1) Vote
 TO_{business_number}_2) Abstain
-
-VOTE {business_number}:
-If the answer to TURNOUT {business_number} is "Vote", how would this user respond to the question: "{voter_ballot_question_en}"
-If the answer to TURNOUT {business_number} is "Abstain", select "NA".
+VOTE_{business_number}:
+If TURNOUT_{business_number} is Vote, how would this user respond to the following question?
+"{voter_ballot_question_en}"
+If TURNOUT_{business_number} is Abstain, select NA.
 VO_{business_number}_1) {voter_answer_yes_en}
 VO_{business_number}_2) {voter_answer_no_en}
 VO_{business_number}_3) NA"""
 
-base_jointllm_voter_digital_polling_user_prompt = """You are then asked a series of questions about the voting preferences of this content creator based on their social media profile.
+base_jointllm_voter_digital_polling_user_prompt = """You will now be asked questions about the voting preferences of this content creator based on the supplied social media profile.
 
-For each heading, follow these instructions precisely:  
-1) Select the most likely symbol/answer option/category, strictly adhering to the data provided in the profile. The selected answer should reflect the profile as accurately as possible.  
+For each heading, follow these instructions precisely:
+1) Select the most likely answer category using only the supplied profile and referendum information.
 2) Select exactly one symbol per question.
-3) For each question, state the selected symbol (if applicable) and write out in full the answer option/category associated with the selected symbol.
-4) For each selected symbol/selected category, indicate the degree of speculation associated with the choice on a scale from 0 (not speculative at all; every element of the profile was useful for the selection) to 100 (completely speculative; no information relevant to this question in the profile data). The degree of speculation should be a direct measure of the amount of useful information available in the profile and should refer exclusively to the information available in the profile data and must not be influenced by additional information from other sources.
+3) State the selected symbol and write out in full the answer category associated with that symbol.
+4) Indicate the degree of speculation associated with the selection on a scale from 0 to 100. A score of 0 means that the supplied profile contains clear and direct information supporting the prediction. A score of 100 means that the profile contains no information relevant to the prediction. The score must refer only to information supplied in the profile and must not be influenced by information obtained from other sources.
 
-To ensure consistency, use the following guidelines for determining the degree of speculation:
-0–20 (low speculation): The profile data provide clear and direct information relevant to the question (e.g., explicit mention in the profile or videos).  
-21–40 (low to moderate speculation): The profile data provide indirect but highly relevant clues for the question (e.g., context from multiple sources within the profile or videos).  
-41–60 (moderate speculation): The profile data provide some clues or partially relevant information for the question (e.g., derived from the user’s interests or indirect hints).  
-61–80 (moderate to high speculation): The profile data provide limited and only weakly relevant clues for the question (e.g., very subtle hints or minimal context).  
-81–100 (high speculation): The profile data provide no or almost no information relevant to the question (e.g., assumptions based on very general information).
+Use the following guidelines:
+0-20 (low speculation): The profile provides clear and direct information relevant to the question.
+21-40 (low to moderate speculation): The profile provides indirect but highly relevant evidence, including consistent evidence from multiple parts of the profile.
+41-60 (moderate speculation): The profile provides some partially relevant or indirect evidence.
+61-80 (moderate to high speculation): The profile provides only limited and weakly relevant evidence.
+81-100 (high speculation): The profile provides almost no or no information relevant to the question.
 
-5) For each selected category, explain in detail which features of the data contributed to your selection and to your assigned degree of speculation.
-6) Adhere to a strictly structured response format to ensure clarity and to facilitate text analysis.
+5) Explain which features of the supplied profile contributed to each selection and speculation score. Do not introduce facts about the user that are not contained in the supplied profile.
+6) Enclose each line between two asterisks. Each line must begin with the lowercase field name followed by a colon. Do not include text outside the specified lines.
 
-Required Output Format: Enclose each line of your response between two asterisks (**) at the beginning and end. Each line must begin with the field name in lowercase, followed by :, and end with **. Do not include text outside the asterisks or additional lines:
+Required Output Format:
 {format_examples}
 
-For every question, provide your best prediction based on the profile data. Do not skip any question.
+For every question, provide the best prediction permitted by the supplied profile data. Do not skip any question.
 {questions}
 """
 
