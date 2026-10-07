@@ -42,6 +42,10 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 # place so the resume/ledger logic can recognise failed rows and re-attempt
 # them on the next run instead of treating them as completed.
 LLM_ERROR_RESPONSE = "Error or Timeout"
+# Sentinel written when a row-query call is not started because its deadline passed.
+LLM_SKIPPED_RESPONSE = "Skipped: past deadline"
+# Responses API `include` value that returns the sources of each web search call.
+WEB_SEARCH_SOURCES_INCLUDE = "web_search_call.action.sources"
 
 _together_clients: dict = {}
 _grok_clients: dict = {}
@@ -128,6 +132,26 @@ def _xai_web_search_tool() -> dict:
     # https://docs.x.ai/docs/guides/tools/overview
     # https://docs.x.ai/docs/guides/batch-api
     return {"type": "web_search", "country": "US"}
+
+
+def _dump_raw_response(response) -> str:
+    """
+    Serializes a model response to a JSON string.
+
+    Args:
+        response: An SDK response object, a dict, or an already serialized JSON string.
+
+    Returns:
+        str: The JSON string, or None if the response is None or cannot be serialized.
+    """
+    if response is None or isinstance(response, str):
+        return response
+    if hasattr(response, "model_dump_json"):
+        return response.model_dump_json()
+    try:
+        return json.dumps(response)
+    except (TypeError, ValueError):
+        return None
 
 
 def _extract_anthropic_text(message) -> str:
@@ -1062,7 +1086,33 @@ def create_batch_file(
     vector_store_ids: list = [],
     enable_web_search: bool = False,
     provider: str = "openai",
+    responses_api_without_tools: bool = False,
+    include_web_search_sources: bool = False,
 ) -> str:
+    """
+    Writes the batch input JSONL file with one request per prompt row.
+
+    Args:
+        prompts (pd.DataFrame): Rows to query, with a `custom_id` column and the prompt columns.
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder the batch files are written to.
+        model_name (str): Model id used for every request.
+        system_prompt_field (str): Column holding the system prompt.
+        user_prompt_field (str, optional): Column holding the user prompt. Defaults to "question_prompt".
+        history_field (str, optional): Column holding prior conversation turns. Defaults to None.
+        batch_file_name (str, optional): Name of the JSONL file in the batch-files folder. Defaults to "batch_input.jsonl".
+        vector_store_ids (list, optional): OpenAI vector stores for the file_search tool. Defaults to [].
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to False.
+        provider (str, optional): "openai", "anthropic" or "xai". Defaults to "openai".
+        responses_api_without_tools (bool, optional): OpenAI only. Send tool-less requests to
+            /v1/responses with the same input shape as tool requests instead of /v1/chat/completions.
+            Defaults to False.
+        include_web_search_sources (bool, optional): OpenAI only. Ask for the sources of each web
+            search call when web search is enabled. Defaults to False.
+
+    Returns:
+        str: Name of the written batch input file.
+    """
     # Creating an array of json tasks
     tasks = []
 
@@ -1174,13 +1224,16 @@ def create_batch_file(
                 }
             )
 
-        if tools:
-            # Use /v1/responses endpoint when tools are required
+        if tools or responses_api_without_tools:
+            # Use /v1/responses endpoint when tools are required or requested without tools
             body = {
                 "model": model_name,
                 "input": messages_to_input(messages),
-                "tools": tools,
             }
+            if tools:
+                body["tools"] = tools
+            if enable_web_search and include_web_search_sources:
+                body["include"] = [WEB_SEARCH_SOURCES_INCLUDE]
             if model_name.startswith("gpt-4"):
                 body["temperature"] = 0
             task = {
@@ -1226,7 +1279,33 @@ def batch_query(
     enable_web_search: bool = False,
     timeout_seconds: int = None,
     provider: str = "openai",
+    responses_api_without_tools: bool = False,
+    capture_raw_response: bool = False,
 ) -> pd.DataFrame:
+    """
+    Submits a batch input file to the provider's batch API, waits for it and parses the results.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder holding the batch files.
+        batch_input_file_dir (str): Name of the batch input JSONL file.
+        batch_output_file_dir (str): Name of the file the raw batch output is saved to.
+        vector_store_ids (list, optional): OpenAI vector stores used by the requests. Defaults to [].
+        enable_web_search (bool, optional): Whether the requests use web search. Defaults to False.
+        timeout_seconds (int, optional): Cancel the batch after this many seconds. Defaults to None.
+        provider (str, optional): "openai", "anthropic" or "xai". Defaults to "openai".
+        responses_api_without_tools (bool, optional): OpenAI only. Submit tool-less requests to
+            /v1/responses. Must match the setting used to build the input file. Defaults to False.
+        capture_raw_response (bool, optional): Add a `raw_response` column with each raw result.
+            Defaults to False.
+
+    Returns:
+        pd.DataFrame: One row per result with `custom_id`, `query_response` and, if requested, `raw_response`.
+
+    Raises:
+        TimeoutError: If the batch does not complete within timeout_seconds.
+        Exception: If the batch job fails.
+    """
     if provider == "anthropic":
         return _anthropic_batch_query(
             project_name=project_name,
@@ -1234,6 +1313,7 @@ def batch_query(
             batch_input_file_dir=batch_input_file_dir,
             batch_output_file_dir=batch_output_file_dir,
             timeout_seconds=timeout_seconds,
+            capture_raw_response=capture_raw_response,
         )
 
     if provider == "xai":
@@ -1243,6 +1323,7 @@ def batch_query(
             batch_input_file_dir=batch_input_file_dir,
             batch_output_file_dir=batch_output_file_dir,
             timeout_seconds=timeout_seconds,
+            capture_raw_response=capture_raw_response,
         )
 
     if provider == "openai":
@@ -1260,7 +1341,9 @@ def batch_query(
     )
 
     # Create batch job.
-    use_responses_api = bool(vector_store_ids) or enable_web_search
+    use_responses_api = (
+        bool(vector_store_ids) or enable_web_search or responses_api_without_tools
+    )
     endpoint = "/v1/responses" if use_responses_api else "/v1/chat/completions"
     batch_job = client.batches.create(
         input_file_id=batch_file.id,
@@ -1347,6 +1430,9 @@ def batch_query(
                     }
                 )
 
+            if capture_raw_response:
+                response_list[-1]["raw_response"] = line.strip()
+
     return pd.DataFrame(response_list)
 
 
@@ -1356,9 +1442,27 @@ def _xai_batch_query(
     batch_input_file_dir: str,
     batch_output_file_dir: str,
     timeout_seconds: int = None,
+    capture_raw_response: bool = False,
 ) -> pd.DataFrame:
-    """Submit an xAI batch via raw HTTP so we don't depend on the OpenAI SDK
+    """
+    Submits an xAI batch via raw HTTP so we don't depend on the OpenAI SDK
     matching xAI's response schema (xAI uses different field names).
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder holding the batch files.
+        batch_input_file_dir (str): Name of the batch input JSONL file.
+        batch_output_file_dir (str): Name of the file the raw batch results are saved to.
+        timeout_seconds (int, optional): Cancel the batch after this many seconds. Defaults to None.
+        capture_raw_response (bool, optional): Add a `raw_response` column with each raw result.
+            Defaults to False.
+
+    Returns:
+        pd.DataFrame: One row per result with `custom_id`, `query_response` and, if requested, `raw_response`.
+
+    Raises:
+        RuntimeError: If the upload, batch creation or result retrieval fails.
+        TimeoutError: If the batch does not complete within timeout_seconds.
     """
     base_url = XAI_BASE_URL.rstrip("/")
     headers = {"Authorization": f"Bearer {XAI_API_KEY}"}
@@ -1522,6 +1626,8 @@ def _xai_batch_query(
             )
             text = _extract_xai_batch_result_text(item)
             response_list.append({"custom_id": f"{custom_id}", "query_response": text})
+            if capture_raw_response:
+                response_list[-1]["raw_response"] = json.dumps(item)
         pagination_token = results_data.get("pagination_token") or results_data.get(
             "next_page_token"
         )
@@ -1599,8 +1705,27 @@ def _anthropic_batch_query(
     batch_input_file_dir: str,
     batch_output_file_dir: str,
     timeout_seconds: int = None,
+    capture_raw_response: bool = False,
 ) -> pd.DataFrame:
-    """Submit an Anthropic Message Batch built from the JSONL input file."""
+    """
+    Submits an Anthropic Message Batch built from the JSONL input file.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder holding the batch files.
+        batch_input_file_dir (str): Name of the batch input JSONL file.
+        batch_output_file_dir (str): Name of the file the raw batch results are saved to.
+        timeout_seconds (int, optional): Cancel the batch after this many seconds. Defaults to None.
+        capture_raw_response (bool, optional): Add a `raw_response` column with each raw result.
+            Defaults to False.
+
+    Returns:
+        pd.DataFrame: One row per result with `custom_id`, `query_response` and, if requested, `raw_response`.
+
+    Raises:
+        RuntimeError: If the Anthropic client is unavailable.
+        TimeoutError: If the batch does not complete within timeout_seconds.
+    """
     if anthropic_client is None:
         raise RuntimeError(
             "Anthropic client unavailable. Install the `anthropic` package and "
@@ -1657,6 +1782,8 @@ def _anthropic_batch_query(
                     f"returned status={result_type}; recording empty response."
                 )
             response_list.append({"custom_id": f"{custom_id}", "query_response": text})
+            if capture_raw_response:
+                response_list[-1]["raw_response"] = _dump_raw_response(result)
             try:
                 out_f.write(result.model_dump_json() + "\n")
             except Exception:
@@ -1938,7 +2065,24 @@ def _is_retryable_endpoint_error(e: Exception) -> bool:
     return any(marker in msg for marker in retryable_markers)
 
 
-def row_query(row: pd.Series, args: list) -> str:
+def row_query(row: pd.Series, args: list, return_raw: bool = False):
+    """
+    Queries the model for one row in real time, retrying transient endpoint errors.
+
+    Args:
+        row (pd.Series): Row holding the system and user prompts (and optional history).
+        args (list): One-element list wrapping the query settings, in order: system prompt
+            column, user prompt column, model name, enable web search, Together AI endpoint,
+            Grok endpoint, provider, history field, responses API without tools, include web
+            search sources and deadline (tz-aware UTC datetime). Settings after the history
+            field are optional.
+        return_raw (bool, optional): Also return the raw response JSON. Defaults to False.
+
+    Returns:
+        str | tuple: The response text, or a (text, raw response JSON) tuple when return_raw
+            is True. Failed calls return LLM_ERROR_RESPONSE and calls not started before the
+            deadline return LLM_SKIPPED_RESPONSE.
+    """
     system_prompt = row[args[0][0]]
     user_prompt = row[args[0][1]]
     model_name = args[0][2]
@@ -1947,10 +2091,26 @@ def row_query(row: pd.Series, args: list) -> str:
     grok_endpoint = args[0][5] if len(args[0]) > 5 else None
     provider = args[0][6] if len(args[0]) > 6 else None
     history_field = args[0][7] if len(args[0]) > 7 else None
+    responses_api_without_tools = args[0][8] if len(args[0]) > 8 else False
+    include_web_search_sources = args[0][9] if len(args[0]) > 9 else False
+    deadline_utc = args[0][10] if len(args[0]) > 10 else None
+
+    def _result(text, response=None):
+        """
+        Formats the return value of row_query.
+
+        Args:
+            text (str): Response text.
+            response (optional): Raw response object or JSON string. Defaults to None.
+
+        Returns:
+            str | tuple: The text, or a (text, raw response JSON) tuple when return_raw is True.
+        """
+        return (text, _dump_raw_response(response)) if return_raw else text
 
     # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
     if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
-        return ""
+        return _result("")
 
     # Prior-turn history (e.g. the demographic interview) spliced between the
     # system prompt and the current user turn, mirroring the batch path so the
@@ -1968,12 +2128,22 @@ def row_query(row: pd.Series, args: list) -> str:
         provider=provider,
     )
 
+    # Keep the raw HTTP body when requested: the SDK models drop undeclared
+    # fields such as web_search_call.action.queries.
+    responses_create = (
+        openai_client.responses.with_raw_response.create
+        if return_raw
+        else openai_client.responses.create
+    )
+
     # Make a chat completion request. Self-hosted / serverless endpoints (e.g.
     # OLMo on a GPU that goes to sleep) can transiently fail with "Endpoint is
     # unavailable" or return an empty body that surfaces as "'NoneType' object
     # is not subscriptable"; wait a few minutes and retry so the endpoint has
     # time to wake back up before we give up on the row.
     for attempt in range(1, ENDPOINT_RETRY_MAX_ATTEMPTS + 1):
+        if deadline_utc is not None and datetime.now(timezone.utc) >= deadline_utc:
+            return _result(LLM_SKIPPED_RESPONSE)
         try:
             if provider == "together":
                 client = _get_together_client(together_ai_endpoint)
@@ -1986,7 +2156,7 @@ def row_query(row: pd.Series, args: list) -> str:
                 )
                 if response is None or not response.choices:
                     raise RuntimeError("Endpoint is unavailable (empty response).")
-                return response.choices[0].message.content
+                return _result(response.choices[0].message.content, response)
             elif provider == "xai":
                 client = _get_grok_client(grok_endpoint)
                 messages_xai = (
@@ -2003,13 +2173,13 @@ def row_query(row: pd.Series, args: list) -> str:
                         tools=[_xai_web_search_tool()],
                         temperature=0,
                     )
-                    return resp.output_text
+                    return _result(resp.output_text, resp)
                 response = client.chat.completions.create(
                     model=model_name,
                     messages=messages_xai,
                     temperature=0,
                 )
-                return response.choices[0].message.content
+                return _result(response.choices[0].message.content, response)
             elif provider == "anthropic":
                 if anthropic_client is None:
                     raise RuntimeError(
@@ -2026,9 +2196,14 @@ def row_query(row: pd.Series, args: list) -> str:
                 if enable_web_search:
                     kwargs["tools"] = [_anthropic_web_search_tool()]
                 message = anthropic_client.messages.create(**kwargs)
-                return _extract_anthropic_text(message)
+                return _result(_extract_anthropic_text(message), message)
             elif enable_web_search:
-                response = openai_client.responses.create(
+                web_search_kwargs = (
+                    {"include": [WEB_SEARCH_SOURCES_INCLUDE]}
+                    if include_web_search_sources
+                    else {}
+                )
+                response = responses_create(
                     model=model_name,
                     input=[{"role": "system", "content": system_prompt}]
                     + history_turns
@@ -2042,15 +2217,32 @@ def row_query(row: pd.Series, args: list) -> str:
                     ],
                     tool_choice="required",
                     # temperature=0,
+                    **web_search_kwargs,
+                )
+            elif responses_api_without_tools:
+                # gpt-5 models reject temperature, as in the batch path
+                no_tool_kwargs = (
+                    {"temperature": 0} if model_name.startswith("gpt-4") else {}
+                )
+                response = responses_create(
+                    model=model_name,
+                    input=[{"role": "system", "content": system_prompt}]
+                    + history_turns
+                    + [{"role": "user", "content": user_prompt}],
+                    **no_tool_kwargs,
                 )
             else:
-                response = openai_client.responses.create(
+                response = responses_create(
                     model=model_name,
                     input=[{"role": "system", "content": system_prompt}]
                     + history_turns
                     + [{"role": "user", "content": user_prompt}],
                     temperature=0,
                 )
+            if return_raw:
+                raw_body = response.http_response.text
+                response = response.parse()
+                return _result(response.output_text, raw_body)
             return response.output_text
 
         except Exception as e:
@@ -2059,18 +2251,24 @@ def row_query(row: pd.Series, args: list) -> str:
             if attempt < ENDPOINT_RETRY_MAX_ATTEMPTS and _is_retryable_endpoint_error(
                 e
             ):
+                retry_delay = ENDPOINT_RETRY_DELAY
+                if deadline_utc is not None:
+                    seconds_left = (
+                        deadline_utc - datetime.now(timezone.utc)
+                    ).total_seconds()
+                    retry_delay = max(0, min(retry_delay, seconds_left))
                 print(
                     f"Endpoint error ({attempt}/{ENDPOINT_RETRY_MAX_ATTEMPTS}): {e}. "
-                    f"Retrying in {ENDPOINT_RETRY_DELAY}s..."
+                    f"Retrying in {retry_delay:.0f}s..."
                 )
-                time.sleep(ENDPOINT_RETRY_DELAY)
+                time.sleep(retry_delay)
                 continue
             # Handle errors (rate limits, etc.)
             print(f"Error processing row: {e}")
-            return LLM_ERROR_RESPONSE
+            return _result(LLM_ERROR_RESPONSE)
 
     # All retry attempts exhausted without returning a response.
-    return LLM_ERROR_RESPONSE
+    return _result(LLM_ERROR_RESPONSE)
 
 
 def perform_profile_interview(
@@ -2094,7 +2292,59 @@ def perform_profile_interview(
     together_ai_endpoint: str = None,
     grok_endpoint: str = None,
     provider: str = None,
+    system_prompt_column: str = None,
+    responses_api_without_tools: bool = False,
+    capture_raw_response: bool = False,
+    row_deadline_utc: datetime = None,
 ) -> None:
+    """
+    Interviews every profile in a metadata file with the model and saves the responses.
+
+    Builds each row's system and user prompts, queries the model through the provider's
+    batch API (or row by row), and writes the profile rows, prompts and responses to
+    output_file.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder the files are read from and written to.
+        model_name (str): Model id used for every request.
+        profile_metadata_file (str): CSV of profiles to interview, one row per request.
+        post_file (str): CSV of posts used to build each profile's post history.
+        output_file (str): Name of the output CSV.
+        system_prompt_template (str): System prompt template filled from each row. If empty,
+            the system prompt is taken from system_prompt_column.
+        user_prompt_template (str): User prompt template.
+        llm_response_field (str): Output column holding the response text.
+        interview_type (str): Interview name, used for the prompt columns and batch files.
+            Must start with "x" or "tiktok".
+        history_field (str, optional): Column holding prior conversation turns. Defaults to None.
+        vector_store_ids (list, optional): OpenAI vector stores for the file_search tool. Defaults to [].
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to False.
+        response_timestamp_col (str, optional): Output column for the per-row query time in row mode.
+            Defaults to "".
+        latest_k_posts (int, optional): Keep only each profile's latest k posts. Defaults to None.
+        batch_timeout_seconds (int, optional): Fall back to row mode if the batch takes longer.
+            Defaults to 7200.
+        together_ai_endpoint (str, optional): OpenAI-compatible endpoint (Together, FriendliAI, HF).
+            Defaults to None.
+        grok_endpoint (str, optional): xAI endpoint override. Defaults to None.
+        provider (str, optional): Provider override; detected from the model name by default.
+        system_prompt_column (str, optional): Input column with a pre-rendered system prompt per row,
+            used when system_prompt_template is empty. Defaults to None.
+        responses_api_without_tools (bool, optional): OpenAI only. Send tool-less requests to
+            /v1/responses with the same input shape as web-search requests. Defaults to False.
+        capture_raw_response (bool, optional): Add a `{llm_response_field}_raw` column with each raw
+            response, and ask for web search sources. Defaults to False.
+        row_deadline_utc (datetime, optional): In row mode, skip calls not started by this tz-aware
+            UTC time and record them as LLM_SKIPPED_RESPONSE. Defaults to None.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If both endpoints are given or the interview type is not supported.
+    """
     if together_ai_endpoint and grok_endpoint:
         raise ValueError(
             "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
@@ -2159,6 +2409,10 @@ def perform_profile_interview(
             args=(system_prompt_template, interview_type),
             axis=1,
         )
+    elif system_prompt_column:
+        profile_metadata[f"{interview_type}_system_prompt"] = profile_metadata.pop(
+            system_prompt_column
+        )
     profile_metadata[f"{interview_type}_user_prompt"] = profile_metadata.apply(
         construct_user_prompt, args=(user_prompt_template, interview_type), axis=1
     )
@@ -2175,6 +2429,7 @@ def perform_profile_interview(
         os.path.join(base_dir, "../data", project_name, execution_date, "batch-files"),
         exist_ok=True,
     )
+    raw_response_field = f"{llm_response_field}_raw"
 
     def _run_row_query():
         df = profile_metadata.copy()
@@ -2187,6 +2442,9 @@ def perform_profile_interview(
             grok_endpoint,
             provider,
             history_field,
+            responses_api_without_tools,
+            capture_raw_response,
+            row_deadline_utc,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -2203,8 +2461,16 @@ def perform_profile_interview(
             response = row_query(
                 row,
                 args=(row_query_args,),
+                return_raw=capture_raw_response,
             )
-            return {"response": response, "response_timestamp": response_timestamp}
+            raw_response = None
+            if capture_raw_response:
+                response, raw_response = response
+            return {
+                "response": response,
+                "response_timestamp": response_timestamp,
+                "raw_response": raw_response,
+            }
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             results = list(
@@ -2214,6 +2480,8 @@ def perform_profile_interview(
         # Assign results back to the DataFrame in the same order
         df[llm_response_field] = [r["response"] for r in results]
         df[response_timestamp_col] = [r["response_timestamp"] for r in results]
+        if capture_raw_response:
+            df[raw_response_field] = [r["raw_response"] for r in results]
         return df
 
     def _run_batch_query():
@@ -2232,6 +2500,8 @@ def perform_profile_interview(
             vector_store_ids=vector_store_ids,
             enable_web_search=enable_web_search,
             provider=provider,
+            responses_api_without_tools=responses_api_without_tools,
+            include_web_search_sources=capture_raw_response,
         )
 
         llm_responses = batch_query(
@@ -2243,17 +2513,26 @@ def perform_profile_interview(
             enable_web_search=enable_web_search,
             timeout_seconds=batch_timeout_seconds,
             provider=provider,
+            responses_api_without_tools=responses_api_without_tools,
+            capture_raw_response=capture_raw_response,
         )
         llm_responses.rename(
-            columns={"query_response": llm_response_field}, inplace=True
+            columns={
+                "query_response": llm_response_field,
+                "raw_response": raw_response_field,
+            },
+            inplace=True,
         )
 
         # Merge LLM response with original dataset
         profile_metadata["custom_id"] = profile_metadata["custom_id"].astype("int64")
         llm_responses["custom_id"] = llm_responses["custom_id"].astype("int64")
+        response_columns = ["custom_id", llm_response_field]
+        if capture_raw_response:
+            response_columns.append(raw_response_field)
         return pd.merge(
             left=profile_metadata,
-            right=llm_responses[["custom_id", llm_response_field]],
+            right=llm_responses[response_columns],
             on="custom_id",
         )
 

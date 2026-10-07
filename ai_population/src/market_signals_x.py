@@ -1,11 +1,13 @@
 import argparse
 import asyncio
 import os
+import sys
+import traceback
 import pandas as pd
 import json
 from tqdm import tqdm
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 tqdm.pandas()
 from ai_population.config.market_signals_config import (
@@ -43,6 +45,7 @@ from ai_population.config.market_signals_config import (
     PREDICTION_MARKET_INTERVIEW_REGEX_PATTERNS,
     POLYMARKET_EVENTS,
     GDP_MANUAL_OVERRIDE,
+    BASELINE_MODULES_X,
 )
 
 PROFILE_SEARCH_START_DATE = datetime.strptime(
@@ -78,6 +81,33 @@ from ai_population.prompts.prompt_template import (
     prediction_market_interview_user_prompt_suffix,
     stock_recommendation_interview_user_prompt,
     daily_stock_pick_user_prompts,
+)
+from ai_population.src.baseline_arms import (
+    ARM_RESPONSE_FIELD,
+    ARM_SYSTEM_PROMPT_COL,
+    ARM_TIMESTAMP_COL,
+    EMPTY_POST_FILE,
+    MODULES as BASELINE_MODULES,
+    STATUS_CODES,
+    BaselineArmsError,
+    arm_clock,
+    arm_input_file,
+    arm_interview_type,
+    arm_output_file,
+    baseline_execution_date,
+    build_arm_plan,
+    collect_arm_calls,
+    consolidate_module_results,
+    extract_production_search_traces,
+    log_arm_failure,
+    module_chunks,
+    print_plan_summary,
+    qc_and_log,
+    remove_arm_batch_inputs,
+    write_arm_batch_inputs,
+    write_arm_call_records,
+    write_arm_plan_files,
+    yes_cell_schedule,
 )
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -761,6 +791,216 @@ def perform_x_daily_stock_pick_interview(
     )
 
 
+def perform_x_baseline_arms(
+    project_name: str,
+    execution_date: str,
+    model_name: str = GPT_MODEL,
+    provider: str = None,
+    enable_web_search: bool = True,
+    use_row_query: bool = False,
+    cells: list = None,
+    dry_run: bool = False,
+    ignore_arm_clock: bool = False,
+) -> int:
+    """
+    Runs the baseline arms (bare / generic / twin setups with web search on and off) on
+    the production drop of execution_date and saves the outputs to the
+    `{execution_date}-baseline` folder beside the drop.
+
+    The search-on cells run first and follow the arm clock: they are skipped if the arms
+    start after 09:00 ET on the day after the drop, fall back to row mode at 08:00 ET and
+    start no call after 09:15 ET. The search-off cells run afterwards, 3 batches at a time.
+    The batch input files are deleted unless the run fails.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Drop date (DD-MM-YYYY) whose production prompts are re-run.
+        model_name (str, optional): Production model id. Defaults to GPT_MODEL.
+        provider (str, optional): Provider override. Defaults to None.
+        enable_web_search (bool, optional): Production's web search setting; must be True. Defaults to True.
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
+        cells (list, optional): Subset of BASELINE_ARMS_CELLS_X keys to run. Defaults to None (all enabled cells).
+        dry_run (bool, optional): Only write the manifest, input CSVs and batch input files. Defaults to False.
+        ignore_arm_clock (bool, optional): Testing only. Run the search-on cells regardless of the arm clock;
+            their timing is logged as "override". Defaults to False.
+
+    Returns:
+        int: Exit status, 0 OK / 1 WARN / 2 FAIL.
+
+    Raises:
+        BaselineArmsError: If web search is off or the arm plan fails its checks.
+    """
+    run_start = datetime.now(timezone.utc)
+    if not enable_web_search:
+        raise BaselineArmsError(
+            "Production web search is off; the search-on arms could not mirror production."
+        )
+
+    plan = build_arm_plan(project_name, execution_date, model_name, provider, cells)
+    out_dir = write_arm_plan_files(plan, project_name)
+    print_plan_summary(plan)
+    if dry_run:
+        written = write_arm_batch_inputs(plan, project_name)
+        print(
+            f"Dry run: wrote the prompt manifest, input CSVs and {len(written)} batch "
+            f"input files to {out_dir}. No API calls were made."
+        )
+        return 0
+
+    baseline_date = baseline_execution_date(execution_date)
+    clock = arm_clock(execution_date)
+    task_errors = []
+
+    def run_arm_task(task):
+        """
+        Runs one arm interview (a module, condition and chunk) unless its output exists.
+
+        Args:
+            task (tuple): (module, condition, chunk, schedule), where schedule holds
+                use_row_query, batch_timeout_seconds and row_deadline_utc.
+        """
+        module, condition, chunk, schedule = task
+        output_file = arm_output_file(module, condition, chunk, execution_date)
+        output_path = os.path.join(
+            base_dir, "../data", project_name, baseline_date, output_file
+        )
+        if os.path.exists(output_path):
+            print(f"Skipping {output_file}: already exists.")
+            return
+        battery = plan["batteries"][module][chunk - 1]
+        perform_profile_interview(
+            project_name=project_name,
+            execution_date=baseline_date,
+            model_name=model_name,
+            profile_metadata_file=arm_input_file(module, condition, execution_date),
+            post_file=EMPTY_POST_FILE,
+            output_file=output_file,
+            system_prompt_template="",
+            user_prompt_template=battery["template"],
+            llm_response_field=ARM_RESPONSE_FIELD,
+            interview_type=arm_interview_type(module, condition, chunk),
+            enable_web_search=condition == "yes",
+            use_row_query=schedule["use_row_query"],
+            response_timestamp_col=ARM_TIMESTAMP_COL,
+            batch_timeout_seconds=schedule["batch_timeout_seconds"],
+            provider=provider,
+            system_prompt_column=ARM_SYSTEM_PROMPT_COL,
+            responses_api_without_tools=condition == "no",
+            capture_raw_response=True,
+            row_deadline_utc=schedule["row_deadline_utc"],
+        )
+
+    def run_arm_tasks(tasks, max_workers):
+        """
+        Runs arm tasks in parallel and records failed tasks in task_errors.
+
+        Args:
+            tasks (list): Tasks for run_arm_task.
+            max_workers (int): Number of tasks run at once.
+        """
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(run_arm_task, task): task for task in tasks}
+            for future in as_completed(futures):
+                module, condition, chunk, _ = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Arm task {module}/{condition}/chunk {chunk} failed: {e}")
+                    task_errors.append(
+                        {
+                            "module": module,
+                            "condition": condition,
+                            "chunk": chunk,
+                            "error": str(e),
+                        }
+                    )
+
+    def production_schedule(module):
+        """
+        Gets the schedule production uses for a module, without a deadline.
+
+        Args:
+            module (str): "post_interview" or "daily_stock_pick".
+
+        Returns:
+            dict: use_row_query, batch_timeout_seconds and row_deadline_utc.
+        """
+        return {
+            "use_row_query": use_row_query,
+            "batch_timeout_seconds": BASELINE_MODULES_X[module][
+                "batch_timeout_seconds"
+            ],
+            "row_deadline_utc": None,
+        }
+
+    def arm_tasks(condition, schedule_for):
+        """
+        Lists the tasks of one condition, one per module and chunk that has arm rows.
+
+        Args:
+            condition (str): "yes" or "no".
+            schedule_for (Callable[[str], dict]): Returns the schedule of a module.
+
+        Returns:
+            list: Tasks for run_arm_task.
+        """
+        planned = set(zip(plan["rows"]["module"], plan["rows"]["condition"]))
+        return [
+            (module, condition, chunk, schedule_for(module))
+            for module in BASELINE_MODULES
+            if (module, condition) in planned
+            for chunk in module_chunks(module)
+        ]
+
+    yes_skipped = False
+    if ignore_arm_clock:
+        yes_tasks = arm_tasks("yes", production_schedule)
+    else:
+        schedule = yes_cell_schedule(run_start, clock, use_row_query)
+        yes_skipped = schedule["skip"]
+        yes_tasks = [] if yes_skipped else arm_tasks("yes", lambda module: schedule)
+        if yes_skipped:
+            print(
+                f"Arms started after 09:00 ET on the day after {execution_date}: "
+                f"skipping the search-on cells."
+            )
+    if yes_tasks:
+        # Submit all search-on batches at once; limit concurrency in row mode
+        run_arm_tasks(
+            yes_tasks, 3 if yes_tasks[0][3]["use_row_query"] else len(yes_tasks)
+        )
+
+    run_arm_tasks(arm_tasks("no", production_schedule), 3)
+
+    calls = collect_arm_calls(plan, project_name, clock)
+    results = {}
+    if not calls.empty:
+        write_arm_call_records(calls, project_name, execution_date)
+        for module in BASELINE_MODULES:
+            results[module] = consolidate_module_results(
+                plan, calls, module, project_name
+            )
+    production_traces, missing_traces = extract_production_search_traces(
+        plan, project_name
+    )
+    status = qc_and_log(
+        plan=plan,
+        calls=calls,
+        results=results,
+        production_traces=production_traces,
+        missing_production_traces=missing_traces,
+        project_name=project_name,
+        run_start=run_start,
+        yes_skipped=yes_skipped,
+        ignore_arm_clock=ignore_arm_clock,
+        task_errors=task_errors,
+    )
+
+    if status != STATUS_CODES["FAIL"]:
+        remove_arm_batch_inputs(project_name, execution_date)
+    return status
+
+
 def extract_hashtags(entity_dict: dict) -> str:
     """
     Extracts unique hashtags from a string representation of a dictionary.
@@ -936,11 +1176,84 @@ if __name__ == "__main__":
             "providers without a batch endpoint."
         ),
     )
+    parser.add_argument(
+        "--baseline-arms",
+        dest="baseline_arms",
+        action="store_true",
+        default=False,
+        help=(
+            "After step 9, run the baseline arms on the day's drop. "
+            "Exit code is the arms status: 0 OK / 1 WARN / 2 FAIL."
+        ),
+    )
+    parser.add_argument(
+        "--arms-only",
+        dest="arms_only",
+        action="store_true",
+        default=False,
+        help="Skip steps 6-9 and run the baseline arms on an existing drop (requires --date).",
+    )
+    parser.add_argument(
+        "--date",
+        dest="arms_date",
+        type=str,
+        default=None,
+        help="Drop date (DD-MM-YYYY) for --arms-only.",
+    )
+    parser.add_argument(
+        "--arms-dry-run",
+        dest="arms_dry_run",
+        action="store_true",
+        default=False,
+        help=(
+            "With --arms-only: write the prompt manifest, input CSVs and batch "
+            "input files without making any API call."
+        ),
+    )
+    parser.add_argument(
+        "--arm-cells",
+        dest="arm_cells",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated subset of arm cells to run (bare_yes, bare_no, "
+            "generic_yes, generic_no, twin_no, twin_replicate). Defaults to all "
+            "cells enabled in BASELINE_ARMS_CELLS_X."
+        ),
+    )
+    parser.add_argument(
+        "--ignore-arm-clock",
+        dest="ignore_arm_clock",
+        action="store_true",
+        default=False,
+        help=(
+            "Testing only: run the search-on arm cells regardless of the 09:00 ET "
+            "arm clock. Their timing is logged as 'override', never as clean."
+        ),
+    )
     args = parser.parse_args()
     model_name = args.model_name
     provider = args.provider
     enable_web_search = args.enable_web_search
     use_row_query = args.use_row_query
+    run_arms = args.baseline_arms or args.arms_only
+    if args.arms_only and not args.arms_date:
+        parser.error("--arms-only requires --date DD-MM-YYYY.")
+    if args.arms_date and not args.arms_only:
+        parser.error(
+            "--date is only used with --arms-only; production runs on PIPELINE_EXECUTION_DATE."
+        )
+    if args.arms_dry_run and not args.arms_only:
+        parser.error("--arms-dry-run requires --arms-only.")
+    if (args.arm_cells or args.ignore_arm_clock) and not run_arms:
+        parser.error(
+            "--arm-cells and --ignore-arm-clock require --baseline-arms or --arms-only."
+        )
+    if args.arms_date:
+        try:
+            datetime.strptime(args.arms_date, "%d-%m-%Y")
+        except ValueError:
+            parser.error(f"--date {args.arms_date!r} is not in DD-MM-YYYY format.")
 
     # # Step 1: Perform search using predefined list of search terms
     # print("1. Perform keyword search using predefined list of search terms...")
@@ -1009,84 +1322,110 @@ if __name__ == "__main__":
     #     prediction_threshold=PREDICTION_THRESHOLD_X,
     # )
 
-    # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
-    print(
-        "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
-    )
-    perform_x_profile_metadata_search(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=FINFLUENCER_POOL_FILE_X,
-        output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
-        cache_name="x_finfluencer_profile_metadata",
-    )
-    perform_x_profile_search(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        input_file=FINFLUENCER_POOL_FILE_X,
-        output_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        start_date=PROFILE_SEARCH_START_DATE,
-        end_date=PROFILE_SEARCH_END_DATE,
-        num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-        historical_post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
-    )
+    if not args.arms_only:
+        # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
+        print(
+            "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
+        )
+        perform_x_profile_metadata_search(
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            input_file=FINFLUENCER_POOL_FILE_X,
+            output_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
+            cache_name="x_finfluencer_profile_metadata",
+        )
+        perform_x_profile_search(
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            input_file=FINFLUENCER_POOL_FILE_X,
+            output_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+            start_date=PROFILE_SEARCH_START_DATE,
+            end_date=PROFILE_SEARCH_END_DATE,
+            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+            historical_post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+        )
 
-    extract_stock_mentions(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
-        post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-        interview_type="x_stock_mention",
-    )
+        extract_stock_mentions(
+            project_name=PROJECT_NAME_X,
+            execution_date=PIPELINE_EXECUTION_DATE,
+            profile_metadata_file=FINFLUENCER_PROFILE_METADATA_SEARCH_FILE_X,
+            post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+            output_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+            interview_type="x_stock_mention",
+        )
 
-    # Steps 7 & 8: Run finfluencer interview and stock recommendations interview in parallel
-    print(
-        "7+8. Run finfluencer interview and stock recommendations interview in parallel..."
-    )
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        step7 = executor.submit(
-            perform_x_finfluencer_interview,
+        # Steps 7 & 8: Run finfluencer interview and stock recommendations interview in parallel
+        print(
+            "7+8. Run finfluencer interview and stock recommendations interview in parallel..."
+        )
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            step7 = executor.submit(
+                perform_x_finfluencer_interview,
+                project_name=PROJECT_NAME_X,
+                execution_date=PIPELINE_EXECUTION_DATE,
+                profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+                post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
+                output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+                filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+                model_name=model_name,
+                provider=provider,
+                enable_web_search=enable_web_search,
+                use_row_query=use_row_query,
+            )
+            step8 = executor.submit(
+                perform_x_stock_recommendation_interview,
+                project_name=PROJECT_NAME_X,
+                execution_date=PIPELINE_EXECUTION_DATE,
+                profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
+                post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
+                finfluencer_pool=FINFLUENCER_POOL_FILE_X,
+                output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
+                filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
+                model_name=model_name,
+                provider=provider,
+                enable_web_search=enable_web_search,
+                use_row_query=use_row_query,
+            )
+            # Surface exceptions from either future
+            step7.result()
+            step8.result()
+
+        # Step 9: Conduct daily stock pick interview
+        print("9. Conduct daily stock pick interview...")
+        perform_x_daily_stock_pick_interview(
             project_name=PROJECT_NAME_X,
             execution_date=PIPELINE_EXECUTION_DATE,
             profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
             post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
-            output_file=FINFLUENCER_POST_INTERVIEW_FILE_X,
+            output_file=FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
             filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
             model_name=model_name,
             provider=provider,
             enable_web_search=enable_web_search,
             use_row_query=use_row_query,
         )
-        step8 = executor.submit(
-            perform_x_stock_recommendation_interview,
-            project_name=PROJECT_NAME_X,
-            execution_date=PIPELINE_EXECUTION_DATE,
-            profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-            post_file=FINFLUENCER_PROFILE_SEARCH_FILE_X,
-            finfluencer_pool=FINFLUENCER_POOL_FILE_X,
-            output_file=FINFLUENCER_STOCK_RECOMMENDATION_FILE_X,
-            filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
-            model_name=model_name,
-            provider=provider,
-            enable_web_search=enable_web_search,
-            use_row_query=use_row_query,
-        )
-        # Surface exceptions from either future
-        step7.result()
-        step8.result()
 
-    # Step 9: Conduct daily stock pick interview
-    print("9. Conduct daily stock pick interview...")
-    perform_x_daily_stock_pick_interview(
-        project_name=PROJECT_NAME_X,
-        execution_date=PIPELINE_EXECUTION_DATE,
-        profile_metadata_file=FINFLUENCER_STOCK_MENTIONS_FILE_X,
-        post_file=FINFLUENCER_HISTORICAL_PROFILE_SEARCH_FILE_X,
-        output_file=FINFLUENCER_DAILY_STOCK_PICK_FILE_X,
-        filter_original_profiles=FILTER_ORIGINAL_PROFILES_X,
-        model_name=model_name,
-        provider=provider,
-        enable_web_search=enable_web_search,
-        use_row_query=use_row_query,
-    )
+    # Step 10: Run baseline arms on the day's drop
+    if run_arms:
+        arms_date = args.arms_date or PIPELINE_EXECUTION_DATE
+        print(f"10. Run baseline arms on the {arms_date} drop...")
+        try:
+            arms_status = perform_x_baseline_arms(
+                project_name=PROJECT_NAME_X,
+                execution_date=arms_date,
+                model_name=model_name,
+                provider=provider,
+                enable_web_search=enable_web_search,
+                use_row_query=use_row_query,
+                cells=args.arm_cells.split(",") if args.arm_cells else None,
+                dry_run=args.arms_dry_run,
+                ignore_arm_clock=args.ignore_arm_clock,
+            )
+        except Exception as e:
+            if not isinstance(e, BaselineArmsError):
+                traceback.print_exc()
+            print(f"BASELINE {arms_date}: FAIL {e}")
+            if not args.arms_dry_run:
+                log_arm_failure(PROJECT_NAME_X, arms_date, str(e))
+            arms_status = 2
+        sys.exit(arms_status)

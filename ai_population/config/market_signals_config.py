@@ -868,3 +868,116 @@ POLYMARKET_EVENTS = [
         "resolution_text": "resolves YES if any CPI year-over-year in 2026 exceeds 3.5%.",
     },
 ]
+
+# Baseline arms: bare / generic / twin setups x web search on / off
+BASELINE_DIR_SUFFIX_X = "-baseline"
+BASELINE_RUN_LOG_FILE_X = "baseline_run_log.csv"
+BASELINE_ARMS_CELLS_X = {
+    "bare_yes": {
+        "enabled": True,
+        "alias": "arm0",
+        "setup": "bare",
+        "k": 25,
+        "web_search": True,
+        "id_prefix": "BASELINE_BARE",
+    },
+    "bare_no": {
+        "enabled": True,
+        "alias": "arm0_ns",
+        "setup": "bare",
+        "k": 25,
+        "web_search": False,
+        "id_prefix": "BASELINE_BARE_NS",
+    },
+    "generic_yes": {
+        "enabled": True,
+        "alias": "arm1",
+        "setup": "generic",
+        "k": 25,
+        "web_search": True,
+        "id_prefix": "BASELINE_GENERIC",
+    },
+    "generic_no": {
+        "enabled": True,
+        "alias": "arm1_ns",
+        "setup": "generic",
+        "k": 25,
+        "web_search": False,
+        "id_prefix": "BASELINE_GENERIC_NS",
+    },
+    # scope: "all" accounts in the drop or only the "tx81" roster
+    "twin_no": {
+        "enabled": True,
+        "alias": "arm3",
+        "setup": "twin",
+        "web_search": False,
+        "scope": "all",
+    },
+    "twin_replicate": {
+        "enabled": True,
+        "alias": "arm2",
+        "setup": "twin",
+        "k_donors": 5,
+        "replicates_per_donor": 3,
+        "weekday": "Wednesday",
+        "donor_seed": 20260903,
+        "id_prefix": {"yes": "BASELINE_REPL", "no": "BASELINE_REPL_NS"},
+    },
+}
+# Accounts flagged tx81 in the twin records
+BASELINE_TX81_ROSTER_X = ORIGINAL_PROFILES_X
+BASELINE_BARE_SYSTEM_PROMPT_X = "You are completing a financial market survey. Answer every question with your own best assessment of financial markets and the economy as of today. No profile or posting history is provided and you are not role-playing any person. Follow the survey’s answer-format instructions exactly as given in the questionnaire, including response symbols and speculation scores."
+BASELINE_GENERIC_REPLACEMENT_X = "[No individual profile or posting history is provided for this survey participant. Answer as a typical X (Twitter) financial influencer of the kind described above would.]"
+BASELINE_PERSONA_HEADER_X = "Here are the details of the X (formerly Twitter) profile"
+BASELINE_SEARCH_OFF_SPLICES_X = {
+    "remove_paragraph_start": "You may also use web search to retrieve relevant, up-to-date information",
+    "remove_paragraph_end": "rather than definitive facts.",
+    "replace_line": "- Any clearly relevant information retrieved via web search.",
+    "replace_with": "- [Web search is not available in this survey.]",
+}
+# Arm clock: America/New_York times on the day after the drop date
+BASELINE_ARM_CLOCK_ET_X = {
+    "yes_batch_deadline": "08:00",
+    "skip_cutoff": "09:00",
+    "yes_hard_stop": "09:15",
+    "clean_cutoff": "09:30",
+    "lost_cutoff": "15:30",
+}
+# Search-on cells use row mode if yes_batch_deadline is closer than this
+BASELINE_MIN_YES_BATCH_SECONDS_X = 600
+# Production drop files read for date {d} and stock-pick chunk {i}
+BASELINE_MODULES_X = {
+    "post_interview": {
+        "drop_file": "x_finfluencer_post_interview_{d}_full.csv",
+        "system_prompt_col": "x_finfluencer_interview_system_prompt",
+        "user_prompt_col": "x_finfluencer_interview_user_prompt",
+        "timestamp_col": "finfluencer_interview_datetime",
+        "production_batch_output": "x_finfluencer_interview_batch_output.jsonl",
+        "batch_timeout_seconds": 7200,
+    },
+    "daily_stock_pick": {
+        "drop_file": "x_finfluencer_daily_stock_pick_{d}_full.csv",
+        "system_prompt_col": "x_finfluencer_daily_stock_pick_{i}_system_prompt",
+        "user_prompt_col": "x_finfluencer_daily_stock_pick_{i}_user_prompt",
+        "timestamp_col": "daily_stock_pick_interview_datetime",
+        "chunk_file": "x_finfluencer_daily_stock_pick_{d}_{i}.csv",
+        "production_batch_output": "x_finfluencer_daily_stock_pick_{i}_batch_output.jsonl",
+        "batch_timeout_seconds": 4800,
+    },
+}
+# USD per 1M tokens and per 1k web search calls
+BASELINE_MODEL_PRICING_X = {
+    "gpt-5-mini-2025-08-07": {
+        "input": 0.25,
+        "cached_input": 0.025,
+        "output": 2.00,
+        "web_search_per_1k_calls": 10.00,
+    },
+}
+BASELINE_BATCH_DISCOUNT_X = 0.5
+BASELINE_TWIN_NO_COST_WARN_USD_X = 50.0
+BASELINE_QC_THRESHOLDS_X = {
+    "fail_completeness": 0.50,
+    "warn_completeness": 0.95,
+    "warn_parse_yield": 0.90,
+}
