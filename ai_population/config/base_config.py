@@ -11,6 +11,16 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+HF_TOKEN = (
+    os.getenv("HF_TOKEN")
+    or os.getenv("HUGGINGFACE_TOKEN")
+    or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+)
+FRIENDLI_TOKEN = (
+    os.getenv("FRIENDLI_TOKEN")
+    or os.getenv("FRIENDLIAI_API_KEY")
+    or os.getenv("FRIENDLI_API_KEY")
+)
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 FRED_API_KEY = os.getenv("FRED_API_KEY")
@@ -21,3 +31,9 @@ TOP_N_PROFILES = 100
 WAIT_TIME_BETWEEN_RETRIEVAL_REQUESTS = 300  # in seconds
 MAX_RETRIES = 5
 NUM_PARALLEL_PROCESSES = 20
+# Retry settings for self-hosted / serverless LLM endpoints (e.g. OLMo served
+# on a GPU that goes to sleep and briefly returns "Endpoint is unavailable" or
+# an empty body that surfaces as "'NoneType' object is not subscriptable").
+# The wait gives the endpoint time to wake back up before we retry the row.
+ENDPOINT_RETRY_MAX_ATTEMPTS = 5
+ENDPOINT_RETRY_DELAY = 180  # seconds to wait before retrying a sleeping endpoint

@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 import argparse
 from tqdm import tqdm
@@ -39,9 +40,9 @@ from ai_population.config.joint_llm_swiss_config import (
     VOTER_DEMOGRAPHIC_INTERVIEW_REGEX_PATTERNS,
     DIGITAL_POLLING_REGEX_PATTERNS,
 )
-from config.base_config import GPT_MODEL
+from ai_population.config.base_config import GPT_MODEL
 
-from src.utils import (
+from ai_population.src.utils import (
     perform_x_keyword_search,
     perform_tiktok_keyword_search,
     perform_x_profile_metadata_search,
@@ -52,8 +53,9 @@ from src.utils import (
     extract_llm_responses,
     perform_profile_interview,
     coalesce_columns_by_regex,
+    LLM_ERROR_RESPONSE,
 )
-from prompts.prompt_template import (
+from ai_population.prompts.prompt_template import (
     x_jointllm_voter_demographic_interview_system_prompt,
     tiktok_jointllm_voter_demographic_interview_system_prompt,
     jointllm_voter_demographic_interview_user_prompt,
@@ -100,13 +102,24 @@ def conduct_demographic_interview(
         base_dir, "../data", project_name, execution_date, f"raw_{output_file}"
     )
     new_results = pd.read_csv(output_path)
+    # Only record profiles that were interviewed successfully. Rows that errored
+    # out (e.g. the OLMo endpoint was asleep -> "Error or Timeout", an empty
+    # response, or NaN) are intentionally left OUT of the ledger so that on the
+    # next iteration/rerun the keyword-search filter does NOT skip them and the
+    # pipeline resumes by re-attempting those skipped profiles.
+    response_col = "jointllm_voter_demographic_interview_llm_response"
+    successful_results = new_results[
+        new_results[response_col].notna()
+        & (new_results[response_col].astype(str).str.strip() != "")
+        & (new_results[response_col] != LLM_ERROR_RESPONSE)
+    ].reset_index(drop=True)
     if os.path.exists(ledger_path):
         prior_ledger = pd.read_csv(ledger_path)
-        pd.concat([prior_ledger, new_results], ignore_index=True).to_csv(
+        pd.concat([prior_ledger, successful_results], ignore_index=True).to_csv(
             ledger_path, index=False
         )
     else:
-        new_results.to_csv(ledger_path, index=False)
+        successful_results.to_csv(ledger_path, index=False)
 
     # Preprocess post interview results
     post_interview_profile_metadata = pd.read_csv(
@@ -464,27 +477,99 @@ if __name__ == "__main__":
         help="Model name to use for the interview. Pass an OpenAI model id (default) "
         "or a Together AI model id when --together-ai-endpoint is also set.",
     )
-    endpoint_group = parser.add_mutually_exclusive_group()
-    endpoint_group.add_argument(
+    parser.add_argument(
         "--together-ai-endpoint",
         type=str,
         default=None,
         help="Together AI base URL (serverless or dedicated endpoint). When set, "
         "the interview is routed through Together AI instead of OpenAI.",
     )
-    endpoint_group.add_argument(
+    parser.add_argument(
         "--grok-endpoint",
         type=str,
         default=None,
         help="xAI (Grok) base URL, typically https://api.x.ai/v1. When set, "
         "the interview is routed through xAI instead of OpenAI. "
-        "Mutually exclusive with --together-ai-endpoint.",
+        "Mutually exclusive with the other endpoint routes.",
+    )
+    parser.add_argument(
+        "--together-endpoint",
+        nargs="?",
+        const="https://api.together.xyz/v1",
+        default=None,
+        help="Route through Together AI. Optionally pass a custom base URL; "
+        "defaults to https://api.together.xyz/v1. Uses TOGETHER_API_KEY. "
+        "(Alias of --together-ai-endpoint.)",
+    )
+    parser.add_argument(
+        "--friendli-endpoint",
+        nargs="?",
+        const="https://api.friendli.ai/dedicated/v1",
+        default=None,
+        help="Route through a FriendliAI dedicated endpoint. Optionally pass a "
+        "custom base URL; defaults to https://api.friendli.ai/dedicated/v1 "
+        "(pass the endpoint id as --model-name). Uses FRIENDLI_TOKEN.",
+    )
+    parser.add_argument(
+        "--hf-endpoint",
+        nargs="?",
+        const="https://router.huggingface.co/v1",
+        default=None,
+        help="Route through the Hugging Face Inference router or a dedicated HF "
+        "Inference Endpoint. Optionally pass a custom base URL; defaults to "
+        "https://router.huggingface.co/v1. Uses HF_TOKEN.",
+    )
+    parser.add_argument(
+        "--skip-collection",
+        action="store_true",
+        help="Skip Steps 1-3 (keyword search, profile metadata/post collection, "
+        "demographic interview, and quota inclusion). Reuse the eligible-profile "
+        "list a prior run already produced (the quota-inclusion-criteria file). "
+        "Use this when running additional model arms on a fixed voter panel.",
+    )
+    parser.add_argument(
+        "--skip-post-extraction",
+        action="store_true",
+        help="Skip Step 4 (extracting posts from the eligible profiles) and reuse "
+        "the eligible-profile posts file a prior arm already produced. Use this "
+        "for additional arms that only need to re-run Step 5 (digital polling) on "
+        "the same posts. Implies --skip-collection.",
+    )
+    parser.add_argument(
+        "--model-label",
+        type=str,
+        default=None,
+        help="Friendly name used to tag this arm's digital-polling output file, "
+        "instead of --model-name. Useful when --model-name is an opaque provider "
+        "endpoint id so outputs read like the model.",
     )
     args = parser.parse_args()
     platform = args.platform
     model_name = args.model_name
-    together_ai_endpoint = args.together_ai_endpoint
+    # All OpenAI-compatible routes funnel into together_ai_endpoint; the API key
+    # is auto-selected from the endpoint host (_resolve_endpoint_api_key). The
+    # provider flags are aliases with sensible default base URLs. Only one
+    # endpoint route may be set.
+    _endpoint_flags = {
+        "--together-ai-endpoint": args.together_ai_endpoint,
+        "--together-endpoint": args.together_endpoint,
+        "--friendli-endpoint": args.friendli_endpoint,
+        "--hf-endpoint": args.hf_endpoint,
+    }
+    _set_endpoints = {name: url for name, url in _endpoint_flags.items() if url}
+    if len(_set_endpoints) > 1:
+        parser.error("Pass at most one endpoint route: " + ", ".join(_set_endpoints))
+    together_ai_endpoint = next(iter(_set_endpoints.values()), None)
     grok_endpoint = args.grok_endpoint
+    if together_ai_endpoint and grok_endpoint:
+        parser.error(
+            "Pass at most one of the endpoint routes or --grok-endpoint, not both."
+        )
+    # --skip-post-extraction reuses a prior arm's Step 4 posts, which only exist
+    # once the eligible-profile list (Steps 1-3) has been produced, so it implies
+    # --skip-collection.
+    skip_collection = args.skip_collection or args.skip_post_extraction
+    skip_post_extraction = args.skip_post_extraction
 
     if platform not in ["x", "tiktok"]:
         raise ValueError(
@@ -494,208 +579,234 @@ if __name__ == "__main__":
     # Step 0: Define pipeline constants based on social media platform (i.e., X vs. TikTok)
     constants = define_pipeline_constants(platform=platform)
 
-    STRATIFICATION_FRAME_NOT_FILED = True
-    iteration = 3
-    # num_posts_per_keyword is reassigned at the top of every iteration. The 0
-    # seed lets the while condition pass on the first check.
-    num_posts_per_keyword = 0
-    while (
-        STRATIFICATION_FRAME_NOT_FILED
-        and num_posts_per_keyword < MAX_NUM_POSTS_PER_KEYWORD
-    ):
-        # Ramp the keyword-search depth: 10 on the first iteration, +10 each
-        # iteration, capped at MAX_NUM_POSTS_PER_KEYWORD (100). Keeps cost low early
-        # and only widens the net if the stratification frame still isn't full.
-        num_posts_per_keyword = min(10 * (iteration + 1), MAX_NUM_POSTS_PER_KEYWORD)
+    # Tag the Step 5 digital-polling output with the model so each arm writes its
+    # own file and never overwrites another arm's results. The eligible-profile
+    # list (Steps 1-3) and the Step 4 posts are model-independent and shared.
+    model_tag = re.sub(
+        r"[^A-Za-z0-9._-]+", "-", (args.model_label or model_name)
+    ).strip("-")
+    digital_polling_output_file = constants["digital_polling_file"].replace(
+        ".csv", f"_{model_tag}.csv"
+    )
+
+    if skip_collection:
         print(
-            f"Iteration {iteration + 1}: keyword search depth = {num_posts_per_keyword} posts/term"
+            "Skipping Steps 1-3 (collection + demographic interview + quota inclusion); reusing the existing eligible-profile list."
         )
-
-        # Step 1: Get Pool
-        print("Step 1: Generate a subject pool of social media users")
-        ## Perform key word search for social media posts
-        print("Perform keyword search using predefined list of search terms...")
-        if platform == "x":
-            perform_x_keyword_search(
-                project_name=constants["project_name"],
-                execution_date=constants["pipeline_name"],
-                search_terms=constants["search_term_list"],
-                output_file=constants["keyword_search_file"],
-                num_posts_per_keyword=num_posts_per_keyword,
-            )
-        else:
-            perform_tiktok_keyword_search(
-                project_name=constants["project_name"],
-                execution_date=constants["pipeline_name"],
-                search_terms=constants["search_term_list"],
-                output_file=constants["keyword_search_file"],
-                num_posts_per_keyword=num_posts_per_keyword,
-            )
-
-        ## Skip authors already interviewed in a prior iteration so we do not
-        ## re-pay for profile metadata, profile posts, video transcription,
-        ## and demographic interview API calls on the same profiles.
-        filter_keyword_search_by_ledger(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            keyword_search_file=constants["keyword_search_file"],
-            demographic_interview_file=constants["demographic_interview_file"],
-        )
-
-        ## If every author from the keyword search has already been interviewed,
-        ## the filter empties the CSV. Short-circuit to the next iteration so we
-        ## widen the keyword-search depth instead of crashing downstream API
-        ## calls that expect a non-empty 'account_id' column.
-        keyword_search_path = os.path.join(
-            base_dir,
-            "../data",
-            constants["project_name"],
-            constants["pipeline_name"],
-            constants["keyword_search_file"],
-        )
-        if pd.read_csv(keyword_search_path).empty:
+    else:
+        STRATIFICATION_FRAME_NOT_FILED = True
+        iteration = 0
+        # num_posts_per_keyword is reassigned at the top of every iteration. The 0
+        # seed lets the while condition pass on the first check.
+        num_posts_per_keyword = 0
+        while (
+            STRATIFICATION_FRAME_NOT_FILED
+            and num_posts_per_keyword < MAX_NUM_POSTS_PER_KEYWORD
+        ):
+            # Ramp the keyword-search depth: 10 on the first iteration, +10 each
+            # iteration, capped at MAX_NUM_POSTS_PER_KEYWORD (100). Keeps cost low early
+            # and only widens the net if the stratification frame still isn't full.
+            num_posts_per_keyword = min(10 * (iteration + 1), MAX_NUM_POSTS_PER_KEYWORD)
             print(
-                f"Iteration {iteration + 1}: no unseen authors in keyword search; "
-                "widening pool on next iteration."
+                f"Iteration {iteration + 1}: keyword search depth = {num_posts_per_keyword} posts/term"
             )
+
+            # Step 1: Get Pool
+            print("Step 1: Generate a subject pool of social media users")
+            ## Perform key word search for social media posts
+            print("Perform keyword search using predefined list of search terms...")
+            if platform == "x":
+                # X API v2 full-archive keyword search bounded to the frozen trace
+                # window (X API only; no Abundance).
+                perform_x_keyword_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    search_terms=constants["search_term_list"],
+                    output_file=constants["keyword_search_file"],
+                    num_posts_per_keyword=num_posts_per_keyword,
+                    start_date=constants["profile_search_start_date"],
+                    end_date=constants["profile_search_end_date"],
+                )
+            else:
+                perform_tiktok_keyword_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    search_terms=constants["search_term_list"],
+                    output_file=constants["keyword_search_file"],
+                    num_posts_per_keyword=num_posts_per_keyword,
+                )
+
+            ## Skip authors already interviewed in a prior iteration so we do not
+            ## re-pay for profile metadata, profile posts, video transcription,
+            ## and demographic interview API calls on the same profiles.
+            filter_keyword_search_by_ledger(
+                project_name=constants["project_name"],
+                execution_date=constants["pipeline_name"],
+                keyword_search_file=constants["keyword_search_file"],
+                demographic_interview_file=constants["demographic_interview_file"],
+            )
+
+            ## If every author from the keyword search has already been interviewed,
+            ## the filter empties the CSV. Short-circuit to the next iteration so we
+            ## widen the keyword-search depth instead of crashing downstream API
+            ## calls that expect a non-empty 'account_id' column.
+            keyword_search_path = os.path.join(
+                base_dir,
+                "../data",
+                constants["project_name"],
+                constants["pipeline_name"],
+                constants["keyword_search_file"],
+            )
+            if pd.read_csv(keyword_search_path).empty:
+                print(
+                    f"Iteration {iteration + 1}: no unseen authors in keyword search; "
+                    "widening pool on next iteration."
+                )
+                iteration += 1
+                continue
+
+            ## Extract profile metadata for search results
+            print(
+                "Perform profile metadata search for profiles obtained via keyword search results..."
+            )
+            if platform == "x":
+                # X profile metadata and recent posts are collected from the X API v2
+                # (primary source) with an automatic fallback to the Abundance API on
+                # a wholesale X API failure (missing bearer token, auth failure, or
+                # zero handles resolved). The shared helpers normalize whichever
+                # source served the request to one canonical schema, so the metadata
+                # and post files written here are identical in column names/structure
+                # regardless of which API produced them and feed directly into the
+                # downstream demographic-interview step.
+                perform_x_profile_metadata_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    input_file=os.path.join(
+                        constants["pipeline_name"], constants["keyword_search_file"]
+                    ),
+                    output_file=constants["keyword_profile_metadata_file"],
+                )
+                perform_x_profile_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    input_file=os.path.join(
+                        constants["pipeline_name"],
+                        constants["keyword_profile_metadata_file"],
+                    ),
+                    output_file=constants["keyword_profile_posts_file"],
+                    start_date=constants["profile_search_start_date"],
+                    end_date=constants["profile_search_end_date"],
+                    num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
+                    daily_post_budget=None,
+                )
+
+            else:
+                perform_tiktok_profile_metadata_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    input_file=os.path.join(
+                        constants["pipeline_name"], constants["keyword_search_file"]
+                    ),
+                    output_file=constants["keyword_profile_metadata_file"],
+                )
+                perform_tiktok_profile_search(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    input_file=os.path.join(
+                        constants["pipeline_name"],
+                        constants["keyword_profile_metadata_file"],
+                    ),
+                    output_file=constants["keyword_profile_posts_file"],
+                    start_date=constants["profile_search_start_date"],
+                    end_date=constants["profile_search_end_date"],
+                    num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
+                )
+                perform_video_transcription(
+                    project_name=constants["project_name"],
+                    execution_date=constants["pipeline_name"],
+                    video_file=constants["keyword_profile_posts_file"],
+                )
+
+            # Step 2: Filter users based on exclusion criteria and map into stratification frame
+            print(
+                "Step 2: Filter users based on exclusion criteria and map into stratification frame"
+            )
+            # Apply geographic and entity filters to exclude users who are unlikely to reside in Switzerland and related to organisations (e.g., news outlets, NGOs) and bots
+            print("Apply geographic and entity filters...")
+            conduct_demographic_interview(
+                project_name=constants["project_name"],
+                execution_date=constants["pipeline_name"],
+                profile_metadata_file=constants["keyword_profile_metadata_file"],
+                post_file=constants["keyword_profile_posts_file"],
+                output_file=constants["demographic_interview_file"],
+                system_prompt_template=constants["demographic_interview_system_prompt"],
+                user_prompt_template=constants["demographic_interview_user_prompt"],
+                interview_type=constants["demographic_interview_interview_type"],
+                model_name=model_name,
+                together_ai_endpoint=together_ai_endpoint,
+                grok_endpoint=grok_endpoint,
+            )
+
+            # Step 3: Apply quota inclusion criteria to identify eligible profiles for polling
+            print(
+                "Step 3: Apply quota inclusion criteria to identify eligible profiles for polling"
+            )
+            ## Apply quota inclusion criteria to identify eligible profiles for polling based on pre-defined stratification frame
+            quota_inclusion_criteria_result = apply_quota_inclusion_criteria(
+                project_name=constants["project_name"],
+                execution_date=constants["pipeline_name"],
+                input_file=constants["demographic_interview_file"],
+                output_file=constants["quota_inclusion_criteria_file"],
+                target_stratification_frame=constants["target_stratification_frame"],
+                current_stratification_frame=constants["current_stratification_frame"],
+            )
+            # apply_quota_inclusion_criteria returns True when every cell is at quota,
+            # so the loop should continue only while the frame is NOT yet filled.
+            STRATIFICATION_FRAME_NOT_FILED = not quota_inclusion_criteria_result
             iteration += 1
-            continue
 
-        ## Extract profile metadata for search results
+    if skip_post_extraction:
         print(
-            "Perform profile metadata search for profiles obtained via keyword search results..."
+            "Skipping Step 4 (post extraction); reusing the existing eligible-profile posts file."
         )
+    else:
+        # Step 4: Extract posts from eligible profiles during polling period
+        print("Step 4: Extract posts from eligible profiles during polling period")
         if platform == "x":
-            # X profile metadata and recent posts are collected from the X API v2
-            # (primary source) with an automatic fallback to the Abundance API on
-            # a wholesale X API failure (missing bearer token, auth failure, or
-            # zero handles resolved). The shared helpers normalize whichever
-            # source served the request to one canonical schema, so the metadata
-            # and post files written here are identical in column names/structure
-            # regardless of which API produced them and feed directly into the
-            # downstream demographic-interview step.
-            perform_x_profile_metadata_search(
-                project_name=constants["project_name"],
-                execution_date=constants["pipeline_name"],
-                input_file=os.path.join(
-                    constants["pipeline_name"], constants["keyword_search_file"]
-                ),
-                output_file=constants["keyword_profile_metadata_file"],
-            )
-            perform_x_profile_search(
+            # X API v2 primary with an automatic Abundance API fallback, normalized
+            # to the same canonical post schema as Step 1, so the eligible-profile
+            # posts feed straight into the digital-polling step below.
+            profile_latest_videos = perform_x_profile_search(
                 project_name=constants["project_name"],
                 execution_date=constants["pipeline_name"],
                 input_file=os.path.join(
                     constants["pipeline_name"],
-                    constants["keyword_profile_metadata_file"],
+                    constants["quota_inclusion_criteria_file"],
                 ),
-                output_file=constants["keyword_profile_posts_file"],
-                start_date=constants["profile_search_start_date"],
-                end_date=constants["profile_search_today"],
-                num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
-                daily_post_budget=None,
-            )
-
-        else:
-            perform_tiktok_profile_metadata_search(
-                project_name=constants["project_name"],
-                execution_date=constants["pipeline_name"],
-                input_file=os.path.join(
-                    constants["pipeline_name"], constants["keyword_search_file"]
-                ),
-                output_file=constants["keyword_profile_metadata_file"],
-            )
-            perform_tiktok_profile_search(
-                project_name=constants["project_name"],
-                execution_date=constants["pipeline_name"],
-                input_file=os.path.join(
-                    constants["pipeline_name"],
-                    constants["keyword_profile_metadata_file"],
-                ),
-                output_file=constants["keyword_profile_posts_file"],
+                output_file=constants["eligible_profile_posts_file"],
                 start_date=constants["profile_search_start_date"],
                 end_date=constants["profile_search_end_date"],
-                num_posts_per_profile=NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH,
+                num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+                daily_post_budget=None,
+            )
+        else:
+            profile_latest_videos = perform_tiktok_profile_search(
+                project_name=constants["project_name"],
+                execution_date=constants["pipeline_name"],
+                input_file=os.path.join(
+                    constants["pipeline_name"],
+                    constants["quota_inclusion_criteria_file"],
+                ),
+                output_file=constants["eligible_profile_posts_file"],
+                start_date=constants["profile_search_start_date"],
+                end_date=constants["profile_search_end_date"],
+                num_posts_per_profile=NUM_POSTS_PER_PROFILE,
             )
             perform_video_transcription(
                 project_name=constants["project_name"],
                 execution_date=constants["pipeline_name"],
-                video_file=constants["keyword_profile_posts_file"],
+                video_file=constants["eligible_profile_posts_file"],
             )
-
-        # Step 2: Filter users based on exclusion criteria and map into stratification frame
-        print(
-            "Step 2: Filter users based on exclusion criteria and map into stratification frame"
-        )
-        # Apply geographic and entity filters to exclude users who are unlikely to reside in Switzerland and related to organisations (e.g., news outlets, NGOs) and bots
-        print("Apply geographic and entity filters...")
-        conduct_demographic_interview(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            profile_metadata_file=constants["keyword_profile_metadata_file"],
-            post_file=constants["keyword_profile_posts_file"],
-            output_file=constants["demographic_interview_file"],
-            system_prompt_template=constants["demographic_interview_system_prompt"],
-            user_prompt_template=constants["demographic_interview_user_prompt"],
-            interview_type=constants["demographic_interview_interview_type"],
-            model_name=model_name,
-            together_ai_endpoint=together_ai_endpoint,
-            grok_endpoint=grok_endpoint,
-        )
-
-        # Step 3: Apply quota inclusion criteria to identify eligible profiles for polling
-        print(
-            "Step 3: Apply quota inclusion criteria to identify eligible profiles for polling"
-        )
-        ## Apply quota inclusion criteria to identify eligible profiles for polling based on pre-defined stratification frame
-        quota_inclusion_criteria_result = apply_quota_inclusion_criteria(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            input_file=constants["demographic_interview_file"],
-            output_file=constants["quota_inclusion_criteria_file"],
-            target_stratification_frame=constants["target_stratification_frame"],
-            current_stratification_frame=constants["current_stratification_frame"],
-        )
-        # apply_quota_inclusion_criteria returns True when every cell is at quota,
-        # so the loop should continue only while the frame is NOT yet filled.
-        STRATIFICATION_FRAME_NOT_FILED = not quota_inclusion_criteria_result
-        iteration += 1
-
-    # Step 4: Extract posts from eligible profiles during polling period
-    print("Step 4: Extract posts from eligible profiles during polling period")
-    if platform == "x":
-        # X API v2 primary with an automatic Abundance API fallback, normalized
-        # to the same canonical post schema as Step 1, so the eligible-profile
-        # posts feed straight into the digital-polling step below.
-        profile_latest_videos = perform_x_profile_search(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            input_file=os.path.join(
-                constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
-            ),
-            output_file=constants["eligible_profile_posts_file"],
-            start_date=constants["profile_search_start_date"],
-            end_date=constants["profile_search_end_date"],
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-            daily_post_budget=None,
-        )
-    else:
-        profile_latest_videos = perform_tiktok_profile_search(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            input_file=os.path.join(
-                constants["pipeline_name"], constants["quota_inclusion_criteria_file"]
-            ),
-            output_file=constants["eligible_profile_posts_file"],
-            start_date=constants["profile_search_start_date"],
-            end_date=constants["profile_search_end_date"],
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-        )
-        perform_video_transcription(
-            project_name=constants["project_name"],
-            execution_date=constants["pipeline_name"],
-            video_file=constants["eligible_profile_posts_file"],
-        )
 
     # Perform digital election polling on eligible voters
     print("Step 5: Perform digital election polling of eligible voters")
@@ -704,7 +815,7 @@ if __name__ == "__main__":
         execution_date=constants["pipeline_name"],
         profile_metadata_file=constants["quota_inclusion_criteria_file"],
         post_file=constants["eligible_profile_posts_file"],
-        output_file=constants["digital_polling_file"],
+        output_file=digital_polling_output_file,
         system_prompt_template=constants["digital_polling_system_prompt"],
         user_prompt_template=constants["digital_polling_user_prompt"],
         interview_type=constants["digital_polling_interview_type"],

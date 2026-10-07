@@ -37,14 +37,37 @@ anthropic_client = (
 )
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
+# Sentinel written to the LLM-response column when a row could not be
+# interviewed (endpoint unavailable, timeout, empty body, etc.). Kept in one
+# place so the resume/ledger logic can recognise failed rows and re-attempt
+# them on the next run instead of treating them as completed.
+LLM_ERROR_RESPONSE = "Error or Timeout"
+
 _together_clients: dict = {}
 _grok_clients: dict = {}
+
+
+def _resolve_endpoint_api_key(endpoint: str) -> str:
+    """Select the API key for an OpenAI-compatible endpoint by its host, so each
+    provider keeps its own key in .env instead of sharing one:
+    Hugging Face router -> HF_TOKEN, FriendliAI -> FRIENDLI_TOKEN, everything
+    else (incl. Together AI / self-hosted vLLM) -> TOGETHER_API_KEY. Falls back
+    to TOGETHER_API_KEY when the provider-specific key is unset."""
+    ep = (endpoint or "").lower()
+    # Matches both the HF Inference router (router.huggingface.co) and dedicated
+    # HF Inference Endpoints, which are served from *.endpoints.huggingface.cloud
+    # ("huggingface.cloud" does NOT contain the substring "huggingface.co").
+    if "huggingface.co" in ep or "huggingface.cloud" in ep or "hf.co" in ep:
+        return HF_TOKEN or TOGETHER_API_KEY
+    if "friendli.ai" in ep:
+        return FRIENDLI_TOKEN or TOGETHER_API_KEY
+    return TOGETHER_API_KEY
 
 
 def _get_together_client(together_ai_endpoint: str) -> OpenAI:
     if together_ai_endpoint not in _together_clients:
         _together_clients[together_ai_endpoint] = OpenAI(
-            api_key=TOGETHER_API_KEY,
+            api_key=_resolve_endpoint_api_key(together_ai_endpoint),
             base_url=together_ai_endpoint,
         )
     return _together_clients[together_ai_endpoint]
@@ -1879,6 +1902,42 @@ def extract_tweets(
     return "\n\n".join(tweets_list)
 
 
+def _is_retryable_endpoint_error(e: Exception) -> bool:
+    """Return True if an LLM call failure looks like a transient endpoint issue
+    that a short wait can clear.
+
+    Self-hosted / serverless endpoints (e.g. OLMo on a GPU that goes to sleep)
+    surface recoverable failures as: connection refusals, 5xx / "endpoint is
+    unavailable" responses, timeouts, or an empty response body that later
+    blows up as "'NoneType' object is not subscriptable" when we index
+    ``response.choices[0]``. Genuine client errors (bad request, auth) are not
+    retried so we don't stall for minutes on a permanent failure.
+    """
+    if isinstance(e, APITimeoutError):
+        return True
+    status = getattr(e, "status", None) or getattr(e, "status_code", None)
+    if isinstance(status, int) and (status == 429 or status >= 500):
+        return True
+    msg = str(e).lower()
+    retryable_markers = (
+        "endpoint is unavailable",
+        "unavailable",
+        "not subscriptable",
+        "timed out",
+        "timeout",
+        "connection",
+        "temporarily",
+        "overloaded",
+        "bad gateway",
+        "service unavailable",
+        "reset by peer",
+        "502",
+        "503",
+        "504",
+    )
+    return any(marker in msg for marker in retryable_markers)
+
+
 def row_query(row: pd.Series, args: list) -> str:
     system_prompt = row[args[0][0]]
     user_prompt = row[args[0][1]]
@@ -1887,10 +1946,20 @@ def row_query(row: pd.Series, args: list) -> str:
     together_ai_endpoint = args[0][4] if len(args[0]) > 4 else None
     grok_endpoint = args[0][5] if len(args[0]) > 5 else None
     provider = args[0][6] if len(args[0]) > 6 else None
+    history_field = args[0][7] if len(args[0]) > 7 else None
 
     # Skip if system_prompt/user_prompt is empty or NaN (depending on your logic)
     if not isinstance(system_prompt, str) or not isinstance(user_prompt, str):
         return ""
+
+    # Prior-turn history (e.g. the demographic interview) spliced between the
+    # system prompt and the current user turn, mirroring the batch path so the
+    # row-by-row arms (Together/vLLM) carry the same context as the batch arms.
+    history = _coerce_history(row.get(history_field)) if history_field else []
+    history_turns = [
+        {"role": m.get("role", "user"), "content": m.get("content", "")}
+        for m in history
+    ]
 
     provider = _detect_provider(
         model_name=model_name,
@@ -1899,90 +1968,109 @@ def row_query(row: pd.Series, args: list) -> str:
         provider=provider,
     )
 
-    # Make a chat completion request
-    try:
-        if provider == "together":
-            client = _get_together_client(together_ai_endpoint)
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0,
-            )
-            return response.choices[0].message.content
-        elif provider == "xai":
-            client = _get_grok_client(grok_endpoint)
-            messages_xai = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-            if enable_web_search:
-                # xAI's web_search tool is only available on /v1/responses
-                # (the OpenAI SDK's `.responses.create` hits that endpoint).
-                resp = client.responses.create(
+    # Make a chat completion request. Self-hosted / serverless endpoints (e.g.
+    # OLMo on a GPU that goes to sleep) can transiently fail with "Endpoint is
+    # unavailable" or return an empty body that surfaces as "'NoneType' object
+    # is not subscriptable"; wait a few minutes and retry so the endpoint has
+    # time to wake back up before we give up on the row.
+    for attempt in range(1, ENDPOINT_RETRY_MAX_ATTEMPTS + 1):
+        try:
+            if provider == "together":
+                client = _get_together_client(together_ai_endpoint)
+                response = client.chat.completions.create(
                     model=model_name,
-                    input=messages_xai,
-                    tools=[_xai_web_search_tool()],
+                    messages=[{"role": "system", "content": system_prompt}]
+                    + history_turns
+                    + [{"role": "user", "content": user_prompt}],
                     temperature=0,
                 )
-                return resp.output_text
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages_xai,
-                temperature=0,
-            )
-            return response.choices[0].message.content
-        elif provider == "anthropic":
-            if anthropic_client is None:
-                raise RuntimeError(
-                    "Anthropic client unavailable. Install the `anthropic` "
-                    "package and set ANTHROPIC_API_KEY."
+                if response is None or not response.choices:
+                    raise RuntimeError("Endpoint is unavailable (empty response).")
+                return response.choices[0].message.content
+            elif provider == "xai":
+                client = _get_grok_client(grok_endpoint)
+                messages_xai = (
+                    [{"role": "system", "content": system_prompt}]
+                    + history_turns
+                    + [{"role": "user", "content": user_prompt}]
                 )
-            kwargs = dict(
-                model=model_name,
-                max_tokens=ANTHROPIC_MAX_OUTPUT_TOKENS,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
-                temperature=0,
-            )
-            if enable_web_search:
-                kwargs["tools"] = [_anthropic_web_search_tool()]
-            message = anthropic_client.messages.create(**kwargs)
-            return _extract_anthropic_text(message)
-        elif enable_web_search:
-            response = openai_client.responses.create(
-                model=model_name,
-                input=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                tools=[
-                    {
-                        "type": "web_search",
-                        "search_context_size": "medium",
-                        "user_location": {"type": "approximate", "country": "US"},
-                    }
-                ],
-                tool_choice="required",
-                # temperature=0,
-            )
-        else:
-            response = openai_client.responses.create(
-                model=model_name,
-                input=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0,
-            )
-        return response.output_text
+                if enable_web_search:
+                    # xAI's web_search tool is only available on /v1/responses
+                    # (the OpenAI SDK's `.responses.create` hits that endpoint).
+                    resp = client.responses.create(
+                        model=model_name,
+                        input=messages_xai,
+                        tools=[_xai_web_search_tool()],
+                        temperature=0,
+                    )
+                    return resp.output_text
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages_xai,
+                    temperature=0,
+                )
+                return response.choices[0].message.content
+            elif provider == "anthropic":
+                if anthropic_client is None:
+                    raise RuntimeError(
+                        "Anthropic client unavailable. Install the `anthropic` "
+                        "package and set ANTHROPIC_API_KEY."
+                    )
+                kwargs = dict(
+                    model=model_name,
+                    max_tokens=ANTHROPIC_MAX_OUTPUT_TOKENS,
+                    system=system_prompt,
+                    messages=history_turns + [{"role": "user", "content": user_prompt}],
+                    temperature=0,
+                )
+                if enable_web_search:
+                    kwargs["tools"] = [_anthropic_web_search_tool()]
+                message = anthropic_client.messages.create(**kwargs)
+                return _extract_anthropic_text(message)
+            elif enable_web_search:
+                response = openai_client.responses.create(
+                    model=model_name,
+                    input=[{"role": "system", "content": system_prompt}]
+                    + history_turns
+                    + [{"role": "user", "content": user_prompt}],
+                    tools=[
+                        {
+                            "type": "web_search",
+                            "search_context_size": "medium",
+                            "user_location": {"type": "approximate", "country": "US"},
+                        }
+                    ],
+                    tool_choice="required",
+                    # temperature=0,
+                )
+            else:
+                response = openai_client.responses.create(
+                    model=model_name,
+                    input=[{"role": "system", "content": system_prompt}]
+                    + history_turns
+                    + [{"role": "user", "content": user_prompt}],
+                    temperature=0,
+                )
+            return response.output_text
 
-    except Exception as e:
-        # Handle errors (rate limits, etc.)
-        print(f"Error processing row: {e}")
-        return "Error or Timeout"
+        except Exception as e:
+            # Wait and retry when the endpoint looks temporarily asleep/unavailable;
+            # otherwise (or once retries are exhausted) give up on the row.
+            if attempt < ENDPOINT_RETRY_MAX_ATTEMPTS and _is_retryable_endpoint_error(
+                e
+            ):
+                print(
+                    f"Endpoint error ({attempt}/{ENDPOINT_RETRY_MAX_ATTEMPTS}): {e}. "
+                    f"Retrying in {ENDPOINT_RETRY_DELAY}s..."
+                )
+                time.sleep(ENDPOINT_RETRY_DELAY)
+                continue
+            # Handle errors (rate limits, etc.)
+            print(f"Error processing row: {e}")
+            return LLM_ERROR_RESPONSE
+
+    # All retry attempts exhausted without returning a response.
+    return LLM_ERROR_RESPONSE
 
 
 def perform_profile_interview(
@@ -2098,6 +2186,7 @@ def perform_profile_interview(
             together_ai_endpoint,
             grok_endpoint,
             provider,
+            history_field,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -2420,6 +2509,7 @@ def perform_profile_interview_x_tiktok(
             together_ai_endpoint,
             grok_endpoint,
             provider,
+            history_field,
         ]
 
         # Choose how many parallel calls you want (tune for your rate limits)
@@ -3348,12 +3438,19 @@ def perform_x_keyword_search(
     search_terms: list,
     output_file: str,
     num_posts_per_keyword: int,
+    start_date: str = None,
+    end_date: str = None,
+    search_endpoint: str = "all",
 ) -> pd.DataFrame:
-    def batched(iterable, n):
-        """Yield successive n-sized batches from iterable."""
-        for i in range(0, len(iterable), n):
-            yield iterable[i : i + n]
+    """Keyword search via the X API v2 search endpoint (X API only, no Abundance).
 
+    Uses the full-archive endpoint (``/2/tweets/search/all``) by default so the
+    study's historical post window can be searched; pass ``search_endpoint="recent"``
+    to use the last-7-days endpoint instead. ``start_date``/``end_date`` (YYYY-MM-DD)
+    bound the search to the trace window. Each retained row carries the author's
+    handle under ``account_id`` — the field the downstream profile-search steps
+    key on. Requires ``X_BEARER_TOKEN``; raises via ``load_x_bearer`` if absent.
+    """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
@@ -3362,46 +3459,87 @@ def perform_x_keyword_search(
         os.path.join(base_dir, "../data", project_name, execution_date), exist_ok=True
     )
 
-    # Perform keyword search in batches of 1 (due to limitations of API call)
-    all_search_results = []
-    for batch_terms in batched(search_terms, 1):
-        try:
-            response = requests.get(
-                "https://abundance.it.com/get_tweets_by_search_term",
-                params={
-                    "search_term": batch_terms,
-                    "or_operator": 1,
-                    "max_tweets": num_posts_per_keyword * len(batch_terms),
-                },
-                auth=HTTPBasicAuth(X_API_USERNAME, X_API_PASSWORD),
-            )
-            # Tag each result with the search term that produced it. Batches
-            # are size 1, so all results in this response came from one term.
-            batch_keyword = batch_terms[0] if batch_terms else None
-            batch_results = response.json()
-            for item in batch_results:
-                if isinstance(item, dict):
-                    item["search_keyword"] = batch_keyword
-            all_search_results += batch_results
-        except requests.exceptions.JSONDecodeError:
-            warnings.warn(
-                f"JSONDecodeError encountered for search terms: {batch_terms}. Skipping these terms."
-            )
-            continue
+    headers = {"Authorization": f"Bearer {load_x_bearer()}"}  # raises if no token
+    url = f"{X_API_BASE}/tweets/search/{search_endpoint}"
+    page_cap = 500 if search_endpoint == "all" else 100
+    failures: list = []
+    all_rows: list = []
 
-    keyword_search_results = pd.DataFrame(all_search_results)
-    # keyword_search_results = keyword_search_results.drop_duplicates(
-    #     subset="id"
-    # ).reset_index(drop=True)
-    keyword_search_results["account_id"] = keyword_search_results["author"].apply(
-        lambda x: x.get("userName")
-    )
-    keyword_search_results["hashtags"] = keyword_search_results["entities"].apply(
-        extract_hashtags
-    )
-    keyword_search_results["tagged_users"] = keyword_search_results["entities"].apply(
-        extract_tagged_users
-    )
+    for term in search_terms:
+        # Exact-phrase match, originals only (exclude retweets and replies), so
+        # the pool is authors posting original Swiss-politics content.
+        query = f'"{term}" -is:retweet -is:reply'
+        collected: list = []
+        next_token = None
+        while len(collected) < num_posts_per_keyword:
+            params = {
+                "query": query,
+                "max_results": max(
+                    10, min(page_cap, num_posts_per_keyword - len(collected))
+                ),
+                "tweet.fields": X_API_TWEET_FIELDS,
+                "expansions": "author_id",
+                "user.fields": X_API_USER_FIELDS,
+            }
+            if start_date:
+                params["start_time"] = f"{start_date}T00:00:00Z"
+            if end_date:
+                params["end_time"] = f"{end_date}T00:00:00Z"
+            if next_token:
+                params["next_token"] = next_token
+
+            body = _x_api_get(url, headers, params, failures, f"search:{term}")
+            if not body:
+                break
+
+            users = {u["id"]: u for u in body.get("includes", {}).get("users", [])}
+            for t in body.get("data", []):
+                user = users.get(t.get("author_id"), {})
+                ent = t.get("entities", {}) or {}
+                collected.append(
+                    {
+                        "id": t.get("id"),
+                        "createdAt": t.get("created_at"),
+                        "text": t.get("text"),
+                        "account_id": user.get("username"),
+                        "search_keyword": term,
+                        "hashtags": ", ".join(
+                            h.get("tag", "") for h in ent.get("hashtags", [])
+                        ),
+                        "tagged_users": ", ".join(
+                            m.get("username", "") for m in ent.get("mentions", [])
+                        ),
+                    }
+                )
+
+            next_token = body.get("meta", {}).get("next_token")
+            if not next_token:
+                break
+            time.sleep(1.05)  # full-archive endpoint is limited to ~1 request/sec
+
+        all_rows += collected[:num_posts_per_keyword]
+
+    if failures:
+        warnings.warn(
+            f"X API keyword search: {len(failures)} request(s) failed; "
+            f"first failure: {failures[0]}"
+        )
+
+    columns = [
+        "id",
+        "createdAt",
+        "text",
+        "account_id",
+        "search_keyword",
+        "hashtags",
+        "tagged_users",
+    ]
+    keyword_search_results = pd.DataFrame(all_rows, columns=columns)
+    # Drop rows with no resolvable author handle (the key downstream field).
+    keyword_search_results = keyword_search_results[
+        keyword_search_results["account_id"].notna()
+        & (keyword_search_results["account_id"].astype(str).str.strip() != "")
+    ].reset_index(drop=True)
     keyword_search_results.to_csv(
         os.path.join(base_dir, "../data", project_name, execution_date, output_file),
         index=False,

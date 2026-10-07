@@ -1,4 +1,4 @@
-import os, json, argparse
+import os, re, json, argparse
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
@@ -242,113 +242,193 @@ if __name__ == "__main__":
         "Mutually exclusive with --together-ai-endpoint.",
     )
     parser.add_argument(
+        "--together-endpoint",
+        nargs="?",
+        const="https://api.together.xyz/v1",
+        default=None,
+        help="Route through Together AI. Optionally pass a custom base URL; "
+        "defaults to https://api.together.xyz/v1. Uses TOGETHER_API_KEY. "
+        "(Alias of --together-ai-endpoint.)",
+    )
+    parser.add_argument(
+        "--friendli-endpoint",
+        nargs="?",
+        const="https://api.friendli.ai/dedicated/v1",
+        default=None,
+        help="Route through a FriendliAI dedicated endpoint. Optionally pass a "
+        "custom base URL; defaults to https://api.friendli.ai/dedicated/v1 "
+        "(pass the endpoint id as --model-name). Uses FRIENDLI_TOKEN.",
+    )
+    parser.add_argument(
+        "--hf-endpoint",
+        nargs="?",
+        const="https://router.huggingface.co/v1",
+        default=None,
+        help="Route through the Hugging Face Inference router. Optionally pass a "
+        "custom base URL; defaults to https://router.huggingface.co/v1. Uses HF_TOKEN.",
+    )
+    parser.add_argument(
         "--batch-timeout-seconds",
         type=int,
         default=7200,
         help="Seconds to wait for the OpenAI batch job to complete before "
         "falling back to row-by-row API calls. Default: 7200 (2 hours).",
     )
+    parser.add_argument(
+        "--skip-collection",
+        action="store_true",
+        help="Skip Steps 1-2 (X/TikTok profile metadata + post collection) and reuse "
+        "the already-collected data files. Use this when running additional model "
+        "arms on data a prior run already collected.",
+    )
+    parser.add_argument(
+        "--model-label",
+        type=str,
+        default=None,
+        help="Friendly name used to tag this arm's output files, instead of "
+        "--model-name. Useful when --model-name is an opaque provider endpoint id "
+        "(e.g. a FriendliAI dedicated endpoint id) so outputs read like the model.",
+    )
     args = parser.parse_args()
     model_name = args.model_name
-    together_ai_endpoint = args.together_ai_endpoint
+    # All OpenAI-compatible routes funnel into together_ai_endpoint; the API key
+    # is auto-selected from the endpoint host (_resolve_endpoint_api_key). The
+    # provider flags are aliases with sensible default base URLs. Only one
+    # endpoint route may be set.
+    _endpoint_flags = {
+        "--together-ai-endpoint": args.together_ai_endpoint,
+        "--together-endpoint": args.together_endpoint,
+        "--friendli-endpoint": args.friendli_endpoint,
+        "--hf-endpoint": args.hf_endpoint,
+    }
+    _set_endpoints = {name: url for name, url in _endpoint_flags.items() if url}
+    if len(_set_endpoints) > 1:
+        parser.error("Pass at most one endpoint route: " + ", ".join(_set_endpoints))
+    together_ai_endpoint = next(iter(_set_endpoints.values()), None)
     grok_endpoint = args.grok_endpoint
+    if together_ai_endpoint and grok_endpoint:
+        parser.error(
+            "Pass at most one of the endpoint routes or --grok-endpoint, not both."
+        )
     batch_timeout_seconds = args.batch_timeout_seconds
+    skip_collection = args.skip_collection
 
-    # Step 1: Perform profile search of identified politicians with a X profile
-    # (profile metadata and recent posts) during the search period.
-    print(
-        "1. Perform profile search of identified politicians with a X profile (profile metadata and recent posts) during search period"
+    # Tag the model-dependent interview outputs so each arm writes its own files
+    # and never overwrites another arm's results. Uses --model-label when given
+    # (e.g. a friendly name for an opaque endpoint id), else --model-name. The
+    # Steps 1-2 collection files are model-independent and shared across arms.
+    model_tag = re.sub(
+        r"[^A-Za-z0-9._-]+", "-", (args.model_label or model_name)
+    ).strip("-")
+    demographic_output_file = POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE.replace(
+        ".csv", f"_{model_tag}.csv"
     )
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH):
-        perform_x_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-            local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH,
+    digital_polling_output_file = (
+        POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE.replace(
+            ".csv", f"_{model_tag}.csv"
         )
-    else:
-        perform_x_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
-            cache_name="x_jointllm_politician_profile_metadata",
-        )
-
-    # Collect every in-window post for each politician without restriction:
-    # num_posts_per_profile=None removes the per-profile cap and
-    # daily_post_budget=None removes the per-run X API post ceiling (subject only
-    # to the X API's own ~3200-most-recent-tweets per-user limit).
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH):
-        perform_x_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=None,
-            local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH,
-        )
-    else:
-        perform_x_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_X,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=None,
-            daily_post_budget=None,
-        )
-
-    # Step 2: Perform profile search of identified politicians with a Tiktok profile (profile metadata and posts) during search period
-    print(
-        "2. Perform profile search of identified politicians with a Tiktok profile (profile metadata and recent posts) during search period"
     )
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH):
-        perform_tiktok_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-            local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH,
-        )
-    else:
-        perform_tiktok_profile_metadata_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
-        )
 
-    if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH):
-        perform_tiktok_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
-            local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH,
+    if skip_collection:
+        print(
+            "Skipping Steps 1-2 (data collection); reusing existing profile metadata/post files."
         )
     else:
-        perform_tiktok_profile_search(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            input_file=POLITICIAN_POOL_FILE_TIKTOK,
-            output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-            start_date=PROFILE_SEARCH_START_DATE,
-            end_date=PROFILE_SEARCH_END_DATE,
-            num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+        # Step 1: Perform profile search of identified politicians with a X profile
+        # (profile metadata and recent posts) during the search period.
+        print(
+            "1. Perform profile search of identified politicians with a X profile (profile metadata and recent posts) during search period"
         )
-        perform_video_transcription(
-            project_name=PROJECT_NAME,
-            execution_date=POLITICIAN_PIPELINE,
-            video_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+        if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH):
+            perform_x_profile_metadata_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_X,
+                output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+                local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_X_FULL_PATH,
+            )
+        else:
+            perform_x_profile_metadata_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_X,
+                output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_X,
+                cache_name="x_jointllm_politician_profile_metadata",
+            )
+
+        # Collect every in-window post for each politician without restriction:
+        # num_posts_per_profile=None removes the per-profile cap and
+        # daily_post_budget=None removes the per-run X API post ceiling (subject only
+        # to the X API's own ~3200-most-recent-tweets per-user limit).
+        if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH):
+            perform_x_profile_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_X,
+                output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+                start_date=PROFILE_SEARCH_START_DATE,
+                end_date=PROFILE_SEARCH_END_DATE,
+                num_posts_per_profile=None,
+                local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_X_FULL_PATH,
+            )
+        else:
+            perform_x_profile_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_X,
+                output_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
+                start_date=PROFILE_SEARCH_START_DATE,
+                end_date=PROFILE_SEARCH_END_DATE,
+                num_posts_per_profile=None,
+                daily_post_budget=None,
+            )
+
+        # Step 2: Perform profile search of identified politicians with a Tiktok profile (profile metadata and posts) during search period
+        print(
+            "2. Perform profile search of identified politicians with a Tiktok profile (profile metadata and recent posts) during search period"
         )
+        if os.path.exists(LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH):
+            perform_tiktok_profile_metadata_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_TIKTOK,
+                output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+                local_file=LOCAL_POLITICIAN_PROFILE_METADATA_FILE_TIKTOK_FULL_PATH,
+            )
+        else:
+            perform_tiktok_profile_metadata_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_TIKTOK,
+                output_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
+            )
+
+        if os.path.exists(LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH):
+            perform_tiktok_profile_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_TIKTOK,
+                output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+                start_date=PROFILE_SEARCH_START_DATE,
+                end_date=PROFILE_SEARCH_END_DATE,
+                num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+                local_file=LOCAL_POLITICIAN_PROFILE_POST_FILE_TIKTOK_FULL_PATH,
+            )
+        else:
+            perform_tiktok_profile_search(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                input_file=POLITICIAN_POOL_FILE_TIKTOK,
+                output_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+                start_date=PROFILE_SEARCH_START_DATE,
+                end_date=PROFILE_SEARCH_END_DATE,
+                num_posts_per_profile=NUM_POSTS_PER_PROFILE,
+            )
+            perform_video_transcription(
+                project_name=PROJECT_NAME,
+                execution_date=POLITICIAN_PIPELINE,
+                video_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
+            )
 
     # Step 3: Perform demographic interview to infer demographic information
     print("3. Perform demographic interview to infer demographic information")
@@ -359,7 +439,7 @@ if __name__ == "__main__":
         x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
         tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-        output_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
+        output_file=demographic_output_file,
         model_name=model_name,
         together_ai_endpoint=together_ai_endpoint,
         grok_endpoint=grok_endpoint,
@@ -375,8 +455,8 @@ if __name__ == "__main__":
         x_post_file=POLITICIAN_PROFILE_SEARCH_FILE_X,
         tiktok_profile_metadata_file=POLITICIAN_PROFILE_METADATA_SEARCH_FILE_TIKTOK,
         tiktok_post_file=POLITICIAN_PROFILE_SEARCH_FILE_TIKTOK,
-        output_file=POLITICIAN_POST_DIGITAL_POLLING_INTERVIEW_FILE,
-        history_file=POLITICIAN_POST_DEMOGRAPHIC_INTERVIEW_FILE,
+        output_file=digital_polling_output_file,
+        history_file=demographic_output_file,
         model_name=model_name,
         together_ai_endpoint=together_ai_endpoint,
         grok_endpoint=grok_endpoint,

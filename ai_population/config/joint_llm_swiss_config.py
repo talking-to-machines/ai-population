@@ -12,8 +12,8 @@ NUM_POSTS_PER_PROFILE = 100000  # Effectively unlimited: above the X API's ~3,20
 NUM_POSTS_PER_PROFILE_FROM_KEYWORD_SEARCH = 20
 MAX_NUM_POSTS_PER_KEYWORD = 100
 POLITICIAN_PIPELINE = "politicians-validation-fullrun"
-VOTER_PIPELINE_X = "voters-x"
-VOTER_PIPELINE_TIKTOK = "voters-tiktok"
+VOTER_PIPELINE_X = "voters-x-fullrun"
+VOTER_PIPELINE_TIKTOK = "voters-tiktok-fullrun"
 PROFILE_SEARCH_START_DATE = "01-01-2023"  # MM-DD-YYYY format
 PROFILE_SEARCH_END_DATE = "06-01-2025"  # MM-DD-YYYY format
 PROFILE_SEARCH_TODAY = datetime.today().strftime("%m-%d-%Y")
@@ -52,17 +52,13 @@ VOTER_ELIGIBLE_PROFILE_SEARCH_FILE_TIKTOK = (
     f"tiktok_jointllm_voter_eligible_profile_search_{VOTER_PIPELINE_TIKTOK}.csv"
 )
 VOTER_TARGET_STRATIFICATION_FRAME_X = (
-    f"x_jointllm_voter_target_stratification_frame_{VOTER_PIPELINE_X}.csv"
+    f"x_jointllm_voter_target_stratification_frame_{VOTER_PIPELINE_X}-final50.csv"
 )
 VOTER_CURRENT_STRATIFICATION_FRAME_X = (
-    f"x_jointllm_voter_current_stratification_frame_{VOTER_PIPELINE_X}.csv"
+    f"x_jointllm_voter_current_stratification_frame_{VOTER_PIPELINE_X}-final50.csv"
 )
-VOTER_TARGET_STRATIFICATION_FRAME_TIKTOK = (
-    f"tiktok_jointllm_voter_target_stratification_frame_{VOTER_PIPELINE_TIKTOK}.csv"
-)
-VOTER_CURRENT_STRATIFICATION_FRAME_TIKTOK = (
-    f"tiktok_jointllm_voter_current_stratification_frame_{VOTER_PIPELINE_TIKTOK}.csv"
-)
+VOTER_TARGET_STRATIFICATION_FRAME_TIKTOK = f"tiktok_jointllm_voter_target_stratification_frame_{VOTER_PIPELINE_TIKTOK}-final50.csv"
+VOTER_CURRENT_STRATIFICATION_FRAME_TIKTOK = f"tiktok_jointllm_voter_current_stratification_frame_{VOTER_PIPELINE_TIKTOK}-final50.csv"
 VOTER_DIGITAL_POLLING_FILE_X = (
     f"x_jointllm_voter_digital_polling_{VOTER_PIPELINE_X}.csv"
 )
@@ -72,7 +68,6 @@ VOTER_DIGITAL_POLLING_FILE_TIKTOK = (
 VOTER_SEARCH_TERMS_X = [
     "Schweizer Bundesrat",
     "Bundesrat Schweiz",
-    "Bundesrätin Schweiz",
     "Nationalrat Schweiz",
     "Nationalrätin Schweiz",
     "Ständerat Schweiz",
@@ -84,16 +79,13 @@ VOTER_SEARCH_TERMS_X = [
     "Schweizer Referendum",
     "Schweizer Initiative",
     "direkte Demokratie Schweiz",
-    "Föderalismus Schweiz",
     "Eidgenossenschaft",
     "Schweizerische Volkspartei",
     "SVP Schweiz",
     "Sozialdemokratische Partei der Schweiz",
     "SP Schweiz",
     "FDP Schweiz",
-    "FDP.Die Liberalen",
     "Grüne Schweiz",
-    "GLP Schweiz",
     "Grünliberale Schweiz",
     "Die Mitte Schweiz",
     "EVP Schweiz",
@@ -105,14 +97,8 @@ VOTER_SEARCH_TERMS_X = [
     "Klimapolitik Schweiz",
     "Conseil fédéral suisse",
     "Conseillère fédérale suisse",
-    "Conseil national suisse",
-    "Conseillère nationale suisse",
-    "Conseil des États suisse",
     "Assemblée fédérale suisse",
     "Palais fédéral suisse",
-    "votation suisse",
-    "initiative populaire suisse",
-    "référendum suisse",
     "démocratie directe suisse",
     "dimanche de vote suisse",
     "Confédération suisse",
@@ -123,39 +109,53 @@ VOTER_SEARCH_TERMS_X = [
     "Parti libéral-radical suisse",
     "Verts Suisse",
     "PVL Suisse",
-    "Le Centre Suisse",
     "élections fédérales suisse",
     "neutralité suisse",
     "accords bilatéraux suisse",
-    "accords bilatéraux III suisse",
     "politique d'asile suisse",
     "politique climatique suisse",
     "Consiglio federale svizzero",
     "Consigliera federale svizzera",
-    "Consiglio nazionale svizzero",
-    "Consiglio degli Stati svizzero",
-    "Assemblea federale svizzera",
-    "Palazzo federale svizzero",
-    "votazione svizzera",
     "iniziativa popolare svizzera",
     "referendum svizzero",
     "democrazia diretta Svizzera",
-    "Confederazione Svizzera",
     "UDC Svizzera",
     "Partito socialista svizzero",
     "PS Svizzera",
     "PLR Svizzera",
-    "Partito liberale-radicale svizzero",
-    "Verdi Svizzera",
-    "PVL Svizzera",
-    "Il Centro Svizzera",
     "Lega dei Ticinesi",
     "elezioni federali svizzera",
-    "neutralità svizzera",
     "accordi bilaterali svizzera",
-    "accordi bilaterali III svizzera",
-    "politica d'asilo svizzera",
-    "politica climatica svizzera",
+    "Krankenkassenprämien",
+    "AHV",
+    "Mieten Schweiz",
+    "Strompreise Schweiz",
+    "Personenfreizügigkeit Schweiz",
+    "Christoph Blocher",
+    "Magdalena Martullo-Blocher",
+    "Albert Rösti",
+    "Marcel Dettling",
+    "Andreas Glarner",
+    "Roger Köppel",
+    "Thomas Aeschi",
+    "Cédric Wermuth",
+    "Mattea Meyer",
+    "Tamara Funiciello",
+    "Fabian Molina",
+    "Jacqueline Badran",
+    "Balthasar Glättli",
+    "Céline Amaudruz",
+    "Jean-Luc Addor",
+    "Yvan Pahud",
+    "Pierre-Yves Maillard",
+    "Ada Marra",
+    "Samuel Bendahan",
+    "Roger Nordmann",
+    "Marco Chiesa",
+    "Lorenzo Quadri",
+    "Piero Marchesi",
+    "Marina Carobbio",
+    "Amalia Mirante",
 ]
 VOTER_SEARCH_TERMS_TIKTOK = [
     "SchweizerPolitik",
