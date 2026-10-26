@@ -249,6 +249,10 @@ def perform_x_finfluencer_interview(
         post_file (str): Path to the file containing post data.
         output_file (str): Name of the output CSV file for interview results.
         filter_original_profiles (bool, optional): If True, filters results to only include original profiles. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Provider override; detected from the model name by default.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to True.
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
 
     Returns:
         None
@@ -364,6 +368,29 @@ def perform_x_prediction_market_interview(
     enable_web_search: bool = True,
     use_row_query: bool = False,
 ) -> None:
+    """
+    Interviews X finfluencer profiles on Polymarket prediction-market questions, processes the
+    results, and saves the formatted output.
+
+    Builds one question block per POLYMARKET_EVENTS contract from the day's market and macro
+    snapshot, runs the interview with each profile's earlier interview as history, extracts
+    and merges the answers, and saves the full results and, optionally, the original-profile subset.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Date of execution, used for organizing data files.
+        profile_metadata_file (str): Filename of the profile metadata CSV, with a history column.
+        post_file (str): Filename of the posts CSV.
+        output_file (str): Filename for saving the output CSV.
+        filter_original_profiles (bool, optional): Whether to also save results for the original profiles only. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Provider override; detected from the model name by default.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to True.
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
+
+    Returns:
+        None
+    """
     snapshot = fetch_daily_snapshot(
         events=POLYMARKET_EVENTS,
         gdp_override=GDP_MANUAL_OVERRIDE,
@@ -498,6 +525,10 @@ def perform_x_stock_recommendation_interview(
         finfluencer_pool (str): Filename for the finfluencer pool CSV.
         output_file (str): Filename for saving the output CSV.
         filter_original_profiles (bool, optional): Whether to filter results to only original profiles. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Provider override; detected from the model name by default.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to True.
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
 
     Returns:
         None
@@ -673,7 +704,29 @@ def perform_x_daily_stock_pick_interview(
     enable_web_search: bool = True,
     use_row_query: bool = False,
 ) -> None:
+    """
+    Interviews the sampled X finfluencer profiles on daily stock picks, processes the results,
+    and saves the formatted output.
 
+    The battery is split into the chunks of daily_stock_pick_user_prompts, each interviewed
+    separately (three at a time) and saved to its own file; chunks whose file already exists are
+    skipped. The chunk answers are then merged into one row per profile.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Date of execution, used for organizing data files.
+        profile_metadata_file (str): Filename of the profile metadata CSV.
+        post_file (str): Filename of the posts CSV.
+        output_file (str): Filename for saving the output CSV; chunk files add a _1, _2, ... suffix.
+        filter_original_profiles (bool, optional): Whether to also save results for the original profiles only. Defaults to False.
+        model_name (str, optional): Model id used for the interview. Defaults to GPT_MODEL.
+        provider (str, optional): Provider override; detected from the model name by default.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to True.
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
+
+    Returns:
+        None
+    """
     profile_metadata = pd.read_csv(
         os.path.join(
             base_dir, "../data", project_name, execution_date, profile_metadata_file
@@ -696,6 +749,12 @@ def perform_x_daily_stock_pick_interview(
     )
 
     def run_daily_stock_pick_interview(idx_prompt):
+        """
+        Runs the interview for one chunk of the battery unless its output file exists.
+
+        Args:
+            idx_prompt (tuple): (chunk index, user prompt template) of the chunk.
+        """
         idx, user_prompt = idx_prompt
         chunk_output_file = output_file[:-4] + f"_{idx+1}.csv"
         chunk_output_path = os.path.join(

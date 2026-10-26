@@ -52,11 +52,21 @@ _grok_clients: dict = {}
 
 
 def _resolve_endpoint_api_key(endpoint: str) -> str:
-    """Select the API key for an OpenAI-compatible endpoint by its host, so each
-    provider keeps its own key in .env instead of sharing one:
-    Hugging Face router -> HF_TOKEN, FriendliAI -> FRIENDLI_TOKEN, everything
-    else (incl. Together AI / self-hosted vLLM) -> TOGETHER_API_KEY. Falls back
-    to TOGETHER_API_KEY when the provider-specific key is unset."""
+    """
+    Selects the API key for an OpenAI-compatible endpoint by its host.
+
+    Each provider keeps its own key in .env instead of sharing one: the Hugging Face
+    router and dedicated endpoints use HF_TOKEN, FriendliAI uses FRIENDLI_TOKEN, and
+    everything else (including Together AI and self-hosted vLLM) uses
+    TOGETHER_API_KEY. Falls back to TOGETHER_API_KEY when the provider-specific key
+    is unset.
+
+    Args:
+        endpoint (str): Base URL of the endpoint, matched case-insensitively.
+
+    Returns:
+        str: The API key to use for the endpoint.
+    """
     ep = (endpoint or "").lower()
     # Matches both the HF Inference router (router.huggingface.co) and dedicated
     # HF Inference Endpoints, which are served from *.endpoints.huggingface.cloud
@@ -69,6 +79,19 @@ def _resolve_endpoint_api_key(endpoint: str) -> str:
 
 
 def _get_together_client(together_ai_endpoint: str) -> OpenAI:
+    """
+    Returns a cached OpenAI client for an OpenAI-compatible endpoint.
+
+    One client is created per endpoint URL on first use, with the API key chosen by
+    `_resolve_endpoint_api_key`, and reused on later calls.
+
+    Args:
+        together_ai_endpoint (str): Base URL of the endpoint (Together AI, Hugging
+            Face, FriendliAI or self-hosted vLLM).
+
+    Returns:
+        OpenAI: The client bound to the endpoint.
+    """
     if together_ai_endpoint not in _together_clients:
         _together_clients[together_ai_endpoint] = OpenAI(
             api_key=_resolve_endpoint_api_key(together_ai_endpoint),
@@ -78,6 +101,19 @@ def _get_together_client(together_ai_endpoint: str) -> OpenAI:
 
 
 def _get_grok_client(grok_endpoint: str = None) -> OpenAI:
+    """
+    Returns a cached OpenAI-compatible client for the xAI API.
+
+    One client is created per endpoint URL on first use, authenticated with
+    XAI_API_KEY, and reused on later calls.
+
+    Args:
+        grok_endpoint (str, optional): Base URL override for the xAI API. Defaults to
+            None, which uses XAI_BASE_URL.
+
+    Returns:
+        OpenAI: The client bound to the endpoint.
+    """
     endpoint = grok_endpoint or XAI_BASE_URL
     if endpoint not in _grok_clients:
         _grok_clients[endpoint] = OpenAI(
@@ -93,10 +129,28 @@ def _detect_provider(
     grok_endpoint: str = None,
     provider: str = None,
 ) -> str:
-    """Resolve provider id ("openai" | "anthropic" | "xai" | "together").
+    """
+    Resolves the provider id ("openai", "anthropic", "xai" or "together").
 
-    Explicit `provider` wins. Otherwise infer from endpoint overrides, then from
-    the model name prefix (claude-* → anthropic, grok-* → xai). Defaults to openai.
+    An explicit `provider` wins. Otherwise the provider is inferred from the endpoint
+    overrides, then from the model name prefix (claude-* → anthropic, grok-* → xai).
+    Defaults to openai.
+
+    Args:
+        model_name (str): Model name used for prefix-based inference.
+        together_ai_endpoint (str, optional): OpenAI-compatible endpoint override; when
+            set, the provider is "together". Defaults to None.
+        grok_endpoint (str, optional): xAI endpoint override; when set, the provider is
+            "xai". Defaults to None.
+        provider (str, optional): Explicit provider, case-insensitive. Accepts "openai",
+            "anthropic", "xai", "together" and the aliases "claude" and "grok".
+            Defaults to None.
+
+    Returns:
+        str: The provider id.
+
+    Raises:
+        ValueError: If `provider` is given but not supported.
     """
     if provider:
         p = provider.lower()
@@ -117,6 +171,15 @@ def _detect_provider(
 
 def _anthropic_web_search_tool() -> dict:
     # Mirror the OpenAI web_search user_location={country: "US"} setting.
+    """
+    Returns the Anthropic web search tool definition.
+
+    The approximate user location is set to the US to mirror the OpenAI web search
+    user_location setting.
+
+    Returns:
+        dict: The tool definition for the request's `tools` list.
+    """
     return {
         "type": "web_search_20250305",
         "name": "web_search",
@@ -131,6 +194,17 @@ def _xai_web_search_tool() -> dict:
     # `/v1/responses`). Restrict to US to mirror OpenAI's user_location.
     # https://docs.x.ai/docs/guides/tools/overview
     # https://docs.x.ai/docs/guides/batch-api
+    """
+    Returns the xAI web search tool definition.
+
+    Uses the Agent Tools `web_search` tool, which replaces the deprecated
+    `search_parameters` field and `live_search` tool and is supported for both
+    real-time `/v1/responses` calls and batch requests routed to `/v1/responses`.
+    Results are restricted to the US to mirror the OpenAI user location.
+
+    Returns:
+        dict: The tool definition for the request's `tools` list.
+    """
     return {"type": "web_search", "country": "US"}
 
 
@@ -155,7 +229,19 @@ def _dump_raw_response(response) -> str:
 
 
 def _extract_anthropic_text(message) -> str:
-    """Return the concatenated text blocks from an Anthropic Message response."""
+    """
+    Returns the concatenated text blocks from an Anthropic Message response.
+
+    Non-text blocks (such as tool use and web search results) are skipped. Blocks may
+    be SDK objects or plain dicts.
+
+    Args:
+        message (anthropic.types.Message): The response message, or any object with a
+            `content` list of blocks.
+
+    Returns:
+        str: The joined text, or an empty string if there is none.
+    """
     parts = []
     for block in getattr(message, "content", []) or []:
         btype = getattr(block, "type", None) or (
@@ -194,14 +280,25 @@ def update_video_metadata(
     filtering_list: list,
 ) -> None:
     """
-    Updates the video metadata by fetching new data, appending it to the existing data,
-    and removing duplicates.
+    Updates the video metadata file with newly scraped videos.
+
+    Fetches new data from the Apify run, appends it to the existing data, and removes
+    duplicate videos by id, keeping the latest entry. New rows are filtered to the
+    requested profiles or search terms and stamped with the extraction time and the
+    author's profile id.
 
     Args:
+        project_name (str): Name of the project folder under data/.
+        video_metadata_file (str): Name of the video metadata CSV in the project folder.
         client (ApifyClient): The Apify client used to fetch video metadata.
         run (dict): The run object containing the default dataset ID.
-        profile_search (bool): A boolean indicating whether the search was for profiles or not.
-        filtering_list (list): A list of search terms or profiles used to filter the search results.
+        profile_search (bool): Whether the search was for profiles (True) or for
+            keywords (False).
+        filtering_list (list): A list of search terms or profiles used to filter the
+            search results.
+
+    Returns:
+        None
     """
     # Fetch extracted video metadata
     video_metadata = pd.DataFrame(
@@ -271,10 +368,19 @@ def update_profile_metadata(
     project_name: str, profile_metadata_file: str, video_metadata_file: str
 ) -> None:
     """
-    Updates the profile metadata for a given project by processing the video metadata.
+    Updates the project's profile metadata by processing the video metadata.
+
+    Parses each video's `authorMeta` field into columns, keeps the latest entry per
+    profile id, drops rows without a valid id, and overwrites the profile metadata
+    CSV.
 
     Args:
-        profile_search (bool): A boolean indicating whether the search was for profiles or not.
+        project_name (str): Name of the project folder under data/.
+        profile_metadata_file (str): Name of the profile metadata CSV to write.
+        video_metadata_file (str): Name of the video metadata CSV to read.
+
+    Returns:
+        None
     """
     # Load video metadata file
     video_metadata_path = f"{base_dir}/../data/{project_name}/{video_metadata_file}"
@@ -317,11 +423,18 @@ def identify_top_influencers(
     top_n_profiles: int, project_name: str, profile_metadata_file: str
 ) -> None:
     """
-    Identifies the top N influencers based on the number of followers from a profile metadata file
-    and saves their profiles to a text file.
+    Identifies the top N influencers by follower count and saves them to a text file.
+
+    Profiles are read from the profile metadata file, ranked by the `fans` column and
+    written one per line to config/{project_name}_profiles.txt.
 
     Args:
-        top_n_profiles (int): The number of top profiles to identify based on the number of followers.
+        top_n_profiles (int): The number of top profiles to identify based on the
+            number of followers.
+        project_name (str): Project name, used for the data folder and the output file
+            name.
+        profile_metadata_file (str): Name of the profile metadata CSV in the project's
+            data folder.
 
     Returns:
         None
@@ -498,6 +611,23 @@ def calculate_profile_engagement(num_likes: str, num_fans_videos: str) -> float:
 def construct_system_prompt(
     row: pd.Series, system_prompt_template: str, interview_type: str
 ) -> str:
+    """
+    Builds the system prompt for one profile row.
+
+    Fills the template with the profile fields for the interview's platform: TikTok
+    fields when `interview_type` starts with "tiktok", X fields when it starts with
+    "x", both for the joint politician interviews, and none otherwise. Finfluencer
+    onboarding interviews also receive the profile's investment advisor expert
+    reflection.
+
+    Args:
+        row (pd.Series): Profile row holding the profile fields and combined posts.
+        system_prompt_template (str): Template with named placeholders.
+        interview_type (str): Interview type that selects which fields are filled.
+
+    Returns:
+        str: The formatted system prompt.
+    """
     if interview_type.startswith("tiktok"):
         profile_args = {
             "profile_image": row.get("profile_pic_url", ""),
@@ -620,6 +750,22 @@ def construct_system_prompt(
 def construct_user_prompt(
     row: pd.Series, user_prompt_template: str, interview_type: str
 ) -> str:
+    """
+    Builds the user prompt for one row.
+
+    Daily stock pick interviews get the Russell 4000 ticker list as comma-separated
+    "Company (TICKER)" entries; stock recommendation interviews get the stock name,
+    ticker, mention date and post; the X voting preference interview gets the row's
+    municipality ("NA" if missing). Other interview types return the template as is.
+
+    Args:
+        row (pd.Series): Row holding the prompt fields.
+        user_prompt_template (str): Template with named placeholders.
+        interview_type (str): Interview type that selects which fields are filled.
+
+    Returns:
+        str: The formatted user prompt.
+    """
     if interview_type.startswith(
         "tiktok_finfluencer_daily_stock_pick"
     ) or interview_type.startswith("x_finfluencer_daily_stock_pick"):
@@ -665,6 +811,23 @@ def construct_user_prompt(
 
 def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Series:
     # Split the text by double newlines to separate different questions
+    """
+    Parses an LLM response into a Series of answers keyed by question and field.
+
+    The text is split into blocks at each "**question:" marker and blocks containing
+    an excluded substring are dropped. Fields written as "**<field>: <value>**" (such
+    as explanation, response, stock ticker, recommendation, confidence or
+    probability) are stored under "<question> - <field>"; missing or empty fields are
+    omitted.
+
+    Args:
+        text (str): Raw response text. None, NaN or blank text yields an empty Series.
+        substring_exclusion_list (list, optional): Substrings that mark question blocks
+            to skip. Defaults to [].
+
+    Returns:
+        pd.Series: The extracted values indexed by "<question> - <field>".
+    """
     if (
         text is None
         or (isinstance(text, float) and pd.isna(text))
@@ -899,17 +1062,20 @@ def extract_llm_responses(text, substring_exclusion_list: list = []) -> pd.Serie
 def coalesce_columns_by_regex(data: pd.DataFrame, regex_list: list) -> pd.DataFrame:
     """
     Coalesces columns in a DataFrame that match any of the provided regex patterns.
-    For each regex pattern in `regex_list`, finds all columns whose names match the pattern (case-insensitive).
-    Among the matching columns, retains the one with the fewest missing values, and fills its missing values
-    using the next best matching columns (row-wise, using backfill). All other matching columns are dropped.
 
-    Parameters:
+    For each regex pattern in `regex_list`, finds all columns whose names match the
+    pattern (case-insensitive). Among the matching columns, retains the one with the
+    fewest missing values, fills its missing values row-wise from the next best
+    matching columns (backfill), and drops all other matching columns.
+
+    Args:
         data (pd.DataFrame): The input DataFrame whose columns are to be coalesced.
         regex_list (list): A list of regex patterns (strings) to match column names.
 
     Returns:
-        pd.DataFrame: The DataFrame with coalesced columns, where for each pattern only one column remains,
-        containing the most complete set of values from the original matching columns.
+        pd.DataFrame: The DataFrame with coalesced columns, where for each pattern only
+            one column remains, containing the most complete set of values from the
+            original matching columns.
     """
     for pattern in regex_list:
         compiled_pattern = re.compile(pattern, flags=re.IGNORECASE)
@@ -992,6 +1158,20 @@ def format_stock_mentions(stock_mentions_str: str) -> pd.DataFrame:
 
 def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
     # Define regex patterns for each field
+    """
+    Parses one stock recommendation response into a Series of fields.
+
+    Extracts the mentioned_by_finfluencer, recommendation, explanation, confidence,
+    virality, risks, horizon and conflicts values written as "**<field>: <value>**".
+    Missing fields are None.
+
+    Args:
+        stock_recommendation_str (str): Raw response text. NaN or blank text yields a
+            Series of None values.
+
+    Returns:
+        pd.Series: The extracted values indexed by field name.
+    """
     mentioned_by_finfluencer_pattern = r"\*\*mentioned_by_finfluencer: (.*?)\*\*"
     recommendation_pattern = r"\*\*recommendation: (.*?)\*\*"
     explanation_pattern = r"\*\*explanation: (.*?)\*\*"
@@ -1050,6 +1230,16 @@ def format_stock_recommendations(stock_recommendation_str: str) -> pd.Series:
 
 def _coerce_history(x):
     # Accept list or JSON string; return list[{"role","content"}]
+    """
+    Normalizes a conversation history value into a list of messages.
+
+    Args:
+        x (list or str): History as a list of {"role", "content"} dicts or a JSON
+            string of one. None, NaN or invalid JSON yields an empty list.
+
+    Returns:
+        list: The messages as dicts with "role" and "content" keys.
+    """
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return []
     if isinstance(x, str):
@@ -1062,8 +1252,16 @@ def _coerce_history(x):
 
 def messages_to_input(messages: list) -> str:
     """
-    Convert a list of chat messages (each a dict with 'role' and 'content')
-    into a single transcript string for the Responses API 'input'.
+    Converts a list of chat messages into a single transcript string.
+
+    The transcript is used as the Responses API `input`. Each non-empty message
+    becomes a "ROLE: content" line with the role upper-cased.
+
+    Args:
+        messages (list): Chat messages, each a dict with "role" and "content" keys.
+
+    Returns:
+        str: The newline-joined transcript.
     """
     lines = []
     for m in messages:
@@ -1643,10 +1841,18 @@ def _xai_batch_query(
 
 
 def _extract_xai_batch_result_text(item: dict) -> str:
-    """Pull the assistant text out of an xAI batch result item.
+    """
+    Pulls the assistant text out of an xAI batch result item.
 
-    Handles both /v1/chat/completions and /v1/responses shapes. xAI nests the
-    payload under `batch_result.response.<endpoint_key>` per their docs.
+    Handles both /v1/chat/completions and /v1/responses shapes. xAI nests the payload
+    under `batch_result.response.<endpoint_key>` per their docs. For Responses output,
+    `output_text` is preferred, otherwise the text of `output[*].content[*]` is joined.
+
+    Args:
+        item (dict): One result item returned by the xAI batch results endpoint.
+
+    Returns:
+        str: The assistant text, or None (with a warning) if no text can be found.
     """
     # Direct chat-completions shape (legacy / unwrapped)
     try:
@@ -1951,6 +2157,22 @@ def extract_tweets(
     profile_id: str, tweet_metadata: pd.DataFrame, latest_k_posts: int = None
 ) -> str:
     # Filter the rows where profile_id matches
+    """
+    Builds the combined tweet text for one profile.
+
+    Selects the profile's tweets, sorts them newest first, optionally keeps only the
+    latest k, formats each with the tweet prompt template (missing columns become
+    empty strings) and joins them with blank lines.
+
+    Args:
+        profile_id (str): Account id matched against the `account_id` column.
+        tweet_metadata (pd.DataFrame): Tweet metadata for all profiles.
+        latest_k_posts (int, optional): Keep only the latest k tweets. Defaults to
+            None, which keeps all tweets.
+
+    Returns:
+        str: The formatted tweets, or an empty string if the profile has none.
+    """
     filtered_tweets = tweet_metadata[tweet_metadata["account_id"] == profile_id].copy()
 
     # Sort the filtered videos by creation time from latest to oldest
@@ -2030,15 +2252,21 @@ def extract_tweets(
 
 
 def _is_retryable_endpoint_error(e: Exception) -> bool:
-    """Return True if an LLM call failure looks like a transient endpoint issue
-    that a short wait can clear.
+    """
+    Checks whether an LLM call failure looks like a transient endpoint issue.
 
-    Self-hosted / serverless endpoints (e.g. OLMo on a GPU that goes to sleep)
-    surface recoverable failures as: connection refusals, 5xx / "endpoint is
-    unavailable" responses, timeouts, or an empty response body that later
-    blows up as "'NoneType' object is not subscriptable" when we index
-    ``response.choices[0]``. Genuine client errors (bad request, auth) are not
-    retried so we don't stall for minutes on a permanent failure.
+    Self-hosted and serverless endpoints (e.g. OLMo on a GPU that goes to sleep)
+    surface recoverable failures as connection refusals, 429 or 5xx / "endpoint is
+    unavailable" responses, timeouts, or an empty response body that later fails as
+    "'NoneType' object is not subscriptable" when indexing ``response.choices[0]``.
+    Genuine client errors (bad request, auth) are not retried so a permanent failure
+    does not stall the run for minutes.
+
+    Args:
+        e (Exception): The exception raised by the call.
+
+    Returns:
+        bool: True if a short wait and retry may clear the failure.
     """
     if isinstance(e, APITimeoutError):
         return True
@@ -2432,6 +2660,15 @@ def perform_profile_interview(
     raw_response_field = f"{llm_response_field}_raw"
 
     def _run_row_query():
+        """
+        Runs every row through the model in real time.
+
+        Queries the rows in parallel threads and adds the response, query timestamp and, when
+        capture_raw_response is set, raw response columns.
+
+        Returns:
+            pd.DataFrame: A copy of profile_metadata with the response columns added.
+        """
         df = profile_metadata.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
@@ -2455,6 +2692,17 @@ def perform_profile_interview(
 
         def run_row_query(row):
             # row_query(row, args=(...)) matches your previous progress_apply usage
+            """
+            Queries the model for one row and records when the query started.
+
+            Args:
+                row (pd.Series): Profile row holding the system and user prompts.
+
+            Returns:
+                dict: The response text, the UTC query timestamp and the raw response (None unless
+                    capture_raw_response is set) under the keys response, response_timestamp and
+                    raw_response.
+            """
             response_timestamp = (
                 pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
             )
@@ -2485,6 +2733,16 @@ def perform_profile_interview(
         return df
 
     def _run_batch_query():
+        """
+        Runs every row through the provider's batch API and merges the responses back.
+
+        Writes the batch input file, waits for the batch output and joins the responses onto
+        profile_metadata by custom_id, so rows missing from the batch output are dropped.
+
+        Returns:
+            pd.DataFrame: profile_metadata with the response column, plus the raw response column
+                when capture_raw_response is set.
+        """
         batch_input_file = f"{interview_type}_batch_input.jsonl"
         batch_output_file = f"{interview_type}_batch_output.jsonl"
 
@@ -2563,11 +2821,25 @@ def merge_profile_metadata_via_validation(
     x_username_col: str = "username_2025_x",
 ) -> pd.DataFrame:
     """
-    Outer-merge TikTok and X profile metadata using a politician validation
-    file as the bridge: TikTok joins on account_id == <tiktok_username_col>,
-    X joins on account_id == <x_username_col>. Empty-string usernames in the
-    validation file are treated as missing so they don't collide on join.
-    Overlapping columns between the two platforms get `_tiktok` / `_x` suffixes.
+    Outer-merges TikTok and X profile metadata using a politician validation file as the bridge.
+
+    Empty-string usernames in the validation file are treated as missing so they don't collide
+    on join, and rows matching neither platform are dropped. Overlapping columns between the two
+    platforms get _tiktok / _x suffixes.
+
+    Args:
+        tiktok_profile_metadata (pd.DataFrame): TikTok profiles, joined on account_id.
+        x_profile_metadata (pd.DataFrame): X profiles, joined on account_id.
+        validation_file_path (str): Path to the Excel validation file holding the username
+            columns and a name column.
+        tiktok_username_col (str, optional): Validation column matched to TikTok account_id.
+            Defaults to "username_2025_tiktok".
+        x_username_col (str, optional): Validation column matched to X account_id.
+            Defaults to "username_2025_x".
+
+    Returns:
+        pd.DataFrame: The merged profile metadata with account_id_tiktok and account_id_x
+            columns, including profiles not listed in the validation file.
     """
     validation = pd.read_excel(validation_file_path)[
         [tiktok_username_col, x_username_col, "name"]
@@ -2623,6 +2895,52 @@ def perform_profile_interview_x_tiktok(
     grok_endpoint: str = None,
     provider: str = None,
 ) -> None:
+    """
+    Interviews every politician on their combined X and TikTok profiles and saves the responses.
+
+    Builds each X profile's post history and each TikTok profile's transcript history, merges the
+    two platforms through the politician validation file in data/joint-llm-swiss, then builds the
+    prompts, queries the model through the provider's batch API (or row by row) and writes the
+    rows, prompts and responses to output_file.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder the files are read from and written to.
+        model_name (str): Model id used for every request.
+        x_profile_metadata_file (str): CSV of X profiles to interview.
+        x_post_file (str): CSV of X posts used to build each X profile's post history.
+        tiktok_profile_metadata_file (str): CSV of TikTok profiles to interview.
+        tiktok_post_file (str): CSV of TikTok posts used to build each TikTok profile's
+            transcript history.
+        output_file (str): Name of the output CSV.
+        system_prompt_template (str): System prompt template filled from each merged row.
+        user_prompt_template (str): User prompt template.
+        llm_response_field (str): Output column holding the response text.
+        interview_type (str): Interview name, used for the prompt columns and batch files.
+        history_field (str, optional): Column holding prior conversation turns. Defaults to None.
+        history_file (str, optional): CSV of a prior interview whose history_field is carried
+            into this one, matched on the username_2025_x and username_2025_tiktok keys. Used
+            only together with history_field. Defaults to None.
+        vector_store_ids (list, optional): OpenAI vector stores for the file_search tool. Defaults to [].
+        use_row_query (bool, optional): Query row by row instead of using the batch API. Defaults to False.
+        enable_web_search (bool, optional): Attach the provider's web search tool. Defaults to False.
+        response_timestamp_col (str, optional): Output column for the per-row query time in row mode.
+            Defaults to "".
+        latest_k_posts (int, optional): Keep only each X profile's latest k posts. Defaults to None.
+        batch_timeout_seconds (int, optional): Fall back to row mode if the batch takes longer.
+            Defaults to 7200.
+        together_ai_endpoint (str, optional): OpenAI-compatible endpoint (Together, FriendliAI, HF).
+            Defaults to None.
+        grok_endpoint (str, optional): xAI endpoint override. Defaults to None.
+        provider (str, optional): Provider override; detected from the model name when None.
+            Defaults to None.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If both together_ai_endpoint and grok_endpoint are given.
+    """
     if together_ai_endpoint and grok_endpoint:
         raise ValueError(
             "Pass at most one of together_ai_endpoint or grok_endpoint, not both."
@@ -2732,6 +3050,16 @@ def perform_profile_interview_x_tiktok(
         ):
 
             def _crosswalk_key(df: pd.DataFrame) -> pd.Series:
+                """
+                Builds the key that identifies a politician across X and TikTok.
+
+                Args:
+                    df (pd.DataFrame): Frame with username_2025_x and username_2025_tiktok columns.
+
+                Returns:
+                    pd.Series: "<x username>|<tiktok username>" per row, with missing usernames as empty
+                        strings.
+                """
                 return (
                     df["username_2025_x"].fillna("").astype(str)
                     + "|"
@@ -2779,6 +3107,14 @@ def perform_profile_interview_x_tiktok(
     )
 
     def _run_row_query():
+        """
+        Runs every merged row through the model in real time.
+
+        Queries the rows in parallel threads and adds the response and query timestamp columns.
+
+        Returns:
+            pd.DataFrame: A copy of profile_metadata_combined with the response columns added.
+        """
         df = profile_metadata_combined.copy()
         row_query_args = [
             f"{interview_type}_system_prompt",
@@ -2798,6 +3134,16 @@ def perform_profile_interview_x_tiktok(
         rows = [row for _, row in profile_metadata_combined.iterrows()]
 
         def run_row_query(row):
+            """
+            Queries the model for one row and records when the query started.
+
+            Args:
+                row (pd.Series): Merged profile row holding the system and user prompts.
+
+            Returns:
+                dict: The response text and the UTC query timestamp under the keys response and
+                    response_timestamp.
+            """
             response_timestamp = (
                 pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
             )
@@ -2817,6 +3163,15 @@ def perform_profile_interview_x_tiktok(
         return df
 
     def _run_batch_query():
+        """
+        Runs every merged row through the provider's batch API and merges the responses back.
+
+        Writes the batch input file, waits for the batch output and joins the responses onto
+        profile_metadata_combined by custom_id, so rows missing from the batch output are dropped.
+
+        Returns:
+            pd.DataFrame: profile_metadata_combined with the response column added.
+        """
         batch_input_file = f"{interview_type}_batch_input.jsonl"
         batch_output_file = f"{interview_type}_batch_output.jsonl"
 
@@ -2885,6 +3240,22 @@ def build_profile_prompt(
     video_metadata_file: str,
 ) -> None:
     # Load profile and video metadata
+    """
+    Builds a TikTok profile prompt for every profile and saves the updated metadata.
+
+    Combines each profile's past video transcripts with its profile fields and engagement ratios
+    in tiktok_profile_prompt_template, stored in a profile_prompt column. Files are read from and
+    written to the project folder.
+
+    Args:
+        project_name (str): Name of the project directory.
+        profile_metadata_input_file (str): CSV of profile metadata with an id column.
+        profile_metadata_output_file (str): Name of the CSV the updated metadata is written to.
+        video_metadata_file (str): CSV of video metadata with authorMeta and createTimeISO columns.
+
+    Returns:
+        None
+    """
     print("Loading profile and video metadata...")
     profile_metadata = pd.read_csv(
         f"{base_dir}/../data/{project_name}/{profile_metadata_input_file}"
@@ -2951,20 +3322,22 @@ def perform_video_transcription(
     historical_post_file: str = None,
 ) -> None:
     """
-    Perform video transcription for a given project by downloading videos, transcribing them,
-    and updating the video metadata file.
+    Performs video transcription for a project by downloading videos, transcribing them and updating the video metadata file.
+
+    Only videos without a transcript are processed, and the metadata file is rewritten after each
+    transcript so an interrupted run can resume. Downloaded videos are deleted afterwards.
 
     Args:
         project_name (str): The name of the project. Used to organize data and video files.
         execution_date (str): The date of the pipeline execution, used to create a unique directory name.
-        video_metadata_file (str): The name of the CSV file containing video metadata.
-                                   This file should be located in the project's data folder.
+        video_file (str): The name of the CSV file containing video metadata, located in the
+            execution-date folder.
         historical_post_file (str, optional): When provided, the transcript-enriched posts are
-            appended to this persistent CSV (deduplicated on ``post_id``, keeping the latest
-            version), creating it if it does not yet exist. This is the TikTok analog of the X
-            historical post file; accumulation happens here (rather than in
-            ``perform_tiktok_profile_search``) because video transcripts are only available after
-            transcription completes. Defaults to None (no accumulation).
+            appended to this persistent CSV (deduplicated on post_id, keeping the latest version),
+            creating it if it does not yet exist. This is the TikTok analog of the X historical
+            post file; accumulation happens here (rather than in perform_tiktok_profile_search)
+            because video transcripts are only available after transcription completes.
+            Defaults to None (no accumulation).
 
     Raises:
         FileNotFoundError: If the specified video metadata file does not exist.
@@ -3312,24 +3685,23 @@ def perform_tiktok_keyword_search(
     num_posts_per_keyword: int,
 ) -> pd.DataFrame:
     """
-    Perform a TikTok keyword search using the Bright Data API and save the results to a CSV file.
+    Performs a TikTok keyword search using the Bright Data API and saves the results to a CSV file.
+
+    Dead pages and failed crawls are removed from the results.
 
     Args:
-        project_name (str): The name of the project. A subfolder with this name will be created
+        project_name (str): The name of the project. A subfolder with this name is created
             within the data folder to store the output file.
-        execute_date (str): The date of the pipeline execution, used to create a unique directory name.
-        search_terms (list): The list containing the search terms,
-            one term per line.
-        output_file (str): The file path where the resulting CSV file will be saved.
+        execution_date (str): The date of the pipeline execution, used to create a unique directory name.
+        search_terms (list): The search terms, one keyword search per term.
+        output_file (str): Name of the CSV file the results are saved to in the execution-date folder.
         num_posts_per_keyword (int): The maximum number of posts that should be returned per keyword search.
 
     Returns:
-        pd.DataFrame: Returns the keyword search results as a pandas Dataframe.
+        pd.DataFrame: The keyword search results.
 
     Raises:
-        requests.exceptions.RequestException: If there is an issue with the API request.
-        KeyError: If the response from the API does not contain the expected keys.
-        ValueError: If the response data is not in the expected format.
+        RuntimeError: If the results snapshot cannot be retrieved after MAX_RETRIES attempts.
     """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -3430,6 +3802,31 @@ def perform_tiktok_profile_search(
     local_file: str = None,
 ) -> pd.DataFrame:
     # Create the project subfolder within the data folder if it does not exist
+    """
+    Collects TikTok video posts for each profile in a pool within a date window and saves them to a CSV.
+
+    Posts are fetched through the Bright Data API, with dead pages and failed crawls removed, or
+    filtered from local_file when one is given.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder the output is written to.
+        input_file (str): CSV in the project folder whose account_id column lists the TikTok
+            handles to search.
+        output_file (str): Name of the output CSV in the execution-date folder.
+        start_date (str): Start of the post window (inclusive).
+        end_date (str): End of the post window (exclusive when filtering local_file).
+        num_posts_per_profile (int): Maximum number of posts requested per profile from the API.
+            Not used with local_file.
+        local_file (str, optional): Path to a CSV of previously collected posts to filter by
+            account_id and create_time instead of calling the API. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The collected posts.
+
+    Raises:
+        RuntimeError: If the API results snapshot cannot be retrieved after MAX_RETRIES attempts.
+    """
     base_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(base_dir, "../data"), exist_ok=True)
     os.makedirs(os.path.join(base_dir, "../data", project_name), exist_ok=True)
@@ -3721,14 +4118,31 @@ def perform_x_keyword_search(
     end_date: str = None,
     search_endpoint: str = "all",
 ) -> pd.DataFrame:
-    """Keyword search via the X API v2 search endpoint (X API only, no Abundance).
+    """
+    Runs a keyword search via the X API v2 search endpoint (X API only, no Abundance) and saves the results to a CSV.
 
-    Uses the full-archive endpoint (``/2/tweets/search/all``) by default so the
-    study's historical post window can be searched; pass ``search_endpoint="recent"``
-    to use the last-7-days endpoint instead. ``start_date``/``end_date`` (YYYY-MM-DD)
-    bound the search to the trace window. Each retained row carries the author's
-    handle under ``account_id`` — the field the downstream profile-search steps
-    key on. Requires ``X_BEARER_TOKEN``; raises via ``load_x_bearer`` if absent.
+    Each retained row carries the author's handle under account_id, the field the downstream
+    profile-search steps key on; rows without a handle are dropped. Requires X_BEARER_TOKEN;
+    load_x_bearer raises if it is absent.
+
+    Args:
+        project_name (str): Name of the project directory.
+        execution_date (str): Execution date folder the output is written to.
+        search_terms (list): Phrases to search for. Each is matched exactly, and retweets and
+            replies are excluded.
+        output_file (str): Name of the output CSV in the execution-date folder.
+        num_posts_per_keyword (int): Maximum number of posts kept per search term.
+        start_date (str, optional): Start date (YYYY-MM-DD) bounding the search to the trace
+            window, from 00:00 UTC. Defaults to None.
+        end_date (str, optional): End date (YYYY-MM-DD) bounding the search to the trace window,
+            up to 00:00 UTC on that day. Defaults to None.
+        search_endpoint (str, optional): "all" for the full-archive endpoint (/2/tweets/search/all),
+            so the study's historical post window can be searched, or "recent" for the
+            last-7-days endpoint. Defaults to "all".
+
+    Returns:
+        pd.DataFrame: Posts with columns id, createdAt, text, account_id, search_keyword,
+            hashtags and tagged_users.
     """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -3918,7 +4332,16 @@ X_API_METADATA_COLUMNS = [
 
 # --- canonical value helpers (shared by both sources) ----------------------
 def _x_coerce_dict(val) -> dict:
-    """Return val as a dict, parsing a JSON/Python-literal string if needed."""
+    """
+    Returns a value as a dict, parsing a JSON or Python-literal string if needed.
+
+    Args:
+        val (Any): Dict, or a JSON / Python-literal string encoding a dict.
+
+    Returns:
+        dict: The input dict, the parsed dict, or an empty dict when the value
+            cannot be parsed into a dict.
+    """
     if isinstance(val, dict):
         return val
     if isinstance(val, str) and val.strip():
@@ -3933,9 +4356,19 @@ def _x_coerce_dict(val) -> dict:
 
 
 def _x_to_iso(value) -> str:
-    """Normalize any supported datetime representation to a canonical ISO-8601
-    UTC string. Handles the X classic format ('Mon Jul 27 13:22:17 +0000 2026')
-    and ISO inputs alike; returns '' when the value is missing/unparseable."""
+    """
+    Normalizes a datetime representation to a canonical ISO-8601 UTC string.
+
+    Handles the X classic format ('Mon Jul 27 13:22:17 +0000 2026') and ISO
+    inputs alike.
+
+    Args:
+        value (Any): Datetime value or string to normalize.
+
+    Returns:
+        str: 'T'-separated ISO-8601 UTC string, or '' when the value is missing
+            or unparseable.
+    """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
     s = str(value).strip()
@@ -3948,12 +4381,21 @@ def _x_to_iso(value) -> str:
 
 
 def _x_post_created_at(value) -> str:
-    """Canonical post 'createdAt': space-separated ISO-8601 with a colon UTC offset
-    ('2026-07-29 12:31:44+00:00').
+    """
+    Formats a post createdAt value as space-separated ISO-8601 UTC.
 
-    This matches the legacy historical-file format (a pandas datetime serialized by
-    to_csv), so the accumulating x_finfluencer_historical_profile_search.csv stays in
-    one consistent format instead of mixing space- and 'T'-separated timestamps."""
+    The canonical form ('2026-07-29 12:31:44+00:00') matches the legacy
+    historical-file format (a pandas datetime serialized by to_csv), so the
+    accumulating x_finfluencer_historical_profile_search.csv stays in one
+    consistent format instead of mixing space- and 'T'-separated timestamps.
+
+    Args:
+        value (Any): Datetime value or string to format.
+
+    Returns:
+        str: Space-separated ISO-8601 UTC string, or '' when the value is
+            missing or unparseable.
+    """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
     ts = pd.to_datetime(str(value).strip(), utc=True, errors="coerce")
@@ -3963,16 +4405,22 @@ def _x_post_created_at(value) -> str:
 
 
 def parse_x_created_at(series: pd.Series) -> pd.Series:
-    """Parse an X 'createdAt' column that may hold a mix of formats into tz-aware
-    UTC timestamps.
+    """
+    Parses a mixed-format X createdAt column into tz-aware UTC timestamps.
 
     Post files (especially the accumulating historical file) can contain, in the
-    same column: canonical ISO-8601 with a 'T' ('2026-07-29T12:31:44+00:00'),
-    legacy space-separated datetimes ('2025-09-29 15:26:57+00:00'), and the X
-    classic string ('Wed Jul 27 13:22:17 +0000 2026'). A single fixed-format parse
-    breaks on such mixes, so this parses the ISO forms vectorised (fast) and only
-    falls back to per-element parsing for the leftover classic rows. Unparseable
-    values become NaT."""
+    same column, canonical ISO-8601 with a 'T' ('2026-07-29T12:31:44+00:00'),
+    legacy space-separated datetimes ('2025-09-29 15:26:57+00:00') and the X
+    classic string ('Wed Jul 27 13:22:17 +0000 2026'). A single fixed-format
+    parse breaks on such mixes, so the ISO forms are parsed vectorised and only
+    the leftover non-empty rows fall back to per-element mixed-format parsing.
+
+    Args:
+        series (pd.Series): Raw createdAt values.
+
+    Returns:
+        pd.Series: Tz-aware UTC timestamps; unparseable values become NaT.
+    """
     parsed = pd.to_datetime(series, format="ISO8601", utc=True, errors="coerce")
     leftover = parsed.isna() & series.notna() & (series.astype(str).str.strip() != "")
     if leftover.any():
@@ -3983,6 +4431,19 @@ def parse_x_created_at(series: pd.Series) -> pd.Series:
 
 
 def _x_to_bool(value) -> bool:
+    """
+    Coerces a flag value from either X data source to a bool.
+
+    The strings 'true', '1' and 'yes' map to True and 'false', '0', 'no' and ''
+    map to False (case-insensitive); None and NaN map to False; any other value
+    falls back to Python truthiness.
+
+    Args:
+        value (Any): Value to coerce.
+
+    Returns:
+        bool: The coerced flag.
+    """
     if isinstance(value, bool):
         return value
     if value is None or (isinstance(value, float) and pd.isna(value)):
@@ -3996,14 +4457,33 @@ def _x_to_bool(value) -> bool:
 
 
 def _x_hashtags_str(entities) -> str:
-    """Canonical hashtags: comma-separated tag texts derived from v1 entities."""
+    """
+    Builds the canonical hashtags string from v1-style entities.
+
+    Args:
+        entities (dict | str): v1-style entities dict, or its JSON / Python-literal
+            string form.
+
+    Returns:
+        str: Comma-separated hashtag texts, or '' when there are none.
+    """
     e = _x_coerce_dict(entities)
     tags = [h.get("text", "") for h in e.get("hashtags", []) if isinstance(h, dict)]
     return ", ".join(t for t in tags if t)
 
 
 def _x_tagged_users_str(entities) -> str:
-    """Canonical tagged users: comma-separated screen-name handles from entities."""
+    """
+    Builds the canonical tagged-users string from v1-style entities.
+
+    Args:
+        entities (dict | str): v1-style entities dict, or its JSON / Python-literal
+            string form.
+
+    Returns:
+        str: Comma-separated screen-name handles from the user mentions, or ''
+            when there are none.
+    """
     e = _x_coerce_dict(entities)
     users = [
         m.get("screen_name", "")
@@ -4014,12 +4494,31 @@ def _x_tagged_users_str(entities) -> str:
 
 
 def _x_author_username(author) -> str:
+    """
+    Extracts the author's username from a post's author field.
+
+    Args:
+        author (dict | str): Author dict, or its JSON / Python-literal string form.
+
+    Returns:
+        str: The author's 'userName', or '' when it is absent.
+    """
     d = author if isinstance(author, dict) else _x_coerce_dict(author)
     return d.get("userName", "")
 
 
 # --- X API v2 low-level access ---------------------------------------------
 def _x_read_token_from_env_file(env_file: str):
+    """
+    Reads the X_BEARER_TOKEN value from a .env file.
+
+    Args:
+        env_file (str): Path to the .env file.
+
+    Returns:
+        str | None: Value of the first line starting with 'X_BEARER_TOKEN=', or
+            None when the file does not exist or has no such line.
+    """
     if os.path.exists(env_file):
         with open(env_file, "r", encoding="utf-8") as f:
             for line in f.read().splitlines():
@@ -4029,10 +4528,20 @@ def _x_read_token_from_env_file(env_file: str):
 
 
 def load_x_bearer() -> str:
-    """Return the X API v2 bearer token from the environment or config .env.
+    """
+    Returns the X API v2 bearer token from the environment or a config .env file.
 
-    Raises RuntimeError when unavailable, which the callers use as the signal to
-    fall back to the Abundance API."""
+    Checks the X_BEARER_TOKEN environment variable first, then the .env file next
+    to this module and ai_population/config/.env. Callers use the RuntimeError as
+    the signal to fall back to the Abundance API.
+
+    Returns:
+        str: The bearer token.
+
+    Raises:
+        RuntimeError: When no token is found in the environment or either .env
+            file.
+    """
     token = os.environ.get("X_BEARER_TOKEN")
     if not token:
         src_dir = os.path.dirname(os.path.abspath(__file__))
@@ -4051,9 +4560,24 @@ def load_x_bearer() -> str:
 
 
 def _x_api_get(url: str, headers: dict, params: dict, failures: list, tag: str):
-    """GET with timeout, 429 wait, and retries on transport/5xx errors.
+    """
+    Performs a GET request with a timeout, 429 waits and retries.
 
-    Returns parsed json, or None after recording a failure entry."""
+    Retries up to MAX_RETRIES times on transport errors and 5xx responses (with
+    linear backoff) and on 429 responses (sleeping until the rate-limit reset,
+    capped at 900 seconds). Any other non-200 status is recorded immediately
+    without retrying.
+
+    Args:
+        url (str): Request URL.
+        headers (dict): Request headers, including the authorization header.
+        params (dict): Query parameters.
+        failures (list): List that failure entries are appended to in place.
+        tag (str): Label identifying the call in failure entries.
+
+    Returns:
+        dict | None: Parsed JSON body, or None after recording a failure entry.
+    """
     last = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -4084,6 +4608,16 @@ def _x_api_get(url: str, headers: dict, params: dict, failures: list, tag: str):
 
 
 def _x_load_uid_cache(path: str) -> dict:
+    """
+    Loads the handle-to-user-id cache from a CSV file.
+
+    Args:
+        path (str): Path to the cache CSV with 'handle' and 'user_id' columns.
+
+    Returns:
+        dict: Mapping of handle to user id, skipping empty entries; empty when
+            the file does not exist.
+    """
     if not os.path.exists(path):
         return {}
     df = pd.read_csv(path, dtype=str, keep_default_na=False)
@@ -4091,13 +4625,34 @@ def _x_load_uid_cache(path: str) -> dict:
 
 
 def _x_save_uid_cache(cache: dict, path: str) -> None:
+    """
+    Saves the handle-to-user-id cache to a CSV file, sorted by handle.
+
+    Args:
+        cache (dict): Mapping of handle to user id.
+        path (str): Destination CSV path.
+    """
     pd.DataFrame(sorted(cache.items()), columns=["handle", "user_id"]).to_csv(
         path, index=False
     )
 
 
 def _x_lookup_users(handles, headers, failures) -> list:
-    """Batched /users/by lookup (<=100 handles per request)."""
+    """
+    Looks up X users by handle via batched /users/by requests.
+
+    Sends at most 100 handles per request and pauses one second after each
+    successful batch. Every handle in a failed batch, and each per-handle error
+    returned by the API, is recorded in ``failures``.
+
+    Args:
+        handles (list[str]): Handles to look up.
+        headers (dict): Request headers, including the authorization header.
+        failures (list): List that failure entries are appended to in place.
+
+    Returns:
+        list: X API v2 user objects returned across all batches.
+    """
     users = []
     for i in range(0, len(handles), 100):
         batch = handles[i : i + 100]
@@ -4124,6 +4679,17 @@ def _x_lookup_users(handles, headers, failures) -> list:
 
 
 def _x_merge_uid_cache(cache: dict, users: list, requested: list) -> None:
+    """
+    Adds resolved user ids for the requested handles to the cache in place.
+
+    Handles are matched to the returned usernames case-insensitively and stored
+    under the requested spelling; unresolved handles are left out.
+
+    Args:
+        cache (dict): Mapping of handle to user id, updated in place.
+        users (list): X API v2 user objects from a /users/by lookup.
+        requested (list): Handles that were requested.
+    """
     by_lower = {u["username"].lower(): str(u["id"]) for u in users}
     for h in requested:
         uid = by_lower.get(h.lower())
@@ -4132,7 +4698,17 @@ def _x_merge_uid_cache(cache: dict, users: list, requested: list) -> None:
 
 
 def _x_entities_v1(t: dict) -> dict:
-    """Map X API v2 entities onto the v1-style shape the pipeline parsers use."""
+    """
+    Maps X API v2 entities onto the v1-style shape the pipeline parsers use.
+
+    Args:
+        t (dict): X API v2 tweet object.
+
+    Returns:
+        dict: v1-style entities with 'hashtags' (text), 'user_mentions'
+            (screen_name, id_str) and 'urls' (url, expanded_url, display_url)
+            lists.
+    """
     ent = t.get("entities", {}) or {}
     return {
         "hashtags": [{"text": h.get("tag", "")} for h in ent.get("hashtags", [])],
@@ -4153,7 +4729,20 @@ def _x_entities_v1(t: dict) -> dict:
 
 # --- X API v2 -> canonical row builders ------------------------------------
 def _x_profile_row(u: dict) -> dict:
-    """Map an X API v2 user object onto the canonical profile-metadata schema."""
+    """
+    Maps an X API v2 user object onto the canonical profile-metadata schema.
+
+    Fields not exposed by X API v2 (coverPicture, canDm,
+    affiliatesHighlightedLabel, isAutomated, automatedBy) are left empty.
+    isVerified is True for business or government verified types, and
+    isBlueVerified reflects the v2 'verified' flag.
+
+    Args:
+        u (dict): X API v2 user object.
+
+    Returns:
+        dict: Row keyed by the canonical profile-metadata columns.
+    """
     m = u.get("public_metrics", {})
     verified_type = u.get("verified_type", "") or ""
     return {
@@ -4190,7 +4779,21 @@ def _x_profile_row(u: dict) -> dict:
 
 
 def _x_post_row(t: dict, handle: str, user_id: str) -> dict:
-    """Map an X API v2 tweet onto the canonical post schema."""
+    """
+    Maps an X API v2 tweet onto the canonical post schema.
+
+    Builds the x.com and twitter.com post URLs from the handle, converts the
+    entities to the v1 shape, derives the comma-separated hashtags and tagged
+    users, and formats createdAt in the canonical space-separated form.
+
+    Args:
+        t (dict): X API v2 tweet object.
+        handle (str): Author handle.
+        user_id (str): Author's X user id.
+
+    Returns:
+        dict: Row keyed by the canonical post columns.
+    """
     m = t.get("public_metrics", {})
     refs = t.get("referenced_tweets", []) or []
     ents = _x_entities_v1(t)
@@ -4230,16 +4833,34 @@ def _x_post_row(t: dict, handle: str, user_id: str) -> dict:
 def _x_pull_handle(
     handle, user_id, start, end, headers, failures, budget_left, per_handle_cap
 ):
-    """Collect originals for one handle inside [start, end).
+    """
+    Collects original posts for one handle inside [start, end).
 
     ``per_handle_cap`` and ``budget_left`` are upper bounds on how many posts to
     keep for this handle; either may be None to mean "no limit" for that
     dimension. When both are None the timeline is paginated until the
     [start, end) window is exhausted (subject to the X API's own
-    ~3200-most-recent-tweets ceiling per user).
+    ~3200-most-recent-tweets ceiling per user). Page size is trimmed to what is
+    still needed (within the API's 5 to 100 range) to avoid fetching posts that
+    would be discarded. Retweets and replies are excluded, and pagination stops
+    early if a request fails.
 
-    Returns (rows, posts_billed). Page size is trimmed to what is still needed so
-    the API never returns posts that would be discarded."""
+    Args:
+        handle (str): X handle, used in post URLs and failure tags.
+        user_id (str): X user id whose timeline is fetched.
+        start (str): Inclusive window start as an ISO-8601 UTC timestamp.
+        end (str): Exclusive window end as an ISO-8601 UTC timestamp.
+        headers (dict): Request headers, including the authorization header.
+        failures (list): List that failure entries are appended to in place.
+        budget_left (int | None): Remaining run-level post budget, or None for
+            no limit.
+        per_handle_cap (int | None): Maximum posts to keep for this handle, or
+            None for no limit.
+
+    Returns:
+        tuple[list[dict], int]: Canonical post rows, and the number of posts
+            billed (every post the API returned, including any beyond the cap).
+    """
     bounds = [c for c in (per_handle_cap, budget_left) if c is not None]
     cap = min(bounds) if bounds else None  # None => unbounded
     rows, billed, next_token = [], 0, None
@@ -4279,9 +4900,22 @@ def _x_pull_handle(
 
 # --- normalization of either source's output to the canonical schema -------
 def _normalize_x_metadata(df: pd.DataFrame) -> pd.DataFrame:
-    """Coerce a profile-metadata DataFrame (from X API or Abundance) to the
-    canonical schema: ISO createdAt, boolean flags, and all canonical columns
-    present (missing filled with '')."""
+    """
+    Coerces a profile-metadata DataFrame to the canonical schema.
+
+    Accepts output from either the X API or Abundance: converts createdAt to
+    ISO-8601 UTC, coerces the protected, isVerified, isBlueVerified and
+    unavailable flags to booleans, and adds any missing canonical columns filled
+    with ''. Canonical columns come first in a stable order, followed by any
+    source-specific extras.
+
+    Args:
+        df (pd.DataFrame): Raw profile metadata; may be None or empty.
+
+    Returns:
+        pd.DataFrame: Normalized copy, or an empty DataFrame with the canonical
+            columns when the input is None or empty.
+    """
     if df is None or df.empty:
         return pd.DataFrame(columns=X_API_METADATA_COLUMNS)
     df = df.copy()
@@ -4299,9 +4933,23 @@ def _normalize_x_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _normalize_x_posts(df: pd.DataFrame) -> pd.DataFrame:
-    """Coerce a posts DataFrame (from X API or Abundance) to the canonical schema:
-    account_id from author, comma-separated hashtags/tagged_users derived from the
-    v1 entities, ISO createdAt, and all canonical columns present."""
+    """
+    Coerces a posts DataFrame to the canonical post schema.
+
+    Accepts output from either the X API or Abundance: derives account_id from
+    author, derives comma-separated hashtags and tagged_users from the v1
+    entities (empty when there is no entities column), formats createdAt as
+    space-separated ISO-8601 UTC, and adds any missing canonical columns filled
+    with ''. Canonical columns come first in a stable order, followed by any
+    source-specific extras.
+
+    Args:
+        df (pd.DataFrame): Raw posts; may be None or empty.
+
+    Returns:
+        pd.DataFrame: Normalized copy, or an empty DataFrame with the canonical
+            columns when the input is None or empty.
+    """
     if df is None or df.empty:
         return pd.DataFrame(columns=X_API_POST_COLUMNS)
     df = df.copy()
@@ -4325,12 +4973,22 @@ def _normalize_x_posts(df: pd.DataFrame) -> pd.DataFrame:
 
 # --- primary fetchers (X API) + Abundance fallback -------------------------
 def fetch_x_api_profile_metadata(handles, uid_cache_path: str) -> pd.DataFrame:
-    """Fetch X API v2 profile metadata for handles in the canonical schema.
+    """
+    Fetches X API v2 profile metadata for handles in the canonical schema.
 
-    Raises RuntimeError when the bearer token is unavailable and returns an empty
-    DataFrame when the API resolves nothing; either signals the caller to fall back
-    to Abundance. Opportunistically refreshes the user-id cache so a subsequent
-    posts pull can skip the lookups."""
+    The RuntimeError propagated from load_x_bearer when the bearer token is
+    unavailable, or an empty DataFrame when the API resolves nothing, signals the
+    caller to fall back to Abundance. Also refreshes the user-id cache so a
+    subsequent posts pull can skip the lookups.
+
+    Args:
+        handles (Iterable[str]): X handles to look up.
+        uid_cache_path (str): Path to the handle-to-user-id cache CSV, which is
+            updated with the resolved ids.
+
+    Returns:
+        pd.DataFrame: One canonical profile-metadata row per resolved user.
+    """
     handles = list(handles)
     headers = {"Authorization": f"Bearer {load_x_bearer()}"}  # raises if no token
     failures: list = []
@@ -4342,8 +5000,22 @@ def fetch_x_api_profile_metadata(handles, uid_cache_path: str) -> pd.DataFrame:
 
 
 def _fetch_x_profile_metadata_with_fallback(handles, project_dir: str) -> pd.DataFrame:
-    """X API v2 metadata with a per-run wholesale Abundance fallback, normalized to
-    the canonical schema regardless of which source served the request."""
+    """
+    Fetches X profile metadata from X API v2 with a wholesale Abundance fallback.
+
+    When the bearer token is unavailable, the X API call fails or it returns no
+    metadata, a warning is issued and the whole request is served by the
+    Abundance get_user_info API instead. The result is normalized to the
+    canonical schema regardless of which source served the request.
+
+    Args:
+        handles (Iterable[str]): X handles to look up.
+        project_dir (str): Project data folder holding the x_user_id_cache.csv
+            user-id cache.
+
+    Returns:
+        pd.DataFrame: Profile metadata in the canonical schema.
+    """
     uid_cache_path = os.path.join(project_dir, "x_user_id_cache.csv")
     try:
         df = fetch_x_api_profile_metadata(handles, uid_cache_path)
@@ -4367,17 +5039,33 @@ def _fetch_x_posts_from_xapi(
     uid_cache_path,
     daily_post_budget=X_API_DAILY_BUDGET_POSTS,
 ):
-    """Pull each handle's originals for [start_date, end_date) from X API v2.
+    """
+    Pulls each handle's original posts for [start_date, end_date) from X API v2.
 
-    ``num_posts_per_profile`` caps posts collected per handle (None => no cap).
-    ``daily_post_budget`` caps total posts billed across the whole run (None =>
-    no per-run ceiling). With both None every handle is fully drained for the
-    window, subject only to the X API's own ~3200-most-recent-tweets per-user
-    ceiling.
+    ``num_posts_per_profile`` caps posts collected per handle (None means no
+    cap). ``daily_post_budget`` caps total posts billed across the whole run
+    (None means no per-run ceiling); once it is reached the remaining handles
+    are skipped. With both None every handle is fully drained for the window,
+    subject only to the X API's own ~3200-most-recent-tweets per-user ceiling.
+    Handles missing from the user-id cache are looked up first and the cache is
+    saved.
 
-    Returns (DataFrame in canonical post schema, ok). ok=False signals a wholesale
-    X API failure (missing token / auth down / zero handles resolved), which the
-    caller uses to fall back to Abundance."""
+    Args:
+        profile_list (list[str]): X handles to collect posts for.
+        start_date (str): Inclusive window start date (YYYY-MM-DD).
+        end_date (str): Exclusive window end date (YYYY-MM-DD).
+        num_posts_per_profile (int | None): Maximum posts per handle, or None for
+            no cap.
+        uid_cache_path (str): Path to the handle-to-user-id cache CSV.
+        daily_post_budget (int | None): Maximum posts billed across the run, or
+            None for no ceiling. Defaults to X_API_DAILY_BUDGET_POSTS.
+
+    Returns:
+        tuple[pd.DataFrame, bool]: Posts in the canonical post schema, and an ok
+            flag that is False on a wholesale X API failure (missing token, or
+            zero handles resolved, e.g. when auth is down), which the caller uses
+            to fall back to Abundance.
+    """
     try:
         headers = {"Authorization": f"Bearer {load_x_bearer()}"}
     except RuntimeError as exc:
@@ -4432,10 +5120,26 @@ def _fetch_x_posts_from_xapi(
 
 
 def _fetch_x_posts_from_abundance(profile_list, start_date, num_posts_per_profile):
-    """Abundance get_tweets fallback: raw posts DataFrame (pre-normalization).
+    """
+    Fetches raw posts from the Abundance get_tweets API as the fallback source.
 
-    num_posts_per_profile=None means "no per-profile cap"; Abundance requires a
-    numeric max_tweets_per_user, so an effectively-unlimited ceiling is sent."""
+    Each profile is retried up to MAX_RETRIES times on decode, timeout and
+    request errors, and skipped on an HTTP error or once retries are exhausted.
+    num_posts_per_profile=None means no per-profile cap; since Abundance requires
+    a numeric max_tweets_per_user, an effectively unlimited ceiling
+    (X_API_ABUNDANCE_UNLIMITED_POSTS) is sent instead. Only start_date is sent as
+    the cut-off; the caller applies the end of the window.
+
+    Args:
+        profile_list (list[str]): X handles to collect posts for.
+        start_date (str): Cut-off date (YYYY-MM-DD) from which posts are
+            requested.
+        num_posts_per_profile (int | None): Maximum posts per profile, or None
+            for no cap.
+
+    Returns:
+        pd.DataFrame: Raw posts as returned by Abundance, before normalization.
+    """
     max_tweets_per_user = (
         X_API_ABUNDANCE_UNLIMITED_POSTS
         if num_posts_per_profile is None
@@ -4499,16 +5203,49 @@ def perform_x_profile_search(
     historical_post_file: str = None,
     daily_post_budget: int = X_API_DAILY_BUDGET_POSTS,
 ) -> pd.DataFrame:
-    """Collect X posts for a pool of profiles within [start_date, end_date).
+    """
+    Collects X posts for a pool of profiles within [start_date, end_date).
+
+    The pool is read from the account_id column of input_file. Without a
+    local_file, posts are pulled from X API v2, falling back to the Abundance API
+    for the entire run on a wholesale X API failure, then normalized to the
+    canonical schema and filtered to the window. With a local_file, the pool's
+    in-window rows are read from that CSV instead. Results are written to
+    output_file under the execution-date folder and, when historical_post_file is
+    given, merged into that file (keeping the newest row per post id).
 
     ``num_posts_per_profile`` caps posts collected per profile; pass None to
     collect every post in the window per profile. ``daily_post_budget`` caps the
-    total posts fetched from the X API across the whole run (safety/cost ceiling);
-    pass None to disable it. Set both to None to extract all in-window posts for
-    every profile without restriction (subject to the X API's own
-    ~3200-most-recent-tweets per-user ceiling). Both knobs apply to the X API
-    (primary) and Abundance (fallback) paths; they are ignored when reading a
-    ``local_file``, which returns all in-window rows for the pool regardless.
+    total posts fetched from the X API across the whole run (safety/cost
+    ceiling); pass None to disable it. Set both to None to extract all in-window
+    posts for every profile without restriction (subject to the X API's own
+    ~3200-most-recent-tweets per-user ceiling). num_posts_per_profile applies to
+    both the X API (primary) and Abundance (fallback) paths, while
+    daily_post_budget applies only to the X API; both are ignored when reading a
+    local_file, which returns all in-window rows for the pool regardless.
+
+    Args:
+        project_name (str): Project subfolder under ../data.
+        execution_date (str): Execution-date subfolder for this run's outputs, in
+            DD-MM-YYYY format.
+        input_file (str): CSV (relative to the project folder) with an
+            'account_id' column listing the profile pool.
+        output_file (str): Filename for this run's posts under the execution-date
+            folder.
+        start_date (str): Inclusive window start date (YYYY-MM-DD).
+        end_date (str): Exclusive window end date (YYYY-MM-DD).
+        num_posts_per_profile (int): Maximum posts per profile, or None for no
+            cap. Defaults to None.
+        local_file (str): CSV of previously collected posts to read instead of
+            calling the APIs. Defaults to None.
+        historical_post_file (str): Filename of an existing accumulating posts file
+            under the execution-date folder to merge the results into. Defaults to
+            None.
+        daily_post_budget (int): Maximum posts fetched from the X API across the
+            run, or None for no ceiling. Defaults to X_API_DAILY_BUDGET_POSTS.
+
+    Returns:
+        pd.DataFrame: Posts collected for the pool within the window.
     """
     # Create the project subfolder within the data folder if it does not exist
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -4931,7 +5668,27 @@ def perform_x_profile_metadata_search(
 
 
 def fred_get(series_id, observation_start, observation_end, sort_order="desc", limit=1):
-    """Fetch observations from FRED API, return a sorted DataFrame."""
+    """
+    Fetches observations for a series from the FRED API.
+
+    Requests up to ``limit`` observations in ``sort_order`` and returns them
+    sorted by ascending date, with non-numeric values coerced to NaN.
+
+    Args:
+        series_id (str): FRED series id (e.g. 'DFF').
+        observation_start (datetime.date): First observation date.
+        observation_end (datetime.date): Last observation date.
+        sort_order (str): Sort order sent to FRED ('asc' or 'desc'); 'desc'
+            returns the most recent observations. Defaults to 'desc'.
+        limit (int): Maximum number of observations to request. Defaults to 1.
+
+    Returns:
+        pd.DataFrame: 'date' (datetime) and 'value' (float) columns sorted by
+            ascending date.
+
+    Raises:
+        EnvironmentError: When FRED_API_KEY is not set.
+    """
     api_key = FRED_API_KEY
     if not api_key:
         raise EnvironmentError("FRED_API_KEY not set.")
@@ -4956,7 +5713,23 @@ def fred_get(series_id, observation_start, observation_end, sort_order="desc", l
 
 
 def get_macro_today(gdp_override=None):
-    """Pull latest macro indicators from FRED, return a long-format DataFrame."""
+    """
+    Pulls the latest US macro indicators from FRED as a long-format DataFrame.
+
+    Collects the effective Fed funds rate (DFF), CPI year-over-year change
+    (CPIAUCSL, latest observation against the last one at or before 11 months
+    earlier), the unemployment rate (UNRATE) and annualised quarter-on-quarter
+    real GDP growth (GDPC1), looking back from today's date.
+
+    Args:
+        gdp_override (float | None): GDP growth value to use instead of computing
+            it from FRED. Defaults to None.
+
+    Returns:
+        pd.DataFrame: One row per indicator (fed_rate, cpi_yoy, unemp_rate,
+            gdp_growth) with 'variable', 'description', 'contract_id' (None) and
+            'value' columns.
+    """
     today = date.today()
 
     # Fed Funds Rate (DFF — daily)
@@ -4999,9 +5772,24 @@ def get_macro_today(gdp_override=None):
 
 
 def get_market_price_today(market_id, description):
-    """Fetch latest implied probability and contract volume from Polymarket.
+    """
+    Fetches the latest implied probability and contract volume from Polymarket.
 
-    Resolved markets return 0 or 100 depending on NO/YES outcome.
+    The market is looked up among active, then closed, then archived markets,
+    and the most recent daily price of its first CLOB token is used. When no
+    price history is available the price falls back to resolutionYes and then
+    outcomePrices, so resolved markets return 0 or 100 depending on the NO/YES
+    outcome. Any error is issued as a warning and yields None values.
+
+    Args:
+        market_id (str): Polymarket market id.
+        description (str): Label for the contract, printed and stored in the
+            description column.
+
+    Returns:
+        pd.DataFrame: Two rows, polymarket_p (YES probability in percent) and
+            contract_volume (volume in USD), with 'variable', 'description',
+            'contract_id' and 'value' columns.
     """
     print(f"Downloading: {description}")
     time.sleep(0.5)
@@ -5080,7 +5868,21 @@ def get_market_price_today(market_id, description):
 
 
 def fetch_daily_snapshot(events, gdp_override=None):
-    """Fetch macro indicators + per-contract Polymarket prices. Always live."""
+    """
+    Fetches macro indicators and per-contract Polymarket prices.
+
+    Always pulls live data.
+
+    Args:
+        events (list[dict]): Contracts to price, each with 'market_id' and
+            'description' keys.
+        gdp_override (float | None): GDP growth value passed to get_macro_today
+            instead of computing it from FRED. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Macro indicator rows followed by the Polymarket rows, in the
+            long format of get_macro_today and get_market_price_today.
+    """
     print("Downloading: macro indicators")
     macro_rows = get_macro_today(gdp_override=gdp_override)
     poly_rows = pd.concat(
