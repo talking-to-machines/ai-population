@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="ai_population/config/.env")
@@ -8,7 +9,9 @@ load_dotenv(dotenv_path="ai_population/config/.env")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Common configurations for market signals project
-PIPELINE_EXECUTION_DATE = (datetime.today().date() - timedelta(days=1)).strftime(
+PIPELINE_TIMEZONE = "Asia/Singapore"  # dates below are the same on any server clock
+PIPELINE_TODAY = datetime.now(ZoneInfo(PIPELINE_TIMEZONE)).date()
+PIPELINE_EXECUTION_DATE = (PIPELINE_TODAY - timedelta(days=1)).strftime(
     "%d-%m-%Y"
 )  # DD-MM-YYYY  # 1 day before the current date
 MIN_FOLLOWER_COUNT = 5000
@@ -17,11 +20,11 @@ MIN_POSTS_COUNT = 10
 NUM_POSTS_PER_KEYWORD = 100
 NUM_POSTS_PER_PROFILE = 20
 LATEST_K_POSTS_PER_PROFILE = 850
-PROFILE_SEARCH_START_DATE = (datetime.today().date() - timedelta(days=1)).strftime(
+PROFILE_SEARCH_START_DATE = (PIPELINE_TODAY - timedelta(days=1)).strftime(
     "%m-%d-%Y"
 )  # MM-DD-YYYY  (Inclusive)  # 1 day before the current date
-PROFILE_SEARCH_END_DATE = (
-    datetime.today().date().strftime("%m-%d-%Y")
+PROFILE_SEARCH_END_DATE = PIPELINE_TODAY.strftime(
+    "%m-%d-%Y"
 )  # MM-DD-YYYY format  (Exclusive)  # the current date
 RUSSELL_4000_STOCK_TICKER_FILE = "russell4000_stock_tickers_shorten.csv"
 SP_500_STOCK_TICKER_FILE = "sp500_stock_tickers_shorten.csv"
@@ -981,3 +984,16 @@ BASELINE_QC_THRESHOLDS_X = {
     "warn_completeness": 0.95,
     "warn_parse_yield": 0.90,
 }
+
+# End-of-run cleanup and Dropbox uploads ({d} = drop date, {i} = stock-pick chunk)
+INTERMEDIATE_FILES_X = [
+    "x_finfluencer_daily_stock_pick_{d}_{i}.csv",
+    "x_finfluencer_sampled_profiles_{d}.csv",
+    "batch-files",
+]
+DROPBOX_TRADING_APP_FOLDER_X = "/Apps/market-signal-data"
+DROPBOX_TRADING_APP_FILES_X = ["x_finfluencer_daily_stock_pick_{d}_full.csv"]
+DROPBOX_PROJECT_FOLDER_X = (
+    "/T2M Projects/Projects/Market Signals/Phase 2/Sept-Dec 2025/X"
+)
+DROPBOX_SYNC_LOG_FILE_X = "dropbox_sync_log.csv"

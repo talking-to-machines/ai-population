@@ -110,6 +110,8 @@ from ai_population.src.baseline_arms import (
     yes_cell_schedule,
 )
 
+from ai_population.src.dropbox_sync import sync_after_step_9, sync_after_step_10
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -1195,10 +1197,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--date",
-        dest="arms_date",
+        dest="drop_date",
         type=str,
         default=None,
-        help="Drop date (DD-MM-YYYY) for --arms-only.",
+        help="Drop date (DD-MM-YYYY) for --arms-only or --sync-only.",
     )
     parser.add_argument(
         "--arms-dry-run",
@@ -1231,17 +1233,48 @@ if __name__ == "__main__":
             "arm clock. Their timing is logged as 'override', never as clean."
         ),
     )
+    parser.add_argument(
+        "--sync-dropbox",
+        dest="sync_dropbox",
+        action="store_true",
+        default=False,
+        help=(
+            "Delete the intermediate files and upload the outputs to Dropbox after "
+            "steps 9 and 10."
+        ),
+    )
+    parser.add_argument(
+        "--sync-only",
+        dest="sync_only",
+        action="store_true",
+        default=False,
+        help="Only run the cleanup and Dropbox uploads for an existing drop (requires --date).",
+    )
+    parser.add_argument(
+        "--sync-dry-run",
+        dest="sync_dry_run",
+        action="store_true",
+        default=False,
+        help="List the files the sync would delete and upload without changing anything.",
+    )
     args = parser.parse_args()
     model_name = args.model_name
     provider = args.provider
     enable_web_search = args.enable_web_search
     use_row_query = args.use_row_query
     run_arms = args.baseline_arms or args.arms_only
-    if args.arms_only and not args.arms_date:
-        parser.error("--arms-only requires --date DD-MM-YYYY.")
-    if args.arms_date and not args.arms_only:
+    run_sync = args.sync_dropbox or args.sync_only
+    run_production = not (args.arms_only or args.sync_only)
+    if (args.arms_only or args.sync_only) and not args.drop_date:
+        parser.error("--arms-only and --sync-only require --date DD-MM-YYYY.")
+    if args.drop_date and run_production:
         parser.error(
-            "--date is only used with --arms-only; production runs on PIPELINE_EXECUTION_DATE."
+            "--date is only used with --arms-only or --sync-only; production runs on "
+            "PIPELINE_EXECUTION_DATE."
+        )
+    if args.sync_only and (args.arms_only or args.baseline_arms):
+        parser.error(
+            "--sync-only cannot be combined with --arms-only or --baseline-arms."
         )
     if args.arms_dry_run and not args.arms_only:
         parser.error("--arms-dry-run requires --arms-only.")
@@ -1249,11 +1282,15 @@ if __name__ == "__main__":
         parser.error(
             "--arm-cells and --ignore-arm-clock require --baseline-arms or --arms-only."
         )
-    if args.arms_date:
+    if args.sync_dry_run and not run_sync:
+        parser.error("--sync-dry-run requires --sync-dropbox or --sync-only.")
+    if args.drop_date:
         try:
-            datetime.strptime(args.arms_date, "%d-%m-%Y")
+            datetime.strptime(args.drop_date, "%d-%m-%Y")
         except ValueError:
-            parser.error(f"--date {args.arms_date!r} is not in DD-MM-YYYY format.")
+            parser.error(f"--date {args.drop_date!r} is not in DD-MM-YYYY format.")
+    run_date = args.drop_date or PIPELINE_EXECUTION_DATE
+    exit_statuses = []
 
     # # Step 1: Perform search using predefined list of search terms
     # print("1. Perform keyword search using predefined list of search terms...")
@@ -1322,7 +1359,7 @@ if __name__ == "__main__":
     #     prediction_threshold=PREDICTION_THRESHOLD_X,
     # )
 
-    if not args.arms_only:
+    if run_production:
         # Step 6: Perform profile search of identified financial influencers (profile metadata and posts)
         print(
             "6. Perform profile search of identified financial influencers (profile metadata and recent posts) during the search period..."
@@ -1405,14 +1442,25 @@ if __name__ == "__main__":
             use_row_query=use_row_query,
         )
 
+    # Upload the daily stock pick file; keep the intermediate files for the arms
+    if run_sync:
+        print(f"Sync the {run_date} daily stock pick file to Dropbox...")
+        exit_statuses.append(
+            sync_after_step_9(
+                project_name=PROJECT_NAME_X,
+                execution_date=run_date,
+                cleanup=not run_arms,
+                dry_run=args.sync_dry_run,
+            )
+        )
+
     # Step 10: Run baseline arms on the day's drop
     if run_arms:
-        arms_date = args.arms_date or PIPELINE_EXECUTION_DATE
-        print(f"10. Run baseline arms on the {arms_date} drop...")
+        print(f"10. Run baseline arms on the {run_date} drop...")
         try:
             arms_status = perform_x_baseline_arms(
                 project_name=PROJECT_NAME_X,
-                execution_date=arms_date,
+                execution_date=run_date,
                 model_name=model_name,
                 provider=provider,
                 enable_web_search=enable_web_search,
@@ -1424,8 +1472,24 @@ if __name__ == "__main__":
         except Exception as e:
             if not isinstance(e, BaselineArmsError):
                 traceback.print_exc()
-            print(f"BASELINE {arms_date}: FAIL {e}")
+            print(f"BASELINE {run_date}: FAIL {e}")
             if not args.arms_dry_run:
-                log_arm_failure(PROJECT_NAME_X, arms_date, str(e))
+                log_arm_failure(PROJECT_NAME_X, run_date, str(e))
             arms_status = 2
-        sys.exit(arms_status)
+        exit_statuses.append(arms_status)
+
+    # Clean up and upload the drop and baseline folders
+    if run_sync:
+        print(f"Sync the {run_date} drop and baseline folders to Dropbox...")
+        exit_statuses.append(
+            sync_after_step_10(
+                project_name=PROJECT_NAME_X,
+                execution_date=run_date,
+                cleanup=run_arms,
+                expect_baseline=run_arms or args.sync_only,
+                dry_run=args.sync_dry_run,
+            )
+        )
+
+    if exit_statuses:
+        sys.exit(max(exit_statuses))
