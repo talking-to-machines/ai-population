@@ -25,6 +25,16 @@ notify() {
     fi
 }
 
+# On macOS, keep the machine from sleeping while the pipeline runs (idle sleep on
+# battery or AC, system sleep on AC); closing the lid still sleeps it.
+keep_awake() {
+    if command -v caffeinate >/dev/null 2>&1; then
+        caffeinate -is "$@"
+    else
+        "$@"
+    fi
+}
+
 mkdir -p "$LOG_DIR"
 
 if [ -f "$LOCK_FILE" ] && kill -0 "$(cat "$LOCK_FILE")" 2>/dev/null; then
@@ -45,7 +55,10 @@ ln -sf "$LOG_FILE" "$LOG_DIR/latest.log"
 cd "$REPO_DIR" || exit 1
 {
     echo "=== start $(date -u '+%Y-%m-%d %H:%M:%S UTC') on $(hostname): $*"
-    "$PYTHON_BIN" -m ai_population.src.market_signals_x --model "$MODEL" "$@"
+    if command -v pmset >/dev/null 2>&1; then
+        echo "=== power: $(pmset -g batt | head -1); sleep prevented while running"
+    fi
+    keep_awake "$PYTHON_BIN" -m ai_population.src.market_signals_x --model "$MODEL" "$@"
     status=$?
     echo "=== end $(date -u '+%Y-%m-%d %H:%M:%S UTC') exit status $status"
 } >> "$LOG_FILE" 2>&1
