@@ -2,7 +2,11 @@
 # Daily run of the X market-signals pipeline (production, baseline arms and Dropbox uploads).
 #
 # Usage: run_daily_pipeline.sh [market_signals_x arguments]
-#   With no arguments it runs: --baseline-arms --sync-dropbox
+#   With no arguments it runs: --baseline-arms --sync-dropbox, at most once per day
+#   (Singapore date), so cron can call it every 15 minutes and missed slots are
+#   caught up. Daily runs only start from 08:00 Singapore time, when the drop date
+#   rolls over. Set FORCE_RUN=1 to run again on a day that has already started,
+#   or before 08:00.
 # Set PYTHON_BIN or MODEL to override the defaults on another machine.
 # Each run writes cron_logs/run_<UTC time>.log under the data folder; latest.log
 # points to the most recent one.
@@ -12,8 +16,10 @@ set -u
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-/opt/anaconda3/envs/market-signals-tiktok/bin/python}"
 MODEL="${MODEL:-gpt-5-mini-2025-08-07}"
+FORCE_RUN="${FORCE_RUN:-0}"
 LOG_DIR="$REPO_DIR/ai_population/data/market-signals-x/cron_logs"
 LOCK_FILE="$LOG_DIR/.running.pid"
+STARTED_MARKER="$LOG_DIR/.started_$(TZ=Asia/Singapore date '+%Y-%m-%d')"
 LOG_RETENTION_DAYS=90
 
 export PYTHONUTF8=1
@@ -37,15 +43,25 @@ keep_awake() {
 
 mkdir -p "$LOG_DIR"
 
+DAILY_RUN=0
+if [ "$#" -eq 0 ]; then
+    DAILY_RUN=1
+    if [ "$FORCE_RUN" != "1" ]; then
+        if [ -f "$STARTED_MARKER" ] || [ "$(TZ=Asia/Singapore date '+%H')" -lt 8 ]; then
+            exit 0
+        fi
+    fi
+fi
+
 if [ -f "$LOCK_FILE" ] && kill -0 "$(cat "$LOCK_FILE")" 2>/dev/null; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') skipped: run $(cat "$LOCK_FILE") still in progress" >> "$LOG_DIR/skipped.log"
-    notify "Skipped: the previous run is still in progress"
-    exit 1
+    exit 0
 fi
 echo $$ > "$LOCK_FILE"
 trap 'rm -f "$LOCK_FILE"' EXIT
 
-if [ "$#" -eq 0 ]; then
+if [ "$DAILY_RUN" -eq 1 ]; then
+    touch "$STARTED_MARKER"
     set -- --baseline-arms --sync-dropbox
 fi
 
@@ -69,5 +85,5 @@ case "$status" in
     *) notify "FAILED (exit $status). See latest.log" ;;
 esac
 
-find "$LOG_DIR" -name 'run_*.log' -mtime +"$LOG_RETENTION_DAYS" -delete
+find "$LOG_DIR" \( -name 'run_*.log' -o -name '.started_*' \) -mtime +"$LOG_RETENTION_DAYS" -delete
 exit "$status"
